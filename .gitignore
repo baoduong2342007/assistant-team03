@@ -1,0 +1,24 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing & Tooling caches
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+ENV/
+
+# Local settings & Secrets
+.env
+.env.*
+!.env.example
+.vscode/
+.DS_Store
+
+# Data
+data/raw/
