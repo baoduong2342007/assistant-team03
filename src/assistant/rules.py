@@ -33,7 +33,7 @@ def reply(message: str, offices: dict[str, dict[str, str]] | None = None) -> str
         )
     offices = offices if offices is not None else load_offices()
     # Compare complete words so 'it' does not match inside 'university'.
-    query = f" {' '.join(re.findall(r'\w+', text))} "
+    query = " " + " ".join(re.findall(r"\w+", text)) + " "
     names = {name: re.findall(r"\w+", name.lower()) for name in offices}
     matches = [
         row for name, row in offices.items()
