@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -22,8 +23,31 @@ def reply(message: str, offices: dict[str, dict[str, str]] | None = None) -> str
         return "Please type a question."
     if text in GREETINGS:
         return "Hello! Ask me where an office is, or when it opens."
+    if text == "help":
+        return (
+            "I can greet you and look up campus office locations and opening hours.\n"
+            "- Greeting: 'hi' or 'xin chao'.\n"
+            "- Location: 'where is the training office?' or 'where is training'.\n"
+            "- Opening hours: 'when does the library open?'\n"
+            "Use a full office name if a short name matches several offices."
+        )
     offices = offices if offices is not None else load_offices()
-    for name, row in offices.items():
-        if name in text:
-            return f"{row['name']}: room {row['room']}, open {row['hours']}."
+    # Compare complete words so 'it' does not match inside 'university'.
+    query = " " + " ".join(re.findall(r"\w+", text)) + " "
+    names = {name: re.findall(r"\w+", name.lower()) for name in offices}
+    matches = [
+        row for name, row in offices.items()
+        if names[name] and f" {' '.join(names[name])} " in query
+    ]
+    if not matches:
+        matches = [
+            row for name, row in offices.items()
+            if any(f" {word} " in query for word in names[name])
+        ]
+    if len(matches) == 1:
+        row = matches[0]
+        return f"{row['name']}: room {row['room']}, open {row['hours']}."
+    if len(matches) > 1:
+        options = ", ".join(sorted(row["name"] for row in matches))
+        return f"Which office do you mean? Please use a full name: {options}."
     return "I don't know that yet. Try asking about an office, e.g. 'training office'."
