@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -23,7 +24,24 @@ def reply(message: str, offices: dict[str, dict[str, str]] | None = None) -> str
     if text in GREETINGS:
         return "Hello! Ask me where an office is, or when it opens."
     offices = offices if offices is not None else load_offices()
-    for name, row in offices.items():
-        if name in text:
-            return f"{row['name']}: room {row['room']}, open {row['hours']}."
+    # Compare complete words so 'it' does not match inside 'university'.
+    query = f" {' '.join(re.findall(r'\w+', text))} "
+    names = {
+        name: re.findall(r"\w+", name.lower()) for name in offices
+    }
+    matches = [
+        row for name, row in offices.items()
+        if names[name] and f" {' '.join(names[name])} " in query
+    ]
+    if not matches:
+        matches = [
+            row for name, row in offices.items()
+            if any(f" {word} " in query for word in names[name])
+        ]
+    if len(matches) == 1:
+        row = matches[0]
+        return f"{row['name']}: room {row['room']}, open {row['hours']}."
+    if len(matches) > 1:
+        options = ", ".join(sorted(row["name"] for row in matches))
+        return f"Which office do you mean? Please use a full name: {options}."
     return "I don't know that yet. Try asking about an office, e.g. 'training office'."
