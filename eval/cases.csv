@@ -1,0 +1,20 @@
+question,expected,category
+where is the training office?,"Training Office: room I.101, open Mon-Fri 07:30-16:30.",office_lookup
+when does the training office open?,"Training Office: room I.101, open Mon-Fri 07:30-16:30.",office_lookup
+what are the hours for student affairs?,"Student Affairs: room I.102, open Mon-Fri 08:00-16:00.",office_lookup
+where can i find student affairs?,"Student Affairs: room I.102, open Mon-Fri 08:00-16:00.",office_lookup
+where is the library?,"Library: room B.201, open Mon-Sat 07:00-20:00.",office_lookup
+is the library open on saturday?,"Library: room B.201, open Mon-Sat 07:00-20:00.",office_lookup
+i need help with it helpdesk,"IT Helpdesk: room E.005, open Mon-Fri 08:00-17:00.",office_lookup
+where is it helpdesk located?,"IT Helpdesk: room E.005, open Mon-Fri 08:00-17:00.",office_lookup
+hello,"Hello! Ask me where an office is, or when it opens.",greeting
+hi,"Hello! Ask me where an office is, or when it opens.",greeting
+xin chao,"Hello! Ask me where an office is, or when it opens.",greeting
+what is the weather today?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
+how do i register for courses?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
+who is the rector?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
+where is the cafeteria?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
+   ,Please type a question.,edge_case
+???!!!,Please type a question.,edge_case
+Where IS the LIBRARY?!?!,"Library: room B.201, open Mon-Sat 07:00-20:00.",edge_case
+where is training,"I don't know that yet. Try asking about an office, e.g. 'training office'.",edge_case
