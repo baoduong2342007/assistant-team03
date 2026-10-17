@@ -23,12 +23,18 @@ def reply(message: str, offices: dict[str, dict[str, str]] | None = None) -> str
         return "Please type a question."
     if text in GREETINGS:
         return "Hello! Ask me where an office is, or when it opens."
+    if text == "help":
+        return (
+            "I can greet you and look up campus office locations and opening hours.\n"
+            "- Greeting: 'hi' or 'xin chao'.\n"
+            "- Location: 'where is the training office?' or 'where is training'.\n"
+            "- Opening hours: 'when does the library open?'\n"
+            "Use a full office name if a short name matches several offices."
+        )
     offices = offices if offices is not None else load_offices()
     # Compare complete words so 'it' does not match inside 'university'.
     query = f" {' '.join(re.findall(r'\w+', text))} "
-    names = {
-        name: re.findall(r"\w+", name.lower()) for name in offices
-    }
+    names = {name: re.findall(r"\w+", name.lower()) for name in offices}
     matches = [
         row for name, row in offices.items()
         if names[name] and f" {' '.join(names[name])} " in query

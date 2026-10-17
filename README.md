@@ -42,6 +42,24 @@ Single question mode:
 python -m assistant "where is the training office?"
 ```
 
+Show supported questions and examples:
+```bash
+python -m assistant help
+```
+The `help` command is case-insensitive and lists greetings, office locations,
+and opening-hours questions. In interactive mode, type `help` at the prompt.
+
+You can also use a short office name:
+```bash
+python -m assistant "where is training"
+python -m assistant "when does the library open?"
+```
+Lookup is case-insensitive and matches complete words, so `training` matches
+`Training Office`, while `retraining` does not. Full names take priority over
+partial matches. If several offices match, the assistant lists their names
+and asks you to use a full name. Each successful lookup includes both the room
+and opening hours.
+
 ## Test
 ```bash
 pytest -q
