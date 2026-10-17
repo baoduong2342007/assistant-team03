@@ -17,4 +17,4 @@ where is the cafeteria?,"I don't know that yet. Try asking about an office, e.g.
    ,Please type a question.,edge_case
 ???!!!,Please type a question.,edge_case
 Where IS the LIBRARY?!?!,"Library: room B.201, open Mon-Sat 07:00-20:00.",edge_case
-where is training,"I don't know that yet. Try asking about an office, e.g. 'training office'.",edge_case
+where is training,"Training Office: room I.101, open Mon-Fri 07:30-16:30.",edge_case

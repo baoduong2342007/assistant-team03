@@ -50,3 +50,20 @@ def test_multiple_full_names_request_clarification():
 
 def test_empty_offices_are_respected():
     assert "don't know" in reply("training", {})
+
+
+@pytest.mark.parametrize(
+    ("message", "office", "room"),
+    [
+        ("Where is the Accounting Office?", "Accounting Office", "F.01"),
+        ("when does accounting open?", "Accounting Office", "F.01"),
+        ("where is the Health Clinic?", "Health Clinic", "C.12"),
+        ("clinic", "Health Clinic", "C.12"),
+        ("Science and Technology Office", "Science and Technology Office", "F.03"),
+        ("where is Testing and Quality Assurance?", "Testing and Quality Assurance", "B.02"),
+    ],
+)
+def test_newly_added_offices_lookup(message, office, room):
+    answer = reply(message)
+    assert answer.startswith(f"{office}: room {room}, open ")
+
