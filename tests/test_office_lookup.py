@@ -52,6 +52,28 @@ def test_empty_offices_are_respected():
     assert "don't know" in reply("training", {})
 
 
+@pytest.mark.parametrize("message", ["office", "where is office"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_generic_office_token_requests_clarification(message, reverse):
+    offices = {
+        "training office": {"name": "Training Office", "room": "A.101", "hours": "09-17"},
+        "accounting office": {"name": "Accounting Office", "room": "B.201", "hours": "08-16"},
+    }
+    if reverse:
+        offices = dict(reversed(list(offices.items())))
+    assert reply(message, offices) == (
+        "Which office do you mean? Please use a full name: Accounting Office, Training Office."
+    )
+
+
+def test_generic_office_token_with_one_candidate():
+    offices = {
+        "training office": {"name": "Training Office", "room": "A.101", "hours": "09-17"},
+        "library": {"name": "Library", "room": "B.201", "hours": "08-16"},
+    }
+    assert reply("office", offices) == "Training Office: room A.101, open 09-17."
+
+
 @pytest.mark.parametrize(
     ("message", "office", "room"),
     [
