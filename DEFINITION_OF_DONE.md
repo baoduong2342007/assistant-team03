@@ -23,14 +23,14 @@ To ensure the 8 DoD criteria above are consistently met across all features and 
 
 ## Team Consensus & Sign-Off
 
-The team formally discussed and reached unanimous agreement on this Definition of Done and its verification procedure.
+This section records the formal adoption of the Definition of Done and its verification procedure across all 5 members. Each teammate confirms consensus by reviewing and approving this pull request.
 
 > **Context note on historical tracking**: Pull Request [#18](https://github.com/baoduong2342007/assistant-team03/pull/18) previously introduced the initial draft but was merged with only one approval from team lead Dương. This update establishes explicit, full-team consensus and review across all 5 members.
 
 | Member | Full Name | GitHub Username | Role in Team | Consensus Status | Date |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Trương Quang Bảo Dương | `baoduong2342007` | Team Lead / Release Manager | Agreed & Signed | 2026-10-20 |
-| 2 | Trần Quốc Huy | `tqhuy0602` | Backend & Process Lead | Agreed & Signed | 2026-10-20 |
-| 3 | Phan Quỳnh Quyền | `pqquyenn` | CI & Data Lead | Agreed & Signed | 2026-10-20 |
-| 4 | Lương Nhật Minh | `luongnhatinh` | UI & Workflow Lead | Agreed & Signed | 2026-10-20 |
-| 5 | Phạm Quốc Bảo | `simble2k` | QA & Evidence Lead | Agreed & Signed | 2026-10-20 |
+| 1 | Trương Quang Bảo Dương | `baoduong2342007` | Team Lead / Release Manager | Pending PR review & approval | — |
+| 2 | Trần Quốc Huy | `tqhuy0602` | Backend & Process Lead | Pending PR review & approval | — |
+| 3 | Phan Quỳnh Quyền | `pqquyenn` | CI & Data Lead | Pending PR review & approval | — |
+| 4 | Lương Nhật Minh | `luongnhatinh` | UI & Workflow Lead | Agreed & Signed (PR #23 author) | 2026-10-20 |
+| 5 | Phạm Quốc Bảo | `simble2k` | QA & Evidence Lead | Pending PR review & approval | — |
