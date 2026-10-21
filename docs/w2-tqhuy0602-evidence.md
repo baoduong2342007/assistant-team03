@@ -42,21 +42,35 @@ paired participation and course completion are separate states.
 
 Personal work uses `feat/w2-tqhuy0602` per Huy's explicit branch preference.
 There are at least five meaningful exercise commits, with actual commit dates;
-history was not rewritten to manufacture earlier work. Actual human study hours
-were not reported and remain unfilled. No completion tag is created by Huy.
+history was not rewritten to manufacture earlier work. Huy self-reported 6 hours
+of actual W2 study/work in this chat on 2026-10-21, excluding automated runtime.
+No completion tag is created by Huy.
 
-## Board access blocker
+## Board configuration and access
 
-`gh project list --owner baoduong2342007` fails because the current token lacks
-`read:project`. The in-app browser opens the repo's Projects page while signed
-out, so it cannot verify private/owner projects or update the board. No new
-project was created. Existing board lookup and the ten Lab 2 issue cards remain
-pending project access; a public signed-out view is not proof that no board exists.
+[Lab 2 Kanban board](https://github.com/users/tqhuy0602/projects/2), owned by
+`tqhuy0602`, private. Huy authorized the Projects scope and completed device
+authentication. No linked board existed on the repo; Dương's visible unrelated
+project was not writable by Huy. The new board has all ten issues #6–#15 plus
+follow-ups #24/#26/#28, for 13 cards total.
+
+Configuration: Todo → In progress → In review → Done; single-select Component
+and Size, plus Gate note. Policy: at most two In progress cards per person.
+Legacy issues with missing review/consensus evidence remain In review on this
+board even though their GitHub issues are historically closed. Gate notes
+record why, and the underlying issue states were not reopened or rewritten.
+
+Huy explicitly authorized inviting `baoduong2342007`, `pqquyenn`,
+`luongnhatinh` and `simble2k`; the API confirmed all four WRITER assignments.
+GitHub only permits linking projects to repositories with the same owner,
+so this board cannot be linked directly to Dương's repo. Use its direct URL;
+the board's ownership/privacy and that limitation are stated explicitly.
 
 ## AI use
 
 Trần Quốc Huy is the assigned owner. Codex assisted retained code/tests,
 verification, documents and Git/GitHub operations. Reviews/replies were posted
-only after Huy explicitly authorized them. These records do not assert Huy
+only after Huy explicitly authorized them; board collaborators were likewise
+added after his specific authorization. These records do not assert Huy
 independently authored AI-generated implementations, personally signed team
 consensus, or completed teammate-dependent steps.
