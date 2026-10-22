@@ -1,0 +1,12 @@
+# Week 2 Reflection — Lương Nhật Minh (`luongnhatinh`)
+
+Sau khi đọc tài liệu của GitHub về Pull Request Reviews và tài liệu nhập môn Kanban, tôi ghi nhận các bài học và sự kiện thực tế trong tuần:
+
+1. **Nhận xét review nhận được và điều chỉnh mã nguồn:**
+   - Trong quá trình hoàn thiện bài tập Python Tuần 1, theo phân công review giữa các thành viên ([docs/git-workflow.md](https://github.com/baoduong2342007/python-bootcamp/blob/main/docs/git-workflow.md#member-assignments) và [PROGRESS.md](https://github.com/baoduong2342007/python-bootcamp/blob/main/PROGRESS.md#L10)), bạn Bảo (`simble2k`) là người review bài của tôi. Bạn Bảo đã thực hiện review và phê duyệt tại [PR #20 review](https://github.com/baoduong2342007/python-bootcamp/pull/20#pullrequestreview-5519781359).
+   - Trong đợt rà soát nhóm về chuẩn xử lý dấu câu theo yêu cầu [W1-2 tokenization](https://github.com/baoduong2342007/python-bootcamp/blob/main/README.md#L65), nhóm và reviewer đã chỉ ra hàm tách từ `word_count` trong `members/luongnhatinh/w1/text_tools.py` cần coi các dấu câu (`.,!?;:`) là ranh giới tách từ độc lập (ví dụ `"hello,world"` tách thành `"hello"` và `"world"`). Tôi đã điều chỉnh lại regex/separator và cập nhật mã nguồn qua PR follow-up [#28](https://github.com/baoduong2342007/python-bootcamp/pull/28), commit [`2ca353f`](https://github.com/baoduong2342007/python-bootcamp/commit/2ca353f7f0cf520ea85e332bbdca1b09b0bfa2df), giúp toàn bộ suite `tests/test_w1_tokenization.py` chuyển sang trạng thái xanh.
+   - Về chuẩn format mã nguồn, phản hồi cảnh báo `PLC0206` (lặp qua keys của dictionary rồi tra cứu giá trị) trong `members/luongnhatinh/w1/timetable.py` cũng đã được tiếp thu và sửa thành lặp trực tiếp `b.values()` tại commit [`d345bcc`](https://github.com/baoduong2342007/python-bootcamp/commit/d345bcc1fa385a8a1eb29ee0682255716182c40c) (PR [#20](https://github.com/baoduong2342007/python-bootcamp/pull/20)).
+
+2. **Bài học về Pull Request Reviews và Kanban:**
+   - Việc phân loại nhận xét theo các nhãn `Blocking:`, `Question:`, `Suggestion:`, `Nit:`, `Praise:` giúp tác giả phân biệt rõ việc bắt buộc sửa trước khi merge và các ý tưởng cải tiến trong tương lai.
+   - Áp dụng Kanban với cột `In review` rõ ràng và chính sách Definition of Done (DoD) minh bạch ngăn chặn việc merge vội vã khi chưa có approval (như các PR #16, #19, #22 giai đoạn đầu), đồng thời giới hạn WIP giúp nhóm tập trung giải quyết dứt điểm từng task trước khi mở task mới.

@@ -22,7 +22,7 @@ def reply(message: str, offices: dict[str, dict[str, str]] | None = None) -> str
     if not text:
         return "Please type a question."
     if text in GREETINGS:
-        return "Hello! Huy's assistant is ready. Type 'help' for office locations and opening hours."
+        return "Hello! Welcome to the campus assistant. Type help for office locations and hours."
     if text == "help":
         return (
             "I can greet you and look up campus office locations and opening hours.\n"

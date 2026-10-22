@@ -7,9 +7,9 @@ where is the library?,"Library: room B.201, open Mon-Sat 07:00-20:00.",office_lo
 is the library open on saturday?,"Library: room B.201, open Mon-Sat 07:00-20:00.",office_lookup
 i need help with it helpdesk,"IT Helpdesk: room E.005, open Mon-Fri 08:00-17:00.",office_lookup
 where is it helpdesk located?,"IT Helpdesk: room E.005, open Mon-Fri 08:00-17:00.",office_lookup
-hello,"Hello! Huy's assistant is ready. Type 'help' for office locations and opening hours.",greeting
-hi,"Hello! Huy's assistant is ready. Type 'help' for office locations and opening hours.",greeting
-xin chao,"Hello! Huy's assistant is ready. Type 'help' for office locations and opening hours.",greeting
+hello,"Hello! Welcome to the campus assistant. Type help for office locations and hours.",greeting
+hi,"Hello! Welcome to the campus assistant. Type help for office locations and hours.",greeting
+xin chao,"Hello! Welcome to the campus assistant. Type help for office locations and hours.",greeting
 what is the weather today?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
 how do i register for courses?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
 who is the rector?,"I don't know that yet. Try asking about an office, e.g. 'training office'.",out_of_scope
