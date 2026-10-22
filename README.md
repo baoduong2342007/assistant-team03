@@ -60,6 +60,10 @@ partial matches. If several offices match, the assistant lists their names
 and asks you to use a full name. Each successful lookup includes both the room
 and opening hours.
 
+Generic words such as `office` follow the same rule: one matching office is
+returned; two or more matching offices produce a clarification list sorted by
+name. This list is independent of the order of records in the CSV.
+
 ## Test
 ```bash
 pytest -q
