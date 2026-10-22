@@ -23,14 +23,14 @@ To ensure the 8 DoD criteria above are consistently met across all features and 
 
 ## Team Consensus & Sign-Off
 
-This section records the formal adoption of the Definition of Done and its verification procedure across all 5 members. Each teammate confirms consensus by reviewing and approving this pull request.
+This section tracks adoption of the Definition of Done and its verification procedure across all 5 members. Record a teammate's approval only when an actual review is available; Pending entries do not establish full-team consensus.
 
-> **Context note on historical tracking**: Pull Request [#18](https://github.com/baoduong2342007/assistant-team03/pull/18) previously introduced the initial draft but was merged with only one approval from team lead Dương. This update establishes explicit, full-team consensus and review across all 5 members.
+> **Context note on historical tracking**: Pull Request [#18](https://github.com/baoduong2342007/assistant-team03/pull/18) previously introduced the initial draft but was merged with only one approval from team lead Dương. PR #23 adds the verification procedure and tracks the actual approvals below. Full-team consensus remains incomplete while any member is Pending.
 
 | Member | Full Name | GitHub Username | Role in Team | Consensus Status | Date |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Trương Quang Bảo Dương | `baoduong2342007` | Team Lead / Release Manager | Pending PR review & approval | — |
+| 1 | Trương Quang Bảo Dương | `baoduong2342007` | Team Lead / Release Manager | [Approved PR #23](https://github.com/baoduong2342007/assistant-team03/pull/23#pullrequestreview-5608605572) | 2026-10-22 |
 | 2 | Trần Quốc Huy | `tqhuy0602` | Backend & Process Lead | Pending PR review & approval | — |
 | 3 | Phan Quỳnh Quyền | `pqquyenn` | CI & Data Lead | Pending PR review & approval | — |
 | 4 | Lương Nhật Minh | `luongnhatinh` | UI & Workflow Lead | Agreed & Signed (PR #23 author) | 2026-10-20 |
-| 5 | Phạm Quốc Bảo | `simble2k` | QA & Evidence Lead | Pending PR review & approval | — |
+| 5 | Phạm Quốc Bảo | `simble2k` | QA & Evidence Lead | [Approved PR #23](https://github.com/baoduong2342007/assistant-team03/pull/23#pullrequestreview-5602722492) | 2026-10-21 |
