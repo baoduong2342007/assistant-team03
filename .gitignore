@@ -22,3 +22,10 @@ ENV/
 
 # Data
 data/raw/
+
+# Frontend & Node
+node_modules/
+dist/
+build/
+ui/.env.local
+ui/.env.*.local

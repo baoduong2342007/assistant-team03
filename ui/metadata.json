@@ -1,0 +1,6 @@
+{
+  "name": "Bếp Nhà Mình - Trợ lý bữa ăn & dinh dưỡng gia đình AI",
+  "description": "Trợ lý bữa ăn và dinh dưỡng gia đình Việt thông minh: mâm cơm hợp bệnh lý từng thành viên, cân đối dinh dưỡng và timeline nấu tính ngược.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
