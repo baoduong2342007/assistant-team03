@@ -32,17 +32,25 @@ rewriting branch history.
 Validation: full local pytest suite, 51 passed on Python 3.14; manual CLI
 greeting matched the benchmark; no conflict markers; `git diff --check` passed.
 
-## Remaining review and evidence gates
+## Verified completion — 2026-10-22
 
-Obtain teammate review/approval and green CI on the resolution, then merge B
-using a merge commit to preserve the drill evidence. The resolution commit
-is the two-parent commit containing this document; save its URL with both PRs.
-Issue #26 remains open until the actual required gates are met.
+- Huy [approved partner A](https://github.com/baoduong2342007/assistant-team03/pull/27#pullrequestreview-5608277012)
+  at `0bed5b5` before PR #27 merged.
+- The actual resolution is the retained two-parent merge commit
+  [`e160028`](https://github.com/baoduong2342007/assistant-team03/commit/e160028da06d82b5f1f942093a7ece2deec7af5d).
+- Dương [approved the resolution](https://github.com/baoduong2342007/assistant-team03/pull/29#pullrequestreview-5608799826)
+  at that exact commit before PR #29 merged.
+- Both required Python 3.10/3.12 checks
+  [passed](https://github.com/baoduong2342007/assistant-team03/actions/runs/39713302304).
+- PR #29 merged using merge commit
+  [`5f9a413`](https://github.com/baoduong2342007/assistant-team03/commit/5f9a4136a3e0d63883de7c2f221c8e12f76baa60),
+  preserving the conflict-resolution history.
 
-This records Huy's instruction and the main version introduced by Dương's
-merged PR. It does not claim a separate paired conversation, Dương's approval
-of this resolution, or a retrospective human sign-off.
+These independent branches, the actual conflict, Huy's resolution request and
+the reciprocal approvals provide the collaboration evidence for issue #26.
+No separate synchronous meeting or retrospective personal signature is claimed.
 
 AI use: Codex prepared the initial branch and, at Huy's request, resolved the
 actual merge conflicts, synchronized benchmark expectations, ran verification
-and prepared the merge commit and PR update. Human peer approval remains pending.
+and prepared the merge commit and PR update. The subsequent human approvals
+are linked above. Codex assisted the 2026-10-22 status verification and update.

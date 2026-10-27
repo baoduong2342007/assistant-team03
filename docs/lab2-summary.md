@@ -10,6 +10,27 @@
 - **Ngày lập:** 2026-10-21
 - **Căn cứ tài liệu:** `CSC10014_2026_Lab02_Git_Collaboration_Tutorial.pdf` và kế hoạch chi tiết `plan (3).md`.
 
+## Cập nhật kiểm chứng — 2026-10-22
+
+Phần bên dưới giữ snapshot ngày 2026-10-21. Bảng này thay thế các trạng thái
+review/merge/conflict cũ tương ứng; không xác nhận hoàn tất toàn bộ Lab 2.
+
+| Issue | Trạng thái được kiểm chứng | Bằng chứng hoặc phần còn thiếu |
+| --- | --- | --- |
+| [#24](https://github.com/baoduong2342007/assistant-team03/issues/24) | Còn mở | PR #25 đã approve, CI xanh và merge. Giảng viên chưa xác nhận cách khắc phục approval lịch sử (chủ repo xác nhận ngày 2026-10-22); tác giả #22 chưa phản hồi review bổ sung. |
+| [#26](https://github.com/baoduong2342007/assistant-team03/issues/26) | Đủ tiêu chí kỹ thuật và review để đóng | PR #27/#29 đã approve trước merge; conflict thật, commit giải quyết hai parent và lịch sử merge được giữ. Xem [minh chứng conflict](conflicts/duong-huy-tqhuy0602.md). |
+| [#28](https://github.com/baoduong2342007/assistant-team03/issues/28) | Các deliverable của issue đã hoàn tất | PR #30 đã approve, CI xanh và merge. Tests/docs, review/reply và file reflection đã có; chưa suy ra Huy đã đọc reflection hoặc ký đồng thuận cá nhân. |
+
+`main` tại `f60f4a7` đạt 56/56 tests cục bộ trên Python 3.13.14 và
+[CI xanh](https://github.com/baoduong2342007/assistant-team03/actions/runs/39715259528).
+DoD đã có approval thật của Dương/Bảo; Huy/Quyền vẫn Pending.
+Bài AI-PR của giảng viên và các xác nhận cá nhân còn thiếu tiếp tục được theo dõi.
+Trạng thái board riêng tư chưa được kiểm chứng/cập nhật trong lần này; người có
+quyền board cần đồng bộ các thẻ #26/#28 sau khi issue được đóng.
+
+Codex hỗ trợ kiểm tra bằng chứng và cập nhật tài liệu/trạng thái GitHub theo yêu
+cầu của chủ repo. Không thay đổi ngày review hoặc tạo chữ ký thay thành viên.
+
 ---
 
 ## 1. H1 — Bảng tổng hợp 10 Issue và PR cá nhân

@@ -1,5 +1,29 @@
 # Week 2 — Dương's evidence (2026-10-21)
 
+## Current verification — 2026-10-22
+
+- PR [#25](https://github.com/baoduong2342007/assistant-team03/pull/25)
+  received [Huy's approval](https://github.com/baoduong2342007/assistant-team03/pull/25#pullrequestreview-5608279628)
+  at `4f22f53`, passed Python 3.10/3.12 CI and merged as `0d4de24`.
+- Huy responded to the #17 review and delivered the regression tests/docs in
+  merged PR [#30](https://github.com/baoduong2342007/assistant-team03/pull/30).
+  No author response to the supplemental #22 review was found in the current
+  PR review threads; that acceptance criterion of issue #24 remains incomplete.
+- The repository owner confirmed in chat on 2026-10-22 that instructor
+  acceptance of the historical approval remediation has not been received.
+  Issue #24 remains open for that decision and the #22 author response.
+  The checked instructor-acceptance box in PR #25 was inconsistent with this
+  evidence; a merged documentation PR does not supply instructor acceptance.
+- Dương [approved the corrected DoD PR #23](https://github.com/baoduong2342007/assistant-team03/pull/23#pullrequestreview-5608605572)
+  at `6619850`; it merged as `adf449c`. Huy and Quyền's personal approvals
+  remain unconfirmed.
+- Both Dương–Huy conflict PRs #27/#29 are approved and merged, with the actual
+  resolution and merge history preserved in the [conflict record](conflicts/duong-huy-tqhuy0602.md).
+
+The sections below retain the dated 2026-10-21 snapshot. This update supersedes
+their stale review/merge/conflict statements. Other course/reflection gates
+remain pending. Codex assisted the verification and status correction.
+
 ## H1: implementation and historical gap
 
 Issues [#6](https://github.com/baoduong2342007/assistant-team03/issues/6) and

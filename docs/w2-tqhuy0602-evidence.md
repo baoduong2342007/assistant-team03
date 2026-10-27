@@ -1,5 +1,25 @@
 # Week 2 evidence — Trần Quốc Huy (`tqhuy0602`)
 
+## Current verification — 2026-10-22
+
+- Follow-up PR [#30](https://github.com/baoduong2342007/assistant-team03/pull/30)
+  was [approved by Dương](https://github.com/baoduong2342007/assistant-team03/pull/30#pullrequestreview-5608808649)
+  at `641a28f`, passed Python 3.10/3.12 CI and merged into `main` as `f60f4a7`.
+  The five regression cases, README clarification, review/reply evidence and
+  eight-line reflection artifact required by issue #28 are delivered.
+- Both conflict PRs #27/#29 are approved and merged. The retained conflict
+  commit and exact-head approvals are in the [conflict record](conflicts/duong-huy-tqhuy0602.md).
+- The unverified full-team signatures in PR #23 were replaced with Pending
+  entries before merge. Huy's own DoD approval and personal reading of the
+  reflection are still unconfirmed; delivery of the reflection file does not
+  assert either. Instructor AI-PR availability remains a separate course task.
+- Latest `main` `f60f4a7`: 56 tests pass locally on Python 3.13.14;
+  [main CI passes](https://github.com/baoduong2342007/assistant-team03/actions/runs/39715259528).
+
+The sections below retain the 2026-10-21 snapshot. This update supersedes their
+pending review/merge/conflict statements; other personal and course dependencies
+remain as recorded. Codex assisted this verification and documentation update.
+
 Snapshot date: 2026-10-21. Implementation, review posting, teammate approval,
 paired participation and course completion are separate states.
 
