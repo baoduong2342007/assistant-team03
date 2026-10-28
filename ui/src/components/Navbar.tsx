@@ -30,6 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   // State for desktop dropdowns
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
 
   // State for mobile drawer and mobile accordions
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -52,14 +54,34 @@ export const Navbar: React.FC<NavbarProps> = ({
     exploreMore: useRef<HTMLButtonElement>(null),
   };
 
-  // Scroll detection for navbar subtle shadow
+  // Scroll detection: ẩn thanh điều hướng khi lướt xuống, hiện lại khi lướt lên hoặc về đầu trang
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      if (isMobileMenuOpen) return;
+
+      const currentScrollY = Math.max(0, window.scrollY);
+      setIsScrolled(currentScrollY > 10);
+
+      // Nếu đang ở gần đầu trang (<= 40px), luôn luôn hiển thị
+      if (currentScrollY <= 40) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollYRef.current + 8) {
+        // Đang lướt xuống (xuống cuối trang): ẩn thanh điều hướng lên trên
+        setIsVisible(false);
+        setActiveDropdown(null);
+        setIsSearchOpen(false);
+        setIsCartOpen(false);
+      } else if (currentScrollY < lastScrollYRef.current - 8) {
+        // Đang lướt ngược lên (về lại đầu trang): cho thanh điều hướng hiện lại
+        setIsVisible(true);
+      }
+
+      lastScrollYRef.current = currentScrollY;
     };
-    window.addEventListener('scroll', handleScroll);
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isMobileMenuOpen]);
 
   // Accessibility: Escape key handler and outside click detection
   useEffect(() => {
@@ -162,7 +184,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     <>
       <header
         ref={navRef}
-        className={`sticky top-0 z-50 w-full bg-white transition-all duration-300 ${
+        className={`sticky top-0 z-50 w-full bg-white transform transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        } ${
           isScrolled ? 'shadow-sm border-b border-gray-200' : 'border-b border-gray-100'
         }`}
       >
