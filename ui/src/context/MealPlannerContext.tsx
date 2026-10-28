@@ -1,3 +1,4 @@
+import { createWeeklyPlan, findRecipeReplacement, isRecipeSuitable } from '../utils/mealPlanner';
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   DayOfWeek,
@@ -206,41 +207,9 @@ export const MealPlannerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   };
 
-  // Helper to check if a recipe satisfies user constraints
-  const isRecipeSuitable = (recipe: PlannerRecipe): boolean => {
-    // Diet check
-    if (preferences.diet !== 'none' && !recipe.diet.includes(preferences.diet)) {
-      return false;
-    }
-    // Allergens check
-    if (preferences.allergies.some((allergen) => recipe.allergens.includes(allergen))) {
-      return false;
-    }
-    // Disliked ingredients check
-    if (preferences.dislikedIngredients.length > 0) {
-      const lowerDisliked = preferences.dislikedIngredients.map((d) => d.toLowerCase());
-      const hasDisliked = recipe.ingredients.some((ing) =>
-        lowerDisliked.some((dis) => ing.name.toLowerCase().includes(dis))
-      );
-      if (hasDisliked) return false;
-    }
-    return true;
-  };
-
-  // Swap recipe on a day
+  // Never fall back to a recipe that violates the saved preferences.
   const swapRecipe = (day: DayOfWeek, currentRecipeId: string): PlannerRecipe | null => {
-    const currentDayRecipes = weeklyPlan[day] || [];
-    const usedIds = new Set(currentDayRecipes.map((r) => r.id));
-
-    // Candidate recipes from pool
-    const candidates = MOCK_RECIPES.filter(
-      (r) => !usedIds.has(r.id) && r.id !== currentRecipeId && isRecipeSuitable(r)
-    );
-
-    const replacement =
-      candidates.length > 0
-        ? candidates[Math.floor(Math.random() * candidates.length)]
-        : MOCK_RECIPES.find((r) => r.id !== currentRecipeId) || null;
+    const replacement = findRecipeReplacement(MOCK_RECIPES, weeklyPlan[day] || [], currentRecipeId, preferences);
 
     if (replacement) {
       setWeeklyPlan((prev) => {
@@ -263,8 +232,10 @@ export const MealPlannerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Add recipe to a day
   const addRecipe = (day: DayOfWeek, recipe: PlannerRecipe) => {
+    if (!isRecipeSuitable(recipe, preferences)) return;
     setWeeklyPlan((prev) => {
       const dayRecipes = prev[day] || [];
+      if (dayRecipes.some((existing) => existing.id === recipe.id)) return prev;
       return { ...prev, [day]: [...dayRecipes, recipe] };
     });
   };
@@ -283,6 +254,7 @@ export const MealPlannerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const itemIndex = sourceRecipes.findIndex((r) => r.id === recipeId);
       if (itemIndex === -1) return prev;
 
+      if (fromDay !== toDay && targetRecipes.some((recipe) => recipe.id === recipeId)) return prev;
       const [movedItem] = sourceRecipes.splice(itemIndex, 1);
 
       if (fromDay === toDay) {
@@ -303,35 +275,7 @@ export const MealPlannerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Auto-generate fresh weekly plan according to preferences
   const generateWeeklyPlan = () => {
-    const days: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    const suitablePool = MOCK_RECIPES.filter((r) => isRecipeSuitable(r));
-    const pool = suitablePool.length >= 3 ? suitablePool : MOCK_RECIPES;
-
-    const newSchedule: WeeklySchedule = {
-      mon: [],
-      tue: [],
-      wed: [],
-      thu: [],
-      fri: [],
-      sat: [],
-      sun: [],
-    };
-
-    let poolIndex = 0;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-
-    days.forEach((day) => {
-      // If the user selected this day, assign recipe
-      if (preferences.selectedDays.includes(day)) {
-        const recipe = shuffled[poolIndex % shuffled.length];
-        newSchedule[day] = [recipe];
-        poolIndex++;
-      } else {
-        newSchedule[day] = [];
-      }
-    });
-
-    setWeeklyPlan(newSchedule);
+    setWeeklyPlan(createWeeklyPlan(MOCK_RECIPES, preferences));
   };
 
   // Auth helpers

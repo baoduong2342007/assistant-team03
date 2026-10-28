@@ -456,6 +456,7 @@ export const MealPlannerPreferences: React.FC<MealPlannerPreferencesProps> = ({
                 <div className="pt-8 text-center">
                   <button
                     type="button"
+                    disabled={preferences.selectedDays.length === 0}
                     onClick={onSaveAndContinue}
                     className="py-3 px-14 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-[0.99] text-white font-bold text-xs sm:text-sm tracking-wider uppercase transition-all shadow-sm cursor-pointer"
                   >

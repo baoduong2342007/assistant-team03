@@ -358,6 +358,8 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
       setSwappingCardId(null);
       if (newRec) {
         showToast(`Đã đổi sang: "${newRec.title}"`);
+      } else {
+        showToast('Chưa có món thay thế phù hợp với lựa chọn của bạn.');
       }
     }, 250);
   };

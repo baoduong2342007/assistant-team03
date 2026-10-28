@@ -16,6 +16,7 @@ interface NavbarProps {
   onNavigate?: (view: any) => void;
   onOpenIntro?: () => void;
   onOpenAbout?: () => void;
+  onOpenContact?: () => void;
 }
 
 type DropdownType = 'recipes' | 'mealPlans' | 'exploreMore' | null;
@@ -25,6 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   onOpenIntro,
   onOpenAbout,
+  onOpenContact,
 }) => {
   // State for desktop dropdowns
   const [activeDropdown, setActiveDropdown] = useState<DropdownType>(null);
@@ -163,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     setActiveDropdown(null);
     setIsMobileMenuOpen(false);
     if (onNavigate) {
-      onNavigate('onboarding');
+      onNavigate('meal-planner-preference');
     }
   };
 
@@ -171,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     setActiveDropdown(null);
     setIsMobileMenuOpen(false);
     if (onNavigate) {
-      onNavigate('chat');
+      onNavigate('meal-planner-auth');
     }
   };
 
@@ -415,6 +417,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>Về Chúng Tôi</span>
                   </button>
                 )}
+
+                {onOpenContact && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => {
+                      setActiveDropdown(null);
+                      onOpenContact();
+                    }}
+                    className="w-full text-left px-5 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-50 flex items-center gap-2 transition-colors duration-200 whitespace-nowrap"
+                  >
+                    <ChefHat className="w-4 h-4 text-orange-600 shrink-0" />
+                    <span>Liên Hệ</span>
+                  </button>
+                )}
               </div>
             </div>
           </nav>
@@ -428,7 +445,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => setIsSearchOpen(prev => !prev)}
               aria-label="Tìm kiếm công thức và nguyên liệu"
-              className="w-9 h-9 xl:w-10 xl:h-10 rounded-full border border-stone-200 hover:border-stone-800 flex items-center justify-center text-stone-700 hover:text-stone-950 transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#014043] shrink-0"
+              className="hidden sm:flex w-9 h-9 xl:w-10 xl:h-10 rounded-full border border-stone-200 hover:border-stone-800 flex items-center justify-center text-stone-700 hover:text-stone-950 transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#014043] shrink-0"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -452,7 +469,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={handleSignUpClick}
-              className="px-4 sm:px-5 xl:px-6 py-2 sm:py-2.5 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-95 text-white font-bold text-xs sm:text-[13px] tracking-wider uppercase shadow-sm hover:shadow transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#014043] whitespace-nowrap shrink-0"
+              className="hidden sm:inline-flex px-4 sm:px-5 xl:px-6 py-2 sm:py-2.5 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-95 text-white font-bold text-xs sm:text-[13px] tracking-wider uppercase shadow-sm hover:shadow transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#014043] whitespace-nowrap shrink-0"
             >
               {navigationData.actions.signUp}
             </button>
@@ -893,6 +910,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="block w-full text-left text-sm text-orange-700 font-medium py-1 transition-colors"
                       >
                         Về chúng tôi
+                      </button>
+                    )}
+                    {onOpenContact && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          onOpenContact();
+                        }}
+                        className="block w-full text-left text-sm text-orange-700 font-medium py-1 transition-colors"
+                      >
+                        Liên hệ
                       </button>
                     )}
                   </div>

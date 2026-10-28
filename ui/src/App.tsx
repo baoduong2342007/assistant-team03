@@ -8,7 +8,7 @@ import { Navbar } from './components/Navbar';
 import { HeroLanding } from './components/HeroLanding';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { ChatbotInterface } from './components/ChatbotInterface';
-import { IntroductionModal, AboutModal } from './components/InfoModals';
+import { IntroductionModal, AboutModal, ContactModal } from './components/InfoModals';
 import { FamilyProfile } from './types';
 import { INITIAL_DEFAULT_PROFILE } from './data/mockData';
 
@@ -48,6 +48,8 @@ export default function App() {
   const [familyProfile, setFamilyProfile] = useState<FamilyProfile>(INITIAL_DEFAULT_PROFILE);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [chatPrompt, setChatPrompt] = useState('');
   const [previewRecipe, setPreviewRecipe] = useState<PlannerRecipe | null>(null);
   const [isGroceriesModalOpen, setIsGroceriesModalOpen] = useState(false);
 
@@ -104,6 +106,7 @@ export default function App() {
               }}
               onOpenIntro={() => setIsIntroOpen(true)}
               onOpenAbout={() => setIsAboutOpen(true)}
+              onOpenContact={() => setIsContactOpen(true)}
             />
           )}
 
@@ -149,7 +152,10 @@ export default function App() {
           {currentView === 'landing' && (
             <HeroLanding
               onBeginNow={() => navigateToView('meal-planner')}
-              onExploreDirectChat={() => navigateToView('chat')}
+              onExploreDirectChat={(query = '') => {
+                setChatPrompt(query);
+                navigateToView('chat');
+              }}
               onOpenIntro={() => setIsIntroOpen(true)}
             />
           )}
@@ -166,6 +172,8 @@ export default function App() {
 
           {currentView === 'chat' && (
             <ChatbotInterface
+              key={chatPrompt}
+              initialPrompt={chatPrompt}
               profile={familyProfile}
               onBackToHome={() => navigateToView('landing')}
               onEditProfile={() => navigateToView('onboarding')}
@@ -196,6 +204,10 @@ export default function App() {
         <AboutModal
           isOpen={isAboutOpen}
           onClose={() => setIsAboutOpen(false)}
+        />
+        <ContactModal
+          isOpen={isContactOpen}
+          onClose={() => setIsContactOpen(false)}
         />
 
       </div>

@@ -44,7 +44,7 @@ Giao diện được thiết kế tối ưu hóa cho trải nghiệm di động 
 ## 3. Hướng dẫn chạy thử nghiệm cục bộ (Run Locally)
 
 ### Yêu cầu tiên quyết:
-- [Node.js](https://nodejs.org/) (phiên bản 18+ hoặc 20+)
+- [Node.js](https://nodejs.org/) (phiên bản 22.12+ hoặc 24+; CI dùng Node.js 24)
 
 ### Các bước cài đặt:
 1. Di chuyển vào thư mục giao diện:
@@ -53,15 +53,39 @@ Giao diện được thiết kế tối ưu hóa cho trải nghiệm di động 
    ```
 2. Cài đặt các gói phụ thuộc:
    ```bash
-   npm install
+   npm ci
    ```
-3. Tạo file cấu hình môi trường `.env.local` (nếu cần gọi Gemini API trực tiếp):
-   ```bash
-   cp .env.example .env.local
-   ```
-   Điền khóa `GEMINI_API_KEY` của bạn vào file `.env.local`.
+3. Bản UI hiện tại không cần API key hay file môi trường; các tương tác AI và đăng nhập dùng dữ liệu mô phỏng.
 4. Khởi động môi trường phát triển:
    ```bash
    npm run dev
    ```
    Mở trình duyệt tại địa chỉ `http://localhost:3000` để trải nghiệm giao diện.
+
+
+## Kiểm tra trước khi merge
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+Các lệnh này cũng được chạy trong job `Frontend checks` trên GitHub Actions.
+
+## Các màn hình của bản UI hiện tại
+
+- `/meal-planner`: trang thiết lập nhanh, cũng là màn hình mặc định khi mở `/`.
+- `/meal-planner/preference`: chọn ngày, khẩu phần, chế độ ăn và dị ứng.
+- `/account/signup`: mô phỏng đăng nhập, sau đó tạo lịch theo lựa chọn đã lưu.
+- `/meal-planner/app`: lịch tuần, thêm/đổi/xóa/kéo món giữa các ngày, đi chợ và timeline/chat.
+- `/home`: trang giới thiệu có video, carousel mâm cơm, tìm kiếm và quy trình bốn bước.
+- `/onboarding`, `/chat`: luồng hồ sơ gia đình và chat ban đầu.
+- Mục **Khám Phá Thêm → Liên Hệ** có trên menu desktop và di động.
+
+Đây là bản thử nghiệm UI dùng công thức, giá, dinh dưỡng và phản hồi chat minh họa.
+Đăng nhập email/Google/Facebook được mô phỏng tại máy, chưa có OAuth hay backend xác thực;
+không dùng thông tin đăng nhập thật. Dữ liệu planner lưu ở localStorage của trình duyệt.
+UI hiện chưa gọi Gemini hoặc backend Python, nên không cần API key để chạy bản demo.
+Bộ lọc chỉ dùng nhãn của dữ liệu mẫu, chưa phải cơ chế xác minh y khoa hay dị ứng thực tế.
+Khi không có món phù hợp, lịch để trống hoặc thao tác đổi món giữ món cũ; không tự bỏ bộ lọc.

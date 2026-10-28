@@ -572,11 +572,11 @@ export const INITIAL_PREFERENCES: MealPlannerPreferences = {
 };
 
 export const INITIAL_WEEKLY_SCHEDULE: WeeklySchedule = {
-  mon: [MOCK_RECIPES[12]], // Broiled Tarragon Breasts
+  mon: MOCK_RECIPES.filter((recipe) => recipe.id === 'bep-broiled-tarragon'),
   tue: [],
   wed: [],
-  thu: [MOCK_RECIPES[12]], // Broiled Tarragon Breasts
-  fri: [MOCK_RECIPES[13]], // Pesto Alla Genovese
-  sat: [MOCK_RECIPES[14]], // Walnut Parmesan Pork Chops
-  sun: [MOCK_RECIPES[15]], // Cedar Plank Salmon
+  thu: MOCK_RECIPES.filter((recipe) => recipe.id === 'bep-broiled-tarragon'),
+  fri: MOCK_RECIPES.filter((recipe) => recipe.id === 'bep-pesto-genovese'),
+  sat: MOCK_RECIPES.filter((recipe) => recipe.id === 'bep-walnut-pork'),
+  sun: MOCK_RECIPES.filter((recipe) => recipe.id === 'bep-cedar-salmon'),
 };

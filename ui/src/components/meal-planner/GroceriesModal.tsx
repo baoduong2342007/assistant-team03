@@ -100,7 +100,7 @@ export const GroceriesModal: React.FC<GroceriesModalProps> = ({ isOpen, onClose 
           <div>
             <div className="text-xs text-stone-500 font-semibold">Ước tính cần thanh toán:</div>
             <div className="text-2xl font-bold font-serif-display text-[#014043]">
-              {formatPrice(adjustedTotal || stats.estimatedCartTotal)}
+              {formatPrice(adjustedTotal)}
             </div>
             <div className="text-[11px] text-stone-500">
               Đã trừ {itemsAlreadyHave.length} món bạn đã có sẵn ở nhà

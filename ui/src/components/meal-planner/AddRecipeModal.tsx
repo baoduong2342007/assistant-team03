@@ -1,3 +1,4 @@
+import { isRecipeSuitable } from '../../utils/mealPlanner';
 import React, { useState } from 'react';
 import {
   X,
@@ -27,7 +28,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
   onClose,
   onSelectRecipe,
 }) => {
-  const { allRecipes, formatPrice, weeklyPlan } = useMealPlanner();
+  const { allRecipes, formatPrice, weeklyPlan, preferences } = useMealPlanner();
 
   const [activeTab, setActiveTab] = useState<'search' | 'saved' | 'create'>('search');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,7 +56,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
 
     const matchesDiet = filterDiet === 'all' || r.diet.includes(filterDiet as any);
 
-    return matchesSearch && matchesDiet;
+    return matchesSearch && matchesDiet && isRecipeSuitable(r, preferences);
   });
 
   const handleCreateCustom = (e: React.FormEvent) => {

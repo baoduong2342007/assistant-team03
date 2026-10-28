@@ -27,7 +27,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
   onSuccess,
   onBackToPreferences,
 }) => {
-  const { login } = useMealPlanner();
+  const { login, generateWeeklyPlan } = useMealPlanner();
 
   const [isEmailFormOpen, setIsEmailFormOpen] = useState(false);
   const [email, setEmail] = useState('minhanh@bepnhaminh.vn');
@@ -49,6 +49,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
 
     setTimeout(() => {
       login(userEmail, userName);
+      generateWeeklyPlan();
       setIsLoading(false);
       onSuccess();
     }, 600);

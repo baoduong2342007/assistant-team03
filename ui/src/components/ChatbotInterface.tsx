@@ -9,17 +9,19 @@ import { INITIAL_CHAT_MESSAGES, SAMPLE_MEAL_PLAN, SAMPLE_TIMELINE_STEPS } from '
 
 interface ChatbotInterfaceProps {
   profile: FamilyProfile;
+  initialPrompt?: string;
   onBackToHome: () => void;
   onEditProfile: () => void;
 }
 
 export const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
   profile,
+  initialPrompt = '',
   onBackToHome,
   onEditProfile,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT_MESSAGES);
-  const [inputPrompt, setInputPrompt] = useState('');
+  const [inputPrompt, setInputPrompt] = useState(initialPrompt);
   const [isRecording, setIsRecording] = useState(false);
   const [timelineSteps, setTimelineSteps] = useState<TimelineStep[]>(SAMPLE_TIMELINE_STEPS);
   const [activeTab, setActiveTab] = useState<'chat' | 'timeline' | 'nutrition'>('chat');
