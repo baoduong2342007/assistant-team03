@@ -18,7 +18,6 @@ import { MealPlannerLanding } from './components/meal-planner/MealPlannerLanding
 import { MealPlannerPreferences } from './components/meal-planner/MealPlannerPreferences';
 import { MealPlannerAuth } from './components/meal-planner/MealPlannerAuth';
 import { MealPlannerApp } from './components/meal-planner/MealPlannerApp';
-import { StageSwitcherBanner, MealPlannerStage } from './components/meal-planner/StageSwitcherBanner';
 import { RecipeDetailModal } from './components/meal-planner/RecipeDetailModal';
 import { GroceriesModal } from './components/meal-planner/GroceriesModal';
 import { PlannerRecipe } from './types/mealPlanner';
@@ -91,42 +90,11 @@ export default function App() {
     }
   }, []);
 
-  // Check if current view is one of the 4 Meal Planner stages
-  const isMealPlannerStage = [
-    'meal-planner',
-    'meal-planner-preference',
-    'meal-planner-auth',
-    'meal-planner-app',
-  ].includes(currentView);
-
-  const getMealPlannerStageKey = (): MealPlannerStage => {
-    if (currentView === 'meal-planner-preference') return 'preference';
-    if (currentView === 'meal-planner-auth') return 'auth';
-    if (currentView === 'meal-planner-app') return 'app';
-    return 'landing';
-  };
-
-  const handleStageSelect = (stage: MealPlannerStage) => {
-    if (stage === 'landing') navigateToView('meal-planner');
-    else if (stage === 'preference') navigateToView('meal-planner-preference');
-    else if (stage === 'auth') navigateToView('meal-planner-auth');
-    else if (stage === 'app') navigateToView('meal-planner-app');
-  };
-
   return (
     <MealPlannerProvider>
       <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] selection:bg-teal-100 selection:text-teal-950 flex flex-col justify-between">
         
         <div>
-          {/* Top Stage Navigation & Tester Bar for reviewer & user */}
-          {isMealPlannerStage && (
-            <StageSwitcherBanner
-              currentStage={getMealPlannerStageKey()}
-              onSelectStage={handleStageSelect}
-              onExitToHome={() => navigateToView('landing')}
-            />
-          )}
-
           {/* Bếp Nhà Mình Floating Navbar (Original Authentic Navbar from latest commit) */}
           {currentView !== 'meal-planner-auth' && (
             <Navbar

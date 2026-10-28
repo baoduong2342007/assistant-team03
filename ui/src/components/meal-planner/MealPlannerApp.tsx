@@ -26,6 +26,8 @@ import {
   SlidersHorizontal,
   Sparkles,
   Printer,
+  ChefHat,
+  MessageSquare,
 } from 'lucide-react';
 import { useMealPlanner } from '../../context/MealPlannerContext';
 import { DAYS_OF_WEEK } from '../../data/mealPlannerMockData';
@@ -35,6 +37,7 @@ import { AddRecipeModal } from './AddRecipeModal';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { FeedbackModal } from './FeedbackModal';
 import { BepNhaMinhFooter } from './BepNhaMinhFooter';
+import { TimelineAndChatDrawer } from './TimelineAndChatDrawer';
 
 interface MealPlannerAppProps {
   onNavigateToPreferences: () => void;
@@ -163,6 +166,7 @@ interface DayColumnProps {
   dayInfo: (typeof DAYS_OF_WEEK)[0];
   recipes: PlannerRecipe[];
   onOpenAddModal: (day: DayOfWeek) => void;
+  onOpenTimeline: (day: DayOfWeek) => void;
   onSwap: (day: DayOfWeek, recipeId: string) => void;
   onRemove: (day: DayOfWeek, recipeId: string) => void;
   onClickDetail: (recipe: PlannerRecipe) => void;
@@ -174,6 +178,7 @@ const DayColumn: React.FC<DayColumnProps> = ({
   dayInfo,
   recipes,
   onOpenAddModal,
+  onOpenTimeline,
   onSwap,
   onRemove,
   onClickDetail,
@@ -204,13 +209,25 @@ const DayColumn: React.FC<DayColumnProps> = ({
             <span className="text-[10px] text-stone-400">{dayInfo.dateLabel}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onOpenAddModal(dayInfo.key)}
-            className="px-3 py-1 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-800 text-xs font-bold transition-colors cursor-pointer"
-          >
-            + THÊM
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onOpenTimeline(dayInfo.key)}
+              title="Xem Timeline nấu tính ngược"
+              className="px-2 py-1 rounded-full border border-stone-200 hover:border-[#014043] hover:bg-teal-50 text-stone-600 hover:text-[#014043] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Clock className="w-3 h-3 text-[#014043]" />
+              <span className="hidden sm:inline text-[11px]">Timeline</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenAddModal(dayInfo.key)}
+              className="px-2.5 py-1 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold transition-colors cursor-pointer"
+            >
+              + THÊM
+            </button>
+          </div>
         </div>
 
         {/* Danh sách thẻ món ăn trong ngày */}
@@ -288,6 +305,22 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
   const [targetDay, setTargetDay] = useState<DayOfWeek>('mon');
   const [detailRecipe, setDetailRecipe] = useState<PlannerRecipe | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  // Drawer (Timeline & AI Chatbot)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<'timeline' | 'chat'>('timeline');
+  const [drawerDay, setDrawerDay] = useState<DayOfWeek>('mon');
+
+  const handleOpenTimelineForDay = (day: DayOfWeek) => {
+    setDrawerDay(day);
+    setDrawerTab('timeline');
+    setIsDrawerOpen(true);
+  };
+
+  const handleOpenChatAi = () => {
+    setDrawerTab('chat');
+    setIsDrawerOpen(true);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -389,6 +422,15 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
 
               {/* Các nút thao tác */}
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenChatAi}
+                  className="px-3.5 py-2 rounded-full border border-stone-300 hover:border-[#014043] hover:text-[#014043] text-stone-700 text-xs font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                >
+                  <ChefHat className="w-3.5 h-3.5 text-[#014043]" />
+                  <span>TRỢ LÝ BẾP AI</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={onNavigateToPreferences}
@@ -571,6 +613,7 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
                         dayInfo={day}
                         recipes={recipes}
                         onOpenAddModal={handleOpenAddModal}
+                        onOpenTimeline={handleOpenTimelineForDay}
                         onSwap={handleSwap}
                         onRemove={handleRemove}
                         onClickDetail={(rec) => setDetailRecipe(rec)}
@@ -661,6 +704,27 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
         <FeedbackModal
           isOpen={isFeedbackModalOpen}
           onClose={() => setIsFeedbackModalOpen(false)}
+        />
+
+        {/* Floating Action Button (FAB) mở Bếp Trưởng AI */}
+        <button
+          type="button"
+          onClick={handleOpenChatAi}
+          className="fixed bottom-6 right-6 z-40 px-4.5 py-3 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-95 text-white font-bold text-xs sm:text-sm shadow-xl flex items-center gap-2.5 transition-all cursor-pointer border border-teal-700/50 hover:shadow-2xl"
+          title="Mở Trợ Lý Bếp AI & Timeline"
+        >
+          <ChefHat className="w-4 h-4 text-amber-300" />
+          <span>Bếp Trưởng AI</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+
+        {/* Slide-over Drawer: Timeline & Chatbot */}
+        <TimelineAndChatDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          initialTab={drawerTab}
+          currentDay={drawerDay}
+          onChangeDay={(d) => setDrawerDay(d)}
         />
 
       </div>
