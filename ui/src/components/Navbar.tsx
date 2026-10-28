@@ -1,11 +1,12 @@
-import React from 'react';
-import { Sparkles, ArrowUpRight, ChefHat, HeartPulse, Info, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, X, Sparkles, ChefHat, HeartPulse, Info, Phone, ArrowUpRight } from 'lucide-react';
 
 interface NavbarProps {
   currentView: 'landing' | 'onboarding' | 'chat';
   onNavigate: (view: 'landing' | 'onboarding' | 'chat') => void;
   onOpenIntro: () => void;
   onOpenAbout: () => void;
+  onOpenContact: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -13,97 +14,187 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   onOpenIntro,
   onOpenAbout,
+  onOpenContact,
 }) => {
+  const [showSearchInput, setShowSearchInput] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   return (
-    <header className="fixed top-3 left-0 right-0 z-50 px-4 sm:px-8 max-w-6xl mx-auto">
-      <nav className="bg-white/80 backdrop-blur-md border border-[#E9DFD5]/90 rounded-full px-4 sm:px-6 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] flex items-center justify-between transition-all duration-300">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#EBE3D7] transition-all duration-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
         
-        {/* Logo */}
-        <button
-          onClick={() => onNavigate('landing')}
-          className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-none"
-        >
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-            <span className="text-lg">🍲</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-stone-900 tracking-tight text-base sm:text-lg">
-                Bếp Nhà Mình
-              </span>
-              <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                AI Dinh Dưỡng
-              </span>
-            </div>
-          </div>
-        </button>
-
-        {/* Navigation Links */}
-        <div className="hidden md:flex items-center gap-1 sm:gap-2 text-sm font-medium text-stone-600">
-          <button
-            onClick={onOpenIntro}
-            className="px-3.5 py-1.5 rounded-full hover:text-stone-900 hover:bg-stone-100/80 transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <Info className="w-4 h-4 text-amber-600" />
-            Introduction
-          </button>
+        {/* KHU VỰC BÊN TRÁI: CÁC NÚT ĐIỀU HƯỚNG CHÌM XUỐNG (GIỐNG HÌNH 2) & LOGO */}
+        <div className="flex items-center gap-6 sm:gap-8">
           
+          {/* Logo Bếp Nhà Mình (Theo sơ đồ Hình 1) */}
           <button
-            onClick={onOpenAbout}
-            className="px-3.5 py-1.5 rounded-full hover:text-stone-900 hover:bg-stone-100/80 transition-colors flex items-center gap-1.5 cursor-pointer"
+            onClick={() => onNavigate('landing')}
+            className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-none shrink-0"
           >
-            <ChefHat className="w-4 h-4 text-orange-600" />
-            About us
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+              <span className="text-lg sm:text-xl">🍲</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-[#1C3D47] tracking-tight text-base sm:text-lg">
+                  Bếp Nhà Mình
+                </span>
+                <span className="hidden lg:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                  AI Dinh Dưỡng
+                </span>
+              </div>
+            </div>
           </button>
 
-          {currentView !== 'landing' && (
+          {/* Các nút Menu chìm xuống (Không đóng khung nổi lên như viên nang pill - Giống Hình 2) */}
+          <nav className="hidden md:flex items-center gap-5 lg:gap-7 text-sm lg:text-base font-semibold text-[#1C3D47]">
+            
             <button
-              onClick={() => onNavigate('landing')}
-              className="px-3.5 py-1.5 rounded-full hover:text-stone-900 hover:bg-stone-100/80 transition-colors"
+              onClick={onOpenIntro}
+              className="text-[#1C3D47] hover:text-orange-600 transition-colors py-2 flex items-center gap-1 cursor-pointer"
             >
-              Trang chủ
+              <span>Introduction</span>
             </button>
-          )}
 
-          {currentView === 'chat' && (
             <button
-              onClick={() => onNavigate('onboarding')}
-              className="px-3.5 py-1.5 rounded-full hover:text-stone-900 hover:bg-stone-100/80 transition-colors flex items-center gap-1"
+              onClick={onOpenAbout}
+              className="text-[#1C3D47] hover:text-orange-600 transition-colors py-2 flex items-center gap-1 cursor-pointer"
             >
-              <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
-              Sửa hồ sơ
+              <span>About us</span>
             </button>
-          )}
+
+            <button
+              onClick={onOpenContact}
+              className="text-[#1C3D47] hover:text-orange-600 transition-colors py-2 flex items-center gap-1 cursor-pointer"
+            >
+              <span>Contact</span>
+            </button>
+
+            {currentView !== 'landing' && (
+              <button
+                onClick={() => onNavigate('landing')}
+                className="text-stone-500 hover:text-stone-900 transition-colors py-2"
+              >
+                Trang chủ
+              </button>
+            )}
+
+            {currentView === 'chat' && (
+              <button
+                onClick={() => onNavigate('onboarding')}
+                className="text-stone-500 hover:text-stone-900 transition-colors py-2 flex items-center gap-1"
+              >
+                <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
+                <span>Sửa hồ sơ</span>
+              </button>
+            )}
+          </nav>
+
         </div>
 
-        {/* CTA Button */}
-        <div className="flex items-center gap-2">
-          {currentView === 'landing' ? (
-            <button
-              onClick={() => onNavigate('onboarding')}
-              className="group relative inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 shadow-md shadow-orange-500/25 transition-all hover:shadow-lg hover:shadow-orange-500/35 active:scale-95 cursor-pointer"
+        {/* KHU VỰC BÊN PHẢI: TÌM KIẾM + MẠNG XÃ HỘI (FB, TIKTOK, INSTA, X) + NÚT BẮT ĐẦU */}
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          
+          {/* Ô Tìm kiếm (Search bar) */}
+          <div className="relative flex items-center">
+            {showSearchInput ? (
+              <div className="flex items-center bg-stone-100 rounded-full px-3 py-1.5 border border-stone-300 w-48 sm:w-64 transition-all">
+                <Search className="w-4 h-4 text-stone-500 shrink-0 mr-2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm món, bệnh lý..."
+                  className="bg-transparent text-xs sm:text-sm text-stone-800 focus:outline-none w-full"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setShowSearchInput(false)}
+                  className="text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSearchInput(true)}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
+                title="Tìm kiếm món ăn / bệnh lý"
+              >
+                <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Nhóm biểu tượng Mạng xã hội: Facebook, TikTok, Instagram, X (Chuẩn Hình 1) */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            
+            {/* Facebook (Vòng tròn xanh có chữ f trắng) */}
+            <a
+              href="https://facebook.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#1877F2] hover:opacity-90 flex items-center justify-center text-white transition-transform hover:scale-110 shadow-2xs"
+              title="Facebook Bếp Nhà Mình"
             >
-              <span>Bắt đầu</span>
-              <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </button>
-          ) : currentView === 'onboarding' ? (
-            <button
-              onClick={() => onNavigate('chat')}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 transition-colors"
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </svg>
+            </a>
+
+            {/* TikTok (Hình vuông bo góc đen với logo TikTok) */}
+            <a
+              href="https://tiktok.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-black hover:opacity-90 flex items-center justify-center text-white transition-transform hover:scale-110 shadow-2xs"
+              title="TikTok Bếp Nhà Mình"
             >
-              <span>Vào Bếp AI ↗</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => onNavigate('landing')}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+              </svg>
+            </a>
+
+            {/* Instagram (Gradient vuông bo góc với camera trắng) */}
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-tr from-[#FFDC80] via-[#FD1D1D] to-[#833AB4] hover:opacity-90 flex items-center justify-center text-white transition-transform hover:scale-110 shadow-2xs"
+              title="Instagram Bếp Nhà Mình"
             >
-              <span>Trang chủ ↗</span>
-            </button>
-          )}
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+              </svg>
+            </a>
+
+            {/* X / Twitter (Vòng tròn đen với chữ X trắng) */}
+            <a
+              href="https://x.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black hover:opacity-90 flex items-center justify-center text-white transition-transform hover:scale-110 shadow-2xs"
+              title="X Bếp Nhà Mình"
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+
+          </div>
+
+          {/* Nút Bắt đầu CTA */}
+          <button
+            onClick={() => onNavigate('onboarding')}
+            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#1C3D47] hover:bg-[#152e35] transition-colors cursor-pointer"
+          >
+            <span>Bắt đầu</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+
         </div>
 
-      </nav>
+      </div>
     </header>
   );
 };

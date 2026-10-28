@@ -8,7 +8,7 @@ import { Navbar } from './components/Navbar';
 import { HeroLanding } from './components/HeroLanding';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { ChatbotInterface } from './components/ChatbotInterface';
-import { IntroductionModal, AboutModal } from './components/InfoModals';
+import { IntroductionModal, AboutModal, ContactModal } from './components/InfoModals';
 import { FamilyProfile } from './types';
 import { INITIAL_DEFAULT_PROFILE } from './data/mockData';
 
@@ -17,6 +17,7 @@ export default function App() {
   const [familyProfile, setFamilyProfile] = useState<FamilyProfile>(INITIAL_DEFAULT_PROFILE);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
 
   const handleStartOnboarding = () => {
     setCurrentView('onboarding');
@@ -37,7 +38,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] selection:bg-orange-200 selection:text-orange-950">
       
-      {/* Floating Navbar (Tầng 1) */}
+      {/* Flat Navbar (Tầng 1) */}
       <Navbar
         currentView={currentView}
         onNavigate={(view) => {
@@ -46,6 +47,7 @@ export default function App() {
         }}
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
+        onOpenContact={() => setIsContactOpen(true)}
       />
 
       {/* Main View Switcher */}
@@ -90,6 +92,11 @@ export default function App() {
       <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
+      />
+
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
       />
 
     </div>
