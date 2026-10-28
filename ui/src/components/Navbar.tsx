@@ -6,7 +6,6 @@ import {
   Menu,
   X,
   BookOpen,
-  ExternalLink,
   Info,
   ChefHat,
 } from 'lucide-react';
@@ -418,26 +417,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
             </div>
-
-            {/* Mục 5: Dành Cho Doanh Nghiệp */}
-            <a
-              href="#for-business"
-              onClick={(e) => {
-                e.preventDefault();
-                setActiveDropdown(null);
-              }}
-              className="flex items-center gap-1 xl:gap-1.5 py-4 text-[13.5px] xl:text-[15px] font-semibold text-[#1f2937] hover:text-[#014043] transition-all duration-500 ease-out hover:-translate-y-0.5 group cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <span className="whitespace-nowrap">{navigationData.forBusiness.label}</span>
-              <span className="inline-flex items-center text-xs shrink-0">
-                <ExternalLink className="w-3.5 h-3.5 text-stone-500 group-hover:text-[#014043] transition-colors" />
-              </span>
-              {navigationData.forBusiness.badge && (
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 animate-pulse whitespace-nowrap shrink-0">
-                  {navigationData.forBusiness.badge}
-                </span>
-              )}
-            </a>
           </nav>
 
           {/* =========================================
@@ -918,28 +897,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* Liên kết trực tiếp: Dành Cho Doanh Nghiệp */}
-              <div className="border-b border-gray-100 py-1">
-                <a
-                  href="#for-business"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="flex items-center justify-between py-2.5 text-[15px] font-semibold text-[#1f2937] hover:text-[#014043] transition-colors"
-                >
-                  <span className="flex items-center gap-1.5">
-                    {navigationData.forBusiness.label}
-                    {navigationData.forBusiness.badge && (
-                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                        {navigationData.forBusiness.badge}
-                      </span>
-                    )}
-                  </span>
-                  <ExternalLink className="w-4 h-4 text-stone-400" />
-                </a>
               </div>
 
             </div>
