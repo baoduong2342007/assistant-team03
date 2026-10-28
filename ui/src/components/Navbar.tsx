@@ -13,8 +13,8 @@ import {
 import { navigationData, MegaColumn } from '../data/navigationData';
 
 interface NavbarProps {
-  currentView?: 'landing' | 'onboarding' | 'chat';
-  onNavigate?: (view: 'landing' | 'onboarding' | 'chat') => void;
+  currentView?: string;
+  onNavigate?: (view: any) => void;
   onOpenIntro?: () => void;
   onOpenAbout?: () => void;
 }
@@ -307,7 +307,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveDropdown(null);
-                      if (onNavigate) onNavigate('onboarding');
+                      if (!onNavigate) return;
+                      if (item.href === '#personalize' || item.href === '/meal-planner') {
+                        onNavigate('meal-planner');
+                      } else if (item.href === '#more-plans' || item.href === '/meal-planner/app') {
+                        onNavigate('meal-planner-app');
+                      } else {
+                        onNavigate('meal-planner');
+                      }
                     }}
                     className="w-full text-left px-5 py-2.5 text-sm font-semibold text-[#1f2937] hover:text-[#014043] hover:bg-stone-50 cursor-pointer block transition-colors duration-200 whitespace-nowrap"
                   >
@@ -827,7 +834,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         type="button"
                         onClick={() => {
                           setIsMobileMenuOpen(false);
-                          if (onNavigate) onNavigate('onboarding');
+                          if (!onNavigate) return;
+                          if (item.href === '#personalize' || item.href === '/meal-planner') {
+                            onNavigate('meal-planner');
+                          } else if (item.href === '#more-plans' || item.href === '/meal-planner/app') {
+                            onNavigate('meal-planner-app');
+                          } else {
+                            onNavigate('meal-planner');
+                          }
                         }}
                         className="block w-full text-left text-sm text-stone-600 hover:text-stone-900 py-1 transition-colors"
                       >

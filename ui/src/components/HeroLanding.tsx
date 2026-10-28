@@ -49,7 +49,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
           </span>
         </h1>
 
-        {/* SideChef-Style Hero Search Bar (Thay thế dòng chữ trong ngoặc) */}
+        {/* Bếp Nhà Mình Search Bar (Thay thế dòng chữ trong ngoặc) */}
         <div className="w-full max-w-2xl mx-auto mb-8 sm:mb-10">
           <form
             onSubmit={handleSearchSubmit}
