@@ -236,7 +236,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
             <button
               type="button"
               onClick={() => setIsEmailFormOpen(!isEmailFormOpen)}
-              className="w-full py-3.5 px-6 rounded-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
+              className="w-full py-3.5 px-6 rounded-full bg-[#014043] hover:bg-[#002f32] text-white font-bold text-xs sm:text-sm tracking-wider uppercase transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.99]"
             >
               <Mail className="w-4 h-4" />
               <span>ĐĂNG KÝ BẰNG EMAIL</span>
@@ -258,7 +258,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-orange-500"
+                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-[#014043]"
                   />
                 </div>
                 <div>
@@ -268,7 +268,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-orange-500"
+                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-[#014043]"
                   />
                 </div>
                 <div>
@@ -278,12 +278,12 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-orange-500"
+                    className="w-full bg-white px-3.5 py-2 text-xs rounded-xl border border-gray-300 outline-none focus:border-[#014043]"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-full bg-stone-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                  className="w-full py-2.5 rounded-full bg-[#014043] hover:bg-[#002f32] text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                 >
                   XÁC NHẬN VÀ TIẾP TỤC
                 </button>
@@ -295,7 +295,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
               <button
                 type="button"
                 onClick={() => triggerLoginSuccess('demo@bepnhaminh.vn', 'Thu Trang (Tài khoản mẫu)')}
-                className="text-xs text-orange-600 font-bold hover:underline cursor-pointer"
+                className="text-xs text-[#014043] font-bold hover:underline cursor-pointer"
               >
                 ⚡ Hoặc trải nghiệm nhanh với tài khoản Demo (1-Click)
               </button>
@@ -310,7 +310,7 @@ export const MealPlannerAuth: React.FC<MealPlannerAuthProps> = ({
           >
             <div
               className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                receiveInspiration ? 'bg-orange-600 text-white' : 'border border-gray-400 bg-white'
+                receiveInspiration ? 'bg-[#014043] text-white' : 'border border-gray-400 bg-white'
               }`}
             >
               {receiveInspiration && <Check className="w-3.5 h-3.5" />}

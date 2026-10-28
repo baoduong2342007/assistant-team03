@@ -48,7 +48,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, on
           {/* Badges on image */}
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span className="px-2.5 py-1 rounded-full bg-orange-600 text-white text-xs font-bold flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full bg-[#014043] text-white text-xs font-bold flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{recipe.cookTime} phút nấu</span>
               </span>

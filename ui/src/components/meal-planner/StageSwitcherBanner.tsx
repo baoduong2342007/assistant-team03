@@ -85,9 +85,9 @@ export const StageSwitcherBanner: React.FC<StageSwitcherBannerProps> = ({
                 key={stage.key}
                 type="button"
                 onClick={() => onSelectStage(stage.key)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
                   isActive
-                    ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-xs scale-102 ring-1 ring-orange-400'
+                    ? 'bg-[#014043] text-white shadow-xs scale-102 ring-1 ring-teal-500'
                     : 'bg-stone-800 hover:bg-stone-700 text-stone-300'
                 }`}
                 title={`Chuyển đến: ${stage.url}`}

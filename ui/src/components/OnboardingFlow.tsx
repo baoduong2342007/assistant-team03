@@ -195,7 +195,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
                       onClick={() => setProfile({ ...profile, cookName: name })}
                       className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                         profile.cookName === name
-                          ? 'bg-orange-500 text-white font-semibold shadow-sm shadow-orange-500/25'
+                          ? 'bg-[#014043] text-white font-semibold shadow-xs'
                           : 'bg-white border border-stone-200 text-stone-700 hover:border-orange-300 hover:bg-orange-50/50'
                       }`}
                     >
@@ -581,7 +581,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className="w-full py-4 rounded-2xl text-base font-bold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 shadow-lg shadow-orange-500/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 rounded-full text-base font-bold text-white bg-[#014043] hover:bg-[#002f32] shadow-sm shadow-teal-950/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>{currentStep === totalSteps ? 'Hoàn tất & Vào Bếp AI' : 'Tiếp tục'}</span>
               <ArrowRight className="w-5 h-5" />

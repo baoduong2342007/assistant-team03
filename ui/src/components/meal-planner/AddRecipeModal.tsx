@@ -311,7 +311,7 @@ export const AddRecipeModal: React.FC<AddRecipeModalProps> = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-full bg-[#014043] hover:bg-[#002f32] text-white font-bold text-xs sm:text-sm shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>LƯU & THÊM VÀO {dayInfo?.fullLabel.toUpperCase()}</span>

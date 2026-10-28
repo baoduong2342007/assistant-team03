@@ -76,12 +76,12 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
         <div className="flex justify-center w-full mb-14">
           <button
             onClick={onBeginNow}
-            className="group relative inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-4 sm:py-4.5 rounded-full text-base sm:text-lg font-bold text-white bg-gradient-to-r from-orange-600 via-amber-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 shadow-[0_12px_35px_rgba(234,88,12,0.35)] hover:shadow-[0_16px_45px_rgba(234,88,12,0.5)] active:scale-95 transition-all duration-300 cursor-pointer overflow-hidden border border-orange-400/30"
+            className="group relative inline-flex items-center justify-center gap-3 px-8 sm:px-10 py-4 sm:py-4.5 rounded-full text-base sm:text-lg font-bold text-white bg-[#014043] hover:bg-[#002f32] shadow-[0_12px_35px_rgba(1,64,67,0.3)] hover:shadow-[0_16px_45px_rgba(1,64,67,0.45)] active:scale-95 transition-all duration-300 cursor-pointer overflow-hidden border border-teal-800/40"
           >
             {/* Subtle light sweep animation */}
-            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-1000 ease-in-out" />
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 ease-in-out" />
             
-            <div className="w-7 h-7 rounded-full bg-white text-orange-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-7 h-7 rounded-full bg-white text-[#014043] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform shrink-0">
               <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
             </div>
             

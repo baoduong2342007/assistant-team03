@@ -107,7 +107,7 @@ export const AboutModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
 
         {/* Modal Header */}
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-orange-600 text-white flex items-center justify-center text-xl shadow-xs">
+          <div className="w-10 h-10 rounded-2xl bg-[#014043] text-white flex items-center justify-center text-xl shadow-xs">
             <ChefHat className="w-5 h-5" />
           </div>
           <div>
@@ -152,7 +152,7 @@ export const AboutModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
         <div className="mt-6 pt-4 border-t border-stone-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-full bg-orange-600 text-white font-semibold text-xs hover:bg-orange-700 transition-colors cursor-pointer"
+            className="px-5 py-2.5 rounded-full bg-[#014043] text-white font-semibold text-xs hover:bg-[#002f32] transition-colors cursor-pointer"
           >
             Đóng
           </button>

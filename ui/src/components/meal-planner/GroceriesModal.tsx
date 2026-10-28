@@ -73,7 +73,7 @@ export const GroceriesModal: React.FC<GroceriesModalProps> = ({ isOpen, onClose 
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-[#014043] flex items-center justify-center font-bold">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
@@ -96,10 +96,10 @@ export const GroceriesModal: React.FC<GroceriesModalProps> = ({ isOpen, onClose 
         </div>
 
         {/* Total Cost & Quick Actions */}
-        <div className="px-6 py-4 bg-orange-50/60 border-b border-orange-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="text-xs text-stone-500 font-semibold">Ước tính cần thanh toán:</div>
-            <div className="text-2xl font-bold font-serif-display text-orange-700">
+            <div className="text-2xl font-bold font-serif-display text-[#014043]">
               {formatPrice(adjustedTotal || stats.estimatedCartTotal)}
             </div>
             <div className="text-[11px] text-stone-500">

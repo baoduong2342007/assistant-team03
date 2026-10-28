@@ -130,7 +130,7 @@ const DraggableRecipeCard: React.FC<DraggableRecipeCardProps> = ({
             <span>{recipe.cookTime}p • {formatPrice(recipe.costPerServing)}/suất</span>
           </div>
 
-          <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
+          <div className="w-6 h-6 rounded-full bg-[#014043] text-white flex items-center justify-center text-[10px] font-bold shadow-xs">
             🍲
           </div>
         </div>
@@ -404,7 +404,7 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
                     generateWeeklyPlan();
                     showToast('Đã tạo mới thực đơn tuần theo sở thích gia đình!');
                   }}
-                  className="px-4 py-2 rounded-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-2 rounded-full bg-[#014043] hover:bg-[#002f32] text-white text-xs font-bold tracking-wider uppercase transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>TẠO LẠI THỰC ĐƠN</span>
@@ -439,8 +439,8 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
                 <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-xs">
                   
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs">
-                      🛒
+                    <div className="w-7 h-7 rounded-xl bg-teal-50 text-[#014043] flex items-center justify-center font-bold text-xs">
+                      <ShoppingBag className="w-3.5 h-3.5" />
                     </div>
                     <span className="font-extrabold text-sm text-stone-900 uppercase tracking-wider">
                       Đi Chợ Của Tôi
@@ -448,7 +448,7 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
                   </div>
 
                   {/* Tổng chi phí ước tính */}
-                  <div className="text-3xl font-extrabold text-orange-700 tracking-tight leading-none mb-1 font-serif-display">
+                  <div className="text-3xl font-extrabold text-[#014043] tracking-tight leading-none mb-1 font-serif-display">
                     {formatPrice(stats.estimatedCartTotal)}
                   </div>
 
@@ -471,7 +471,7 @@ export const MealPlannerApp: React.FC<MealPlannerAppProps> = ({ onNavigateToPref
                   <button
                     type="button"
                     onClick={() => setIsGroceriesModalOpen(true)}
-                    className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-orange-600 via-amber-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 text-white font-extrabold text-xs tracking-wider uppercase transition-all shadow-md shadow-orange-600/20 active:scale-[0.99] cursor-pointer text-center flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-4 rounded-full bg-[#014043] hover:bg-[#002f32] text-white font-bold text-xs tracking-wider uppercase transition-all shadow-sm active:scale-[0.99] cursor-pointer text-center flex items-center justify-center gap-2"
                   >
                     <ShoppingBag className="w-4 h-4" />
                     <span>THÊM TẤT CẢ VÀO GIỎ HÀNG</span>

@@ -96,7 +96,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
             <button
               type="submit"
-              className="w-full py-3 rounded-2xl bg-[#014043] hover:bg-[#002f32] text-white text-xs sm:text-sm font-bold shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all"
+              className="w-full py-3 rounded-full bg-[#014043] hover:bg-[#002f32] text-white text-xs sm:text-sm font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all"
             >
               <Send className="w-4 h-4" />
               <span>GỬI PHẢN HỒI</span>

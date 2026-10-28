@@ -115,7 +115,7 @@ export default function App() {
 
   return (
     <MealPlannerProvider>
-      <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] selection:bg-orange-200 selection:text-orange-950 flex flex-col justify-between">
+      <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] selection:bg-teal-100 selection:text-teal-950 flex flex-col justify-between">
         
         <div>
           {/* Top Stage Navigation & Tester Bar for reviewer & user */}
