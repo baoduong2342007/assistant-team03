@@ -1,21 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Clock,
   Bookmark,
   Star,
-  ChevronRight,
-  ChevronLeft,
   ChevronDown,
-  ShoppingBag,
-  ChefHat,
-  Sparkles,
-  ArrowRight,
-  Play,
-  Pause,
-  CheckCircle2,
-  DollarSign,
-  Heart,
-  ShieldCheck,
+  Users,
+  Timer,
+  Wallet,
+  Leaf,
+  Plus,
 } from 'lucide-react';
 import { useMealPlanner } from '../../context/MealPlannerContext';
 import { DayOfWeek, GoalType, ServingSize, PlannerRecipe } from '../../types/mealPlanner';
@@ -30,10 +23,10 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
   onNavigateToWizard,
   onSelectRecipePreview,
 }) => {
-  const { preferences, toggleDay, setServingSize, setPriorityGoal, formatPrice, allRecipes } =
+  const { preferences, toggleDay, setServingSize, setPriorityGoal, allRecipes } =
     useMealPlanner();
 
-  // 7 days in week (T2, T3, T4, T5, T6, T7, CN)
+  // 7 days in week: T2, T3, T4, T5, T6, T7, CN
   const daysList: { key: DayOfWeek; label: string; full: string }[] = [
     { key: 'mon', label: 'T2', full: 'Thứ Hai' },
     { key: 'tue', label: 'T3', full: 'Thứ Ba' },
@@ -43,27 +36,6 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
     { key: 'sat', label: 'T7', full: 'Thứ Bảy' },
     { key: 'sun', label: 'CN', full: 'Chủ Nhật' },
   ];
-
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [selectedTagFilter, setSelectedTagFilter] = useState('Tất cả');
-
-  // Days quick presets
-  const handleSelectWorkdays = () => {
-    const workdays: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri'];
-    workdays.forEach((day) => {
-      if (!preferences.selectedDays.includes(day)) toggleDay(day);
-    });
-    ['sat', 'sun'].forEach((day) => {
-      if (preferences.selectedDays.includes(day as DayOfWeek)) toggleDay(day as DayOfWeek);
-    });
-  };
-
-  const handleSelectAllDays = () => {
-    const allDays: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    allDays.forEach((day) => {
-      if (!preferences.selectedDays.includes(day)) toggleDay(day);
-    });
-  };
 
   const handleGetStarted = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,150 +49,101 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
     onNavigateToWizard();
   };
 
-  const filteredRecipes = allRecipes.filter((r) => {
-    if (selectedTagFilter === 'Tất cả') return true;
-    if (selectedTagFilter === 'Nhanh gọn') return r.cookTime <= 20;
-    if (selectedTagFilter === 'Tiết kiệm') return r.costPerServing <= 40000;
-    if (selectedTagFilter === 'Lành mạnh') return r.calories <= 400;
-    if (selectedTagFilter === 'Món Chay') return r.diet.includes('vegetarian') || r.diet.includes('vegan');
-    return true;
-  });
+  // 3 featured recipes for the minimalist showcase (matching image layout)
+  const featuredRecipes: {
+    id: string;
+    title: string;
+    time: string;
+    image: string;
+    rating: number;
+    fallbackRecipe?: PlannerRecipe;
+  }[] = [
+    {
+      id: 'featured-1',
+      title: 'Cá hồi áp chảo sốt bơ tỏi rau củ',
+      time: '25 phút',
+      rating: 5.0,
+      image:
+        'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=800&auto=format&fit=crop&q=80',
+      fallbackRecipe: allRecipes[0],
+    },
+    {
+      id: 'featured-2',
+      title: 'Cơm gà xé Hội An nhanh gọn',
+      time: '30 phút',
+      rating: 5.0,
+      image:
+        'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=800&auto=format&fit=crop&q=80',
+      fallbackRecipe: allRecipes[1],
+    },
+    {
+      id: 'featured-3',
+      title: 'Bún bò trộn Nam Bộ thanh mát',
+      time: '20 phút',
+      rating: 5.0,
+      image:
+        'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&auto=format&fit=crop&q=80',
+      fallbackRecipe: allRecipes[2],
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] flex flex-col justify-between">
+    <div className="min-h-screen bg-[#FDFBF7] text-[#27211D] flex flex-col justify-between selection:bg-teal-100 selection:text-teal-900">
       <div>
         
         {/* ====================================================
-            HERO SECTION: BẾP NHÀ MÌNH
-            Trái: Headline ấm áp, giàu cảm xúc gia đình Việt
+            HERO SECTION: MINIMALIST & CHUẨN BẾP NHÀ MÌNH
+            Trái: Tiêu đề lớn, thoáng đãng, không emoji ồn ào
             Phải: Card cấu hình nhanh (Quick Config Widget)
            ==================================================== */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-orange-50/70 via-[#FDFBF7] to-[#FDFBF7] pt-8 sm:pt-12 pb-16 lg:pb-24 border-b border-stone-200/70">
+        <section className="relative overflow-hidden pt-12 sm:pt-16 pb-20 lg:pb-28 border-b border-stone-200/60 bg-gradient-to-b from-stone-50/80 via-[#FDFBF7] to-[#FDFBF7]">
           
-          {/* Mâm cơm tròn trang trí phía góc phải */}
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 max-w-sm pointer-events-none hidden xl:flex flex-col justify-between opacity-80 overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80"
-              alt="Mâm cơm cá kho"
-              className="w-56 h-56 rounded-full object-cover translate-x-16 -translate-y-6 shadow-xl"
-            />
-            <img
-              src="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80"
-              alt="Mâm cơm rau luộc"
-              className="w-64 h-64 rounded-full object-cover translate-x-12 shadow-xl"
-            />
-            <img
-              src="https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600&auto=format&fit=crop&q=80"
-              alt="Mâm cơm canh nóng"
-              className="w-60 h-60 rounded-full object-cover translate-x-16 translate-y-6 shadow-xl"
-            />
+          {/* Mảng ảnh món ăn decor góc phải phía sau card (Collage phong cách SideChef) */}
+          <div className="absolute right-0 top-0 bottom-0 w-2/5 max-w-lg pointer-events-none hidden xl:block overflow-hidden opacity-90 select-none">
+            <div className="relative w-full h-full">
+              <img
+                src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80"
+                alt="Món ăn nền 1"
+                className="absolute -top-10 right-4 w-60 h-60 rounded-3xl object-cover shadow-2xl rotate-3"
+              />
+              <img
+                src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&auto=format&fit=crop&q=80"
+                alt="Món ăn nền 2"
+                className="absolute top-44 -right-10 w-72 h-72 rounded-3xl object-cover shadow-2xl -rotate-6"
+              />
+              <img
+                src="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80"
+                alt="Món ăn nền 3"
+                className="absolute bottom-4 right-12 w-64 h-64 rounded-3xl object-cover shadow-2xl rotate-6"
+              />
+            </div>
           </div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
               
-              {/* CỘT BÊN TRÁI: TIÊU ĐỀ & LỜI GIỚI THIỆU */}
-              <div className="lg:col-span-7 space-y-6 max-w-2xl text-left">
-                
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-orange-900 text-xs font-bold border border-orange-200/80 shadow-xs">
-                  <span className="text-base">🍲</span>
-                  <span>Bếp Nhà Mình • Trợ Lý Bữa Ăn & Dinh Dưỡng Gia Đình</span>
-                </div>
-
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-stone-900 font-serif-display tracking-tight leading-[1.15]">
-                  Lập Kế Hoạch Bữa Ăn
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-orange-700 via-amber-700 to-amber-600">
-                    Thảnh Thơi Cho Người Bận Rộn
-                  </span>
+              {/* CỘT BÊN TRÁI: TIÊU ĐỀ LỚN & MÔ TẢ TINH GỌN (MINIMALIST) */}
+              <div className="lg:col-span-7 space-y-6 text-left max-w-xl">
+                <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black text-stone-900 tracking-tight leading-[1.12]">
+                  Lên Kế Hoạch Bữa Ăn Thảnh Thơi Cho Người Bận Rộn
                 </h1>
 
                 <p className="text-base sm:text-lg text-stone-600 leading-relaxed font-normal">
-                  Hôm nay nhà mình ăn gì? Để Bếp lo trọn vẹn từng mâm cơm tròn vị. Tiết kiệm chi phí đi chợ, chuẩn dinh dưỡng từng thành viên và không còn phải đau đầu tự hỏi mỗi chiều tan sở.
+                  Chủ động bữa cơm gia đình với thực đơn cá nhân hóa miễn phí. Tiết kiệm thời gian, tối ưu chi phí và ăn ngon hơn mỗi ngày.
                 </p>
-
-                {/* 3 giá trị cốt lõi */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-stone-200 shadow-xs">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm shrink-0">
-                      ✓
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-stone-900">100% Miễn Phí</div>
-                      <div className="text-[11px] text-stone-500">Trọn đời cho gia đình</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-stone-200 shadow-xs">
-                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shrink-0">
-                      ⏱️
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-stone-900">Tiết Kiệm 3+ Giờ</div>
-                      <div className="text-[11px] text-stone-500">Mỗi tuần nấu nướng</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-stone-200 shadow-xs">
-                    <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-800 flex items-center justify-center font-bold text-sm shrink-0">
-                      🥗
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-stone-900">Chuẩn Dinh Dưỡng</div>
-                      <div className="text-[11px] text-stone-500">Hợp bệnh lý từng người</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-stone-500 pt-1">
-                  <span>Hơn <strong>45.000+</strong> mâm cơm gia đình Việt đã được lên kế hoạch thành công mỗi tuần</span>
-                </div>
               </div>
 
               {/* CỘT BÊN PHẢI: CARD CẤU HÌNH NHANH (QUICK CONFIG WIDGET) */}
-              <div className="lg:col-span-5">
-                <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-stone-200/90 relative">
+              <div className="lg:col-span-5 flex justify-end">
+                <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.07)] border border-stone-200/90 w-full max-w-md">
                   
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-100">
-                    <div>
-                      <span className="text-[11px] font-bold text-orange-600 uppercase tracking-wider">
-                        THIẾT LẬP NHANH 1 PHÚT
-                      </span>
-                      <h2 className="text-xl font-bold font-serif-display text-stone-900">
-                        Tùy Chọn Thực Đơn Tuần
-                      </h2>
-                    </div>
-                    <div className="w-9 h-9 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-lg">
-                      ⚙️
-                    </div>
-                  </div>
-
                   <form onSubmit={handleGetStarted} className="space-y-5 text-left">
                     
                     {/* 1. Số ngày nấu trong tuần */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                          <span>1. Bạn cần nấu những ngày nào trong tuần?</span>
-                        </label>
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          <button
-                            type="button"
-                            onClick={handleSelectWorkdays}
-                            className="text-stone-500 hover:text-orange-600 underline cursor-pointer"
-                          >
-                            T2-T6
-                          </button>
-                          <span className="text-stone-300">|</span>
-                          <button
-                            type="button"
-                            onClick={handleSelectAllDays}
-                            className="text-stone-500 hover:text-orange-600 underline cursor-pointer"
-                          >
-                            Cả tuần
-                          </button>
-                        </div>
-                      </div>
+                      <label className="block text-sm font-bold text-stone-900 mb-2.5">
+                        Bạn cần nấu những ngày nào?
+                      </label>
 
                       {/* 7 nút tròn đại diện T2..CN */}
                       <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
@@ -231,10 +154,10 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
                               key={d.key}
                               type="button"
                               onClick={() => toggleDay(d.key)}
-                              className={`py-2 rounded-2xl font-bold text-xs sm:text-sm flex flex-col items-center justify-center transition-all cursor-pointer border ${
+                              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center transition-all cursor-pointer ${
                                 isSelected
-                                  ? 'bg-[#014043] text-white border-[#014043] shadow-xs scale-102 ring-2 ring-[#014043]/20'
-                                  : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
+                                  ? 'bg-[#014043] text-white shadow-sm'
+                                  : 'border border-stone-200 text-stone-600 hover:border-stone-400 bg-white'
                               }`}
                               title={d.full}
                             >
@@ -243,104 +166,102 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
                           );
                         })}
                       </div>
-                      <div className="mt-1 text-[11px] text-stone-500">
-                        Đang chọn: <strong className="text-stone-800">{preferences.selectedDays.length} ngày nấu</strong>
-                      </div>
                     </div>
 
                     {/* 2. Khẩu phần ăn */}
                     <div>
-                      <label className="block text-xs font-bold text-stone-800 mb-1.5">
-                        2. Khẩu phần ăn cho bao nhiêu người?
+                      <label className="block text-sm font-bold text-stone-900 mb-1.5">
+                        Khẩu phần ăn
                       </label>
-                      <div className="relative">
+                      <div className="relative inline-block w-40">
+                        <Users className="w-4 h-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <select
                           value={preferences.servingSize}
                           onChange={(e) => setServingSize(Number(e.target.value) as ServingSize)}
-                          className="w-full appearance-none bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold text-stone-800 outline-none focus:border-[#014043] cursor-pointer pr-10 shadow-xs"
+                          className="w-full appearance-none bg-white hover:bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm font-semibold text-stone-800 outline-none focus:border-[#014043] cursor-pointer shadow-2xs"
                         >
-                          <option value={1}>1 người (Độc thân / Bữa ăn cá nhân)</option>
-                          <option value={2}>2 người (Cặp đôi / Vợ chồng)</option>
-                          <option value={3}>3 người (Gia đình nhỏ)</option>
-                          <option value={4}>4 người (Gia đình tiêu chuẩn 2 thế hệ)</option>
-                          <option value={5}>5+ người (Gia đình đông thành viên)</option>
+                          <option value={1}>1 người</option>
+                          <option value={2}>2 người</option>
+                          <option value={3}>3 người</option>
+                          <option value={4}>4 người</option>
+                          <option value={5}>5+ người</option>
                         </select>
-                        <ChevronDown className="w-4 h-4 text-stone-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-stone-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
 
                     {/* 3. Mục tiêu ưu tiên */}
                     <div>
-                      <label className="block text-xs font-bold text-stone-800 mb-2">
-                        3. Mục tiêu nào quan trọng nhất với gia đình bạn?
+                      <label className="block text-sm font-bold text-stone-900 mb-2">
+                        Mục tiêu quan trọng nhất với bạn?
                       </label>
 
                       <div className="space-y-2">
                         {/* Quick & Easy */}
-                        <label
+                        <div
                           onClick={() => setPriorityGoal('quick_easy')}
                           className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
                             preferences.priorityGoal === 'quick_easy'
-                              ? 'border-orange-500 bg-orange-50/70 ring-1 ring-orange-400'
-                              : 'border-stone-200 hover:border-stone-300 bg-stone-50/50'
+                              ? 'border-[#014043] bg-teal-50/30 ring-1 ring-[#014043]'
+                              : 'border-stone-200 hover:border-stone-300 bg-white'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center text-sm shrink-0">
-                            ⚡
+                          <div className="w-9 h-9 rounded-xl bg-stone-100 text-[#014043] flex items-center justify-center shrink-0">
+                            <Timer className="w-4 h-4" />
                           </div>
-                          <div className="flex-1">
+                          <div>
                             <div className="text-xs sm:text-sm font-bold text-stone-900">
-                              Nhanh & Tiện Lợi (Quick & Easy)
+                              Nhanh & Tiện lợi
                             </div>
                             <div className="text-[11px] text-stone-500">
-                              Dưới 30 phút, ít bước sơ chế, gọn gàng dọn dẹp
+                              Dưới 30 phút
                             </div>
                           </div>
-                        </label>
+                        </div>
 
                         {/* Budget-Friendly */}
-                        <label
+                        <div
                           onClick={() => setPriorityGoal('budget_friendly')}
                           className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
                             preferences.priorityGoal === 'budget_friendly'
-                              ? 'border-orange-500 bg-orange-50/70 ring-1 ring-orange-400'
-                              : 'border-stone-200 hover:border-stone-300 bg-stone-50/50'
+                              ? 'border-[#014043] bg-teal-50/30 ring-1 ring-[#014043]'
+                              : 'border-stone-200 hover:border-stone-300 bg-white'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm shrink-0">
-                            💰
+                          <div className="w-9 h-9 rounded-xl bg-stone-100 text-[#014043] flex items-center justify-center shrink-0">
+                            <Wallet className="w-4 h-4" />
                           </div>
-                          <div className="flex-1">
+                          <div>
                             <div className="text-xs sm:text-sm font-bold text-stone-900">
-                              Tiết Kiệm Chi Phí (Budget-Friendly)
+                              Tiết kiệm chi phí
                             </div>
                             <div className="text-[11px] text-stone-500">
-                              Dưới 40.000 ₫/khẩu phần, tận dụng nguyên liệu theo mùa
+                              Dưới 35.000 ₫ / khẩu phần
                             </div>
                           </div>
-                        </label>
+                        </div>
 
                         {/* Eat Healthy */}
-                        <label
+                        <div
                           onClick={() => setPriorityGoal('eat_healthy')}
                           className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
                             preferences.priorityGoal === 'eat_healthy'
-                              ? 'border-orange-500 bg-orange-50/70 ring-1 ring-orange-400'
-                              : 'border-stone-200 hover:border-stone-300 bg-stone-50/50'
+                              ? 'border-[#014043] bg-teal-50/30 ring-1 ring-[#014043]'
+                              : 'border-stone-200 hover:border-stone-300 bg-white'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm shrink-0">
-                            🥗
+                          <div className="w-9 h-9 rounded-xl bg-stone-100 text-[#014043] flex items-center justify-center shrink-0">
+                            <Leaf className="w-4 h-4" />
                           </div>
-                          <div className="flex-1">
+                          <div>
                             <div className="text-xs sm:text-sm font-bold text-stone-900">
-                              Ăn Khỏe & Cân Bằng (Eat Healthy)
+                              Ăn lành mạnh
                             </div>
                             <div className="text-[11px] text-stone-500">
-                              Đủ 4 nhóm chất, giảm muối mặn, giàu chất xơ & đạm nạc
+                              Cân bằng dinh dưỡng
                             </div>
                           </div>
-                        </label>
+                        </div>
                       </div>
                     </div>
 
@@ -348,13 +269,12 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
                     <div className="pt-2">
                       <button
                         type="submit"
-                        className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm tracking-wider uppercase transition-all shadow-md shadow-orange-600/20 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-3.5 px-6 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-[0.99] text-white font-bold text-xs sm:text-sm tracking-wider uppercase transition-all shadow-sm cursor-pointer"
                       >
-                        <span>BẮT ĐẦU NGAY (GET STARTED)</span>
-                        <ArrowRight className="w-4 h-4" />
+                        BẮT ĐẦU NGAY
                       </button>
-                      <p className="text-center text-[10px] text-stone-400 mt-2">
-                        Tự động điều hướng sang bước khảo sát khẩu vị & loại trừ dị ứng chi tiết
+                      <p className="text-center text-[11px] text-stone-400 mt-2.5">
+                        Tùy chỉnh dị ứng, chế độ ăn và nguyên liệu ở bước tiếp theo
                       </p>
                     </div>
 
@@ -368,68 +288,87 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
 
         {/* ====================================================
             SECTION 2: CÁCH THỨC HOẠT ĐỘNG (HOW IT WORKS)
+            4 bước trực quan, minh họa tròn tinh giản (Minimalist)
            ==================================================== */}
-        <section className="py-16 sm:py-20 bg-white border-b border-stone-200/70">
+        <section className="py-16 sm:py-24 bg-white border-b border-stone-200/60">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             
-            <span className="text-xs font-bold text-orange-600 tracking-widest uppercase">
-              QUY TRÌNH BẾP NHÀ MÌNH
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-stone-900 mt-1 mb-12 sm:mb-16">
-              Cách Thức Hoạt Động (How it works)
+            <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-12 sm:mb-16 tracking-tight">
+              Cách thức hoạt động
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
               
-              {/* Bước 1 */}
-              <div className="flex flex-col items-center max-w-xs mx-auto">
-                <div className="w-20 h-20 rounded-3xl bg-orange-100 text-orange-800 flex items-center justify-center mb-4 text-3xl shadow-xs">
-                  📝
+              {/* Bước 1: Chia sẻ khẩu vị */}
+              <div className="flex flex-col items-center text-center max-w-xs mx-auto">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-orange-50 border border-orange-100 flex items-center justify-center mb-5 shadow-2xs">
+                  <svg className="w-12 h-12 text-orange-600" viewBox="0 0 48 48" fill="none">
+                    <rect x="12" y="8" width="24" height="32" rx="4" stroke="currentColor" strokeWidth="2.5" />
+                    <line x1="20" y1="14" x2="28" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="24" cy="34" r="1.5" fill="currentColor" />
+                    <path d="M28 20L34 26" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M34 20L28 26" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-stone-900 mb-1.5">
-                  1. Khảo Sát Khẩu Vị & Bệnh Lý
+                  Chia sẻ khẩu vị
                 </h3>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Thiết lập số ngày nấu, dị ứng thực phẩm và bệnh lý (huyết áp, tiểu đường, gout...) của từng người.
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Cho Bếp biết bạn thích gì và chúng tôi sẽ cá nhân hóa thực đơn phù hợp cho bạn.
                 </p>
               </div>
 
-              {/* Bước 2 */}
-              <div className="flex flex-col items-center max-w-xs mx-auto">
-                <div className="w-20 h-20 rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center mb-4 text-3xl shadow-xs">
-                  🍲
+              {/* Bước 2: Duyệt thực đơn */}
+              <div className="flex flex-col items-center text-center max-w-xs mx-auto">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center mb-5 shadow-2xs">
+                  <svg className="w-12 h-12 text-amber-700" viewBox="0 0 48 48" fill="none">
+                    <rect x="10" y="10" width="20" height="26" rx="3" stroke="currentColor" strokeWidth="2" />
+                    <rect x="18" y="14" width="20" height="26" rx="3" stroke="#d97706" strokeWidth="2.5" fill="white" />
+                    <line x1="22" y1="20" x2="34" y2="20" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="22" y1="25" x2="30" y2="25" stroke="#d97706" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-stone-900 mb-1.5">
-                  2. Gợi Ý Thực Đơn Thông Minh
+                  Duyệt thực đơn
                 </h3>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Hệ thống tự động sắp xếp mâm cơm đủ 4 nhóm chất, an toàn tuyệt đối và tính toán chi phí từng suất.
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Xem thực đơn tuần gợi ý, đổi món hoặc thêm món yêu thích bất kỳ lúc nào.
                 </p>
               </div>
 
-              {/* Bước 3 */}
-              <div className="flex flex-col items-center max-w-xs mx-auto">
-                <div className="w-20 h-20 rounded-3xl bg-teal-100 text-teal-800 flex items-center justify-center mb-4 text-3xl shadow-xs">
-                  ⇄
+              {/* Bước 3: Đi chợ thông minh */}
+              <div className="flex flex-col items-center text-center max-w-xs mx-auto">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center mb-5 shadow-2xs">
+                  <svg className="w-12 h-12 text-[#014043]" viewBox="0 0 48 48" fill="none">
+                    <path d="M10 16H38L35 34H13L10 16Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
+                    <path d="M18 16V12C18 9.79086 19.7909 8 22 8H26C28.2091 8 30 9.79086 30 12V16" stroke="currentColor" strokeWidth="2.5" />
+                    <line x1="20" y1="22" x2="20" y2="28" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="28" y1="22" x2="28" y2="28" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-stone-900 mb-1.5">
-                  3. Kéo - Thả & Đổi Món (Swap)
+                  Đi chợ thông minh
                 </h3>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Kéo thẻ món ăn sang ngày khác hoặc bấm nút Swap để đổi ngẫu nhiên món phù hợp trong kho công thức.
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Tự động gom nguyên liệu cần mua, phân loại theo từng quầy tiện lợi.
                 </p>
               </div>
 
-              {/* Bước 4 */}
-              <div className="flex flex-col items-center max-w-xs mx-auto">
-                <div className="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-4 text-3xl shadow-xs">
-                  🛒
+              {/* Bước 4: Nấu & Thưởng thức */}
+              <div className="flex flex-col items-center text-center max-w-xs mx-auto">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-5 shadow-2xs">
+                  <svg className="w-12 h-12 text-emerald-700" viewBox="0 0 48 48" fill="none">
+                    <ellipse cx="22" cy="26" rx="14" ry="7" stroke="currentColor" strokeWidth="2.5" />
+                    <path d="M33 28L42 37" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M18 17C18 17 20 14 20 12" stroke="#059669" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M24 18C24 18 26 15 26 13" stroke="#059669" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-stone-900 mb-1.5">
-                  4. Tạo Giỏ Đi Chợ 1-Chạm
+                  Nấu & Thưởng thức
                 </h3>
-                <p className="text-xs text-stone-600 leading-relaxed">
-                  Tự động gom nguyên liệu cần mua theo quầy rau củ, thịt cá, gia vị. Đánh dấu đồ đã có sẵn để trừ tiền.
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Tận hưởng bữa cơm ngon miệng tại nhà với các bước hướng dẫn nấu chi tiết.
                 </p>
               </div>
 
@@ -439,166 +378,90 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
         </section>
 
         {/* ====================================================
-            SECTION 3: VIDEO HƯỚNG DẪN MÔ PHỎNG NẤU ĂN
+            SECTION 3: THỰC ĐƠN TUẦN NÀY CÓ GÌ? (WHAT'S ON THE MENU?)
+            3 thẻ món ăn thanh lịch, tối giản đúng theo hình mẫu
            ==================================================== */}
-        <section className="py-16 sm:py-20 bg-[#FDFBF7] border-b border-stone-200/70">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+        <section className="py-16 sm:py-24 bg-[#FDFBF7]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             
-            <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-stone-900 mb-2">
-              Xem Video Hướng Dẫn Lên Lịch Thực Đơn
+            <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-10 sm:mb-14 tracking-tight">
+              Thực đơn tuần này có gì?
             </h2>
-            <p className="text-xs sm:text-sm text-stone-600 mb-8 max-w-xl mx-auto">
-              Chỉ mất 2 phút để hiểu toàn bộ thao tác Kéo & Thả, Thay đổi món (Swap) và cách quản lý chi phí giỏ hàng.
-            </p>
 
-            <div className="relative rounded-3xl overflow-hidden shadow-xl border-4 border-white aspect-video bg-stone-900 flex items-center justify-center group">
-              <img
-                src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1400&auto=format&fit=crop&q=80"
-                alt="Video mockup"
-                className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-black/40" />
-
-              {isVideoPlaying ? (
-                <div className="relative z-10 text-white p-6 space-y-3">
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-400/40">
-                    Đang phát video mô phỏng
-                  </span>
-                  <h3 className="text-lg sm:text-xl font-bold">Lập thực đơn tuần thông minh cùng Bếp Nhà Mình</h3>
-                  <button
-                    type="button"
-                    onClick={() => setIsVideoPlaying(false)}
-                    className="px-5 py-2 rounded-full bg-white text-stone-900 text-xs font-bold cursor-pointer hover:bg-stone-100"
-                  >
-                    Tạm dừng
-                  </button>
-                </div>
-              ) : (
-                <div className="relative z-10 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsVideoPlaying(true)}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-orange-600 hover:bg-orange-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer mx-auto mb-3"
-                  >
-                    <Play className="w-8 h-8 fill-white translate-x-1" />
-                  </button>
-                  <div className="text-white font-bold text-sm drop-shadow-sm">
-                    Bấm để xem video hướng dẫn (2:15)
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </section>
-
-        {/* ====================================================
-            SECTION 4: THỰC ĐƠN TUẦN NÀY CÓ GÌ? (WHAT'S ON THE MENU?)
-           ==================================================== */}
-        <section className="py-16 sm:py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
-            
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-              <div>
-                <span className="text-xs font-bold text-orange-600 tracking-widest uppercase">
-                  MÂM CƠM TUẦN NÀY
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-bold font-serif-display text-stone-900 mt-1">
-                  Thực Đơn Của Bếp Có Gì? (What's On The Menu?)
-                </h2>
-                <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                  Các món ăn đậm đà chuẩn vị gia đình Việt, định lượng dinh dưỡng rõ ràng và nguyên liệu tươi ngon.
-                </p>
-              </div>
-
-              {/* Tag filters */}
-              <div className="flex flex-wrap gap-2">
-                {['Tất cả', 'Nhanh gọn', 'Tiết kiệm', 'Lành mạnh', 'Món Chay'].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setSelectedTagFilter(t)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors ${
-                      selectedTagFilter === t
-                        ? 'bg-[#014043] text-white shadow-xs'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Grid recipes */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredRecipes.slice(0, 8).map((recipe) => (
+            {/* 3 Recipe Cards Showcase */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-left">
+              {featuredRecipes.map((item) => (
                 <div
-                  key={recipe.id}
-                  className="bg-white rounded-3xl overflow-hidden border border-stone-200 shadow-xs hover:shadow-xl transition-all flex flex-col justify-between"
+                  key={item.id}
+                  className="bg-white rounded-3xl overflow-hidden border border-stone-200/90 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
                 >
                   <div>
+                    {/* Ảnh món ăn */}
                     <div className="relative aspect-4/3 overflow-hidden bg-stone-100">
                       <img
-                        src={recipe.image}
-                        alt={recipe.title}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                        src={item.image}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
 
-                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-amber-300" />
-                          <span>{recipe.cookTime}p</span>
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-700/90 backdrop-blur-xs text-white text-[10px] font-bold">
-                          {formatPrice(recipe.costPerServing)}/suất
-                        </span>
+                      {/* Nút Bookmark góc trên bên phải */}
+                      <button
+                        type="button"
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-stone-700 hover:text-[#014043] flex items-center justify-center shadow-xs transition-all cursor-pointer"
+                        title="Lưu công thức"
+                        onClick={() => {
+                          if (item.fallbackRecipe && onSelectRecipePreview) {
+                            onSelectRecipePreview(item.fallbackRecipe);
+                          }
+                        }}
+                      >
+                        <Bookmark className="w-4 h-4" />
+                      </button>
+
+                      {/* Huy hiệu thời gian góc dưới bên trái */}
+                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-stone-300" />
+                        <span>{item.time}</span>
                       </div>
                     </div>
 
-                    <div className="p-4">
-                      <div className="flex items-center gap-1 text-amber-500 text-xs mb-1 font-bold">
+                    {/* Nội dung thẻ */}
+                    <div className="p-5">
+                      {/* Đánh giá sao */}
+                      <div className="flex items-center gap-1 text-amber-500 text-xs mb-2">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>{recipe.rating}</span>
-                        <span className="text-stone-400 font-normal">({recipe.calories} kcal)</span>
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       </div>
 
-                      <h3 className="font-bold text-sm text-stone-900 line-clamp-1">
-                        {recipe.title}
+                      {/* Tiêu đề món */}
+                      <h3 className="font-bold text-base text-stone-900 line-clamp-1 mb-1">
+                        {item.title}
                       </h3>
-
-                      <p className="text-xs text-stone-500 mt-1 line-clamp-2 leading-relaxed">
-                        {recipe.description}
-                      </p>
                     </div>
                   </div>
 
-                  <div className="p-4 pt-0">
+                  {/* Nút + THÊM VÀO THỰC ĐƠN */}
+                  <div className="p-5 pt-0">
                     <button
                       type="button"
                       onClick={() => {
-                        if (onSelectRecipePreview) onSelectRecipePreview(recipe);
-                        else onNavigateToWizard();
+                        if (item.fallbackRecipe && onSelectRecipePreview) {
+                          onSelectRecipePreview(item.fallbackRecipe);
+                        } else {
+                          onNavigateToWizard();
+                        }
                       }}
-                      className="w-full py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-800 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 rounded-full bg-[#014043] hover:bg-[#002f32] active:scale-[0.99] text-white text-xs font-bold uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      <ShoppingBag className="w-3.5 h-3.5" />
-                      <span>Xem Nguyên Liệu & Cách Nấu</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>THÊM VÀO THỰC ĐƠN</span>
                     </button>
                   </div>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-12 text-center">
-              <button
-                type="button"
-                onClick={onNavigateToWizard}
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#014043] hover:bg-[#002f32] text-white text-sm font-bold shadow-md cursor-pointer transition-all"
-              >
-                <span>TIẾP TỤC ĐẾN BƯỚC KHẢO SÁT KHẨU VỊ</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
             </div>
 
           </div>
@@ -606,7 +469,7 @@ export const MealPlannerLanding: React.FC<MealPlannerLandingProps> = ({
 
       </div>
 
-      {/* FOOTER BẾP NHÀ MÌNH */}
+      {/* FOOTER BẾP NHÀ MÌNH (ĐỒNG NHẤT MÀU XANH #014043) */}
       <BepNhaMinhFooter />
 
     </div>
