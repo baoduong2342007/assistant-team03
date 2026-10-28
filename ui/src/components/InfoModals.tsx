@@ -12,7 +12,7 @@ export const IntroductionModal: React.FC<ModalProps> = ({ isOpen, onClose }) => 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#FDFBF7] text-[#27211D] rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-stone-200 shadow-2xl relative max-h-[88vh] overflow-y-auto">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -51,7 +51,7 @@ export const IntroductionModal: React.FC<ModalProps> = ({ isOpen, onClose }) => 
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>3 Lớp An Toàn Sức Khỏe Nghiêm Ngặt</span>
             </h3>
-            
+
             <div className="grid grid-cols-1 gap-2 text-xs">
               <div className="p-3 rounded-xl bg-white border border-stone-200">
                 <span className="font-bold text-stone-900 block">1. Dị ứng là bộ lọc tuyệt đối</span>
@@ -96,7 +96,7 @@ export const AboutModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#FDFBF7] text-[#27211D] rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-stone-200 shadow-2xl relative max-h-[88vh] overflow-y-auto">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -107,7 +107,7 @@ export const AboutModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
 
         {/* Modal Header */}
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-orange-600 text-white flex items-center justify-center text-xl shadow-xs">
+          <div className="w-10 h-10 rounded-2xl bg-[#014043] text-white flex items-center justify-center text-xl shadow-xs">
             <ChefHat className="w-5 h-5" />
           </div>
           <div>
@@ -152,12 +152,79 @@ export const AboutModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
         <div className="mt-6 pt-4 border-t border-stone-200 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-full bg-orange-600 text-white font-semibold text-xs hover:bg-orange-700 transition-colors cursor-pointer"
+            className="px-5 py-2.5 rounded-full bg-[#014043] text-white font-semibold text-xs hover:bg-[#002f32] transition-colors cursor-pointer"
           >
             Đóng
           </button>
         </div>
 
+      </div>
+    </div>
+  );
+};
+
+export const ContactModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#FDFBF7] text-[#27211D] rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-stone-200 shadow-2xl relative">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Modal Header */}
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center text-xl shadow-xs">
+            📞
+          </div>
+          <div>
+            <span className="text-[11px] font-bold uppercase text-sky-700 tracking-wider">
+              LIÊN HỆ & HỖ TRỢ
+            </span>
+            <h2 className="text-2xl font-bold font-serif-display text-stone-900">
+              Bếp Nhà Mình
+            </h2>
+          </div>
+        </div>
+
+        <div className="space-y-3.5 text-stone-700 text-sm">
+          <p className="text-stone-600 text-xs sm:text-sm">
+            Bạn có câu hỏi, góp ý về thực đơn dinh dưỡng hoặc muốn kết nối cùng đội ngũ phát triển? Hãy liên hệ với chúng tôi:
+          </p>
+
+          <div className="p-4 rounded-2xl bg-white border border-stone-200 space-y-2.5 text-xs sm:text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-stone-500 font-medium">Email:</span>
+              <span className="font-semibold text-stone-900">contact@bepnhaminh.ai.vn</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-stone-500 font-medium">Hotline hỗ trợ:</span>
+              <span className="font-semibold text-orange-600">1900 6868 (8:00 - 20:00)</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-stone-500 font-medium">Địa chỉ:</span>
+              <span className="font-semibold text-stone-900">227 Nguyễn Văn Cừ, Q.5, TP.HCM</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-stone-500 font-medium">Cộng đồng:</span>
+              <span className="font-semibold text-blue-600">facebook.com/bepnhaminh.official</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-stone-200 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-full bg-stone-900 text-white font-semibold text-xs hover:bg-stone-800 transition-colors cursor-pointer"
+          >
+            Đóng
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -9,17 +9,19 @@ import { INITIAL_CHAT_MESSAGES, SAMPLE_MEAL_PLAN, SAMPLE_TIMELINE_STEPS } from '
 
 interface ChatbotInterfaceProps {
   profile: FamilyProfile;
+  initialPrompt?: string;
   onBackToHome: () => void;
   onEditProfile: () => void;
 }
 
 export const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
   profile,
+  initialPrompt = '',
   onBackToHome,
   onEditProfile,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT_MESSAGES);
-  const [inputPrompt, setInputPrompt] = useState('');
+  const [inputPrompt, setInputPrompt] = useState(initialPrompt);
   const [isRecording, setIsRecording] = useState(false);
   const [timelineSteps, setTimelineSteps] = useState<TimelineStep[]>(SAMPLE_TIMELINE_STEPS);
   const [activeTab, setActiveTab] = useState<'chat' | 'timeline' | 'nutrition'>('chat');
@@ -406,7 +408,7 @@ export const ChatbotInterface: React.FC<ChatbotInterfaceProps> = ({
               <button
                 type="submit"
                 disabled={!inputPrompt.trim()}
-                className="w-9 h-9 rounded-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer"
+                className="w-9 h-9 rounded-full bg-[#014043] hover:bg-[#002f32] text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
