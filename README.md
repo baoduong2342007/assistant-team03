@@ -2,6 +2,28 @@
 
 A starter repository for the CSC10014 Smart Virtual Assistant project.
 
+## Bếp Nhà Android
+
+An installable Android app is available in [android/](android/README.md), reusing the Bếp Nhà interface with bundled offline recipes and Android cooking reminders. Open that folder in Android Studio, or build with:
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug lintDebug
+```
+
+The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. See the Android README for installation, notification permissions and verification limits.
+
+## Bếp Nhà mobile web
+
+A working Vietnamese meal-planning web prototype is available in [ui/bep-nha](ui/bep-nha/README.md), with weekly menus, dish swaps, text recipes, shopping lists and cooking reminders. It runs independently from the Python CLI:
+
+```bash
+cd ui/bep-nha
+npm run dev
+```
+
+Open `http://127.0.0.1:4173`. Run its logic checks with `npm test`.
+
 ## Setup
 Prerequisites: Python 3.10+, Git.
 
@@ -74,7 +96,8 @@ pytest -q
 - `data/`: CSV data files for campus offices
 - `tests/`: automated smoke tests
 - `docs/`: project documentation and team roster
-- `ui/`: user interface roadmap (Week 7)
+- `ui/`: React frontend and the standalone Bếp Nhà interface used by Android
+- `android/`: offline Android app with native cooking reminders
 - `scripts/`: environment check script
 
 ## Troubleshooting

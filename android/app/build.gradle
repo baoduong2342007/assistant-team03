@@ -1,0 +1,60 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'vn.team03.bepnha'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'vn.team03.bepnha'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/bepNhaAssets'))
+}
+
+// Share the existing UI and recipe data; build output contains a self-contained offline copy.
+def webSource = rootProject.file('../ui/bep-nha/dist')
+def nativeSource = file('src/main/web')
+def generatedAssets = layout.buildDirectory.dir('generated/bepNhaAssets/web')
+
+tasks.register('prepareWebAssets', Sync) {
+    from(webSource) {
+        exclude 'index.html'
+    }
+    from(nativeSource) {
+        exclude 'index.html'
+    }
+    into(generatedAssets)
+    inputs.file(new File(webSource, 'index.html'))
+    doLast {
+        def html = new File(webSource, 'index.html').getText('UTF-8')
+        html = html.readLines().findAll { line -> !(line.contains('<link') && line.contains('https://fonts.')) }.join('\n')
+        html = html.replace('<link rel="manifest" href="./manifest.webmanifest" />', '')
+        html = html.replace('</head>', '''<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'" />
+    <link rel="stylesheet" href="./native.css" />
+  </head>''')
+        new File(generatedAssets.get().asFile, 'index.html').setText(html, 'UTF-8')
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'prepareWebAssets' }
+
+dependencies {
+    implementation 'androidx.activity:activity:1.11.0'
+    implementation 'androidx.webkit:webkit:1.14.0'
+    testImplementation 'junit:junit:4.13.2'
+}

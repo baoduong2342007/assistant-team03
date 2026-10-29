@@ -1,0 +1,1 @@
+{"name":"bep-nha","private":true,"type":"module","scripts":{"dev":"python3 -m http.server 4173 --directory dist --bind 127.0.0.1","test":"node --test tests/*.test.js"}}

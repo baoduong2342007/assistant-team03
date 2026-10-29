@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Bếp Nhà</string>
+    <string name="reminder_channel">Nhắc vào bếp</string>
+    <string name="reminder_channel_description">Lịch chuẩn bị bữa cơm và đồng hồ nấu ăn do bạn đặt.</string>
+</resources>

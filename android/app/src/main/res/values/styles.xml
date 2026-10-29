@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.BepNha.Base" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#49613C</item>
+        <item name="android:windowBackground">#FAF9F5</item>
+        <item name="android:statusBarColor">#FAF9F5</item>
+        <item name="android:navigationBarColor">#49613C</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+    <style name="Theme.BepNha" parent="Theme.BepNha.Base" />
+</resources>

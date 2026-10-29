@@ -1,0 +1,5 @@
+# This buildless app keeps its authored HTML/JS/CSS in dist/.
+# Override the repository's generic generated-dist exclusion.
+!dist/
+!dist/**
+node_modules/
