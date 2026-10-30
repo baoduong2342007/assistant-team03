@@ -66,8 +66,8 @@ Giao diện được thiết kế tối ưu hóa cho trải nghiệm di động 
    ```
    Mở trình duyệt tại địa chỉ `http://localhost:3000` để trải nghiệm giao diện.
 
-## 4. Bếp Nhà Android và prototype dùng chung
+## 4. Ứng dụng Android native và prototype web
 
-Bản Android cài bằng APK được triển khai riêng trong [android/](../android/README.md). Ứng dụng đóng gói giao diện và 14 công thức từ [bep-nha/](bep-nha/README.md), có danh sách đi chợ, timeline nấu và nhắc nấu Android. Prototype này chạy độc lập với frontend React ở trên.
+Bản Android cài bằng APK được triển khai riêng trong [android/](../android/README.md). Bản Android mới dùng Kotlin/Jetpack Compose và dữ liệu riêng trong `android/app/src/main/assets/recipes.json`; không đóng gói giao diện web. Có danh sách đi chợ, timeline nấu và nhắc nấu Android. Prototype này chạy độc lập với frontend React ở trên.
 
 Xem README Android để mở bằng Android Studio, build APK và kiểm tra quyền thông báo.

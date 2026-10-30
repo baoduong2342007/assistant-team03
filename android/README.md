@@ -1,66 +1,75 @@
-# Bếp Nhà — ứng dụng Android
+# Bếp Nhà — Android native (Kotlin + Jetpack Compose)
 
-Bản Android cài bằng APK, chạy giao diện Bếp Nhà có sẵn trong WebView và bổ sung chức năng Android bằng Java. Toàn bộ giao diện, ảnh và 14 công thức được đóng gói trong APK; không tải trang Sites và không yêu cầu đăng nhập ChatGPT.
+Bản 0.2.0-native là ứng dụng Android native. Các màn hình, điều hướng, ô nhập, hộp thoại và danh sách được dựng bằng Jetpack Compose; không dùng WebView, HTML hoặc JavaScript để hiển thị ứng dụng.
 
-## Cài thử trên điện thoại
+## Cài bản thử
 
-1. Chép `releases/BepNha-0.1.0-debug.apk` sang điện thoại Android 8.0 trở lên.
-2. Mở tệp APK. Nếu Android hỏi, cho phép ứng dụng đang mở tệp cài ứng dụng từ nguồn này rồi xác nhận cài Bếp Nhà.
-3. Mở Bếp Nhà, chọn thực đơn và thử các mục **Đi chợ**, **Vào bếp**. Khi bật nhắc nấu hoặc hẹn giờ, cho phép thông báo nếu Android hỏi.
-4. Trong **Nhắc nấu**, chọn **Bật quyền nhắc đúng giờ** nếu muốn nhắc theo giờ đã đặt. Khi thiếu quyền này, Android có thể trì hoãn thông báo.
+Chép `releases/BepNha-0.2.0-native-debug.apk` sang điện thoại Android 8.0 trở lên rồi mở tệp để cài. Đây là APK debug, chưa phát hành lên Google Play. Khi Android hỏi, cấp quyền thông báo để nhận nhắc nấu; trong **Nhắc nấu** có nút mở quyền **Nhắc đúng giờ**.
 
-Đây là APK debug để thử nghiệm, chưa phải bản phát hành Google Play. Android System WebView trên máy cần được cập nhật để hỗ trợ các tính năng JavaScript và hộp thoại của giao diện.
+APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. 14 công thức cùng ảnh minh họa có sẵn trong gói, dùng được offline. Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
 
-## Đã có trong bản Android
+## Những màn hình đã có
 
-- Thực đơn 7 ngày, đổi món trong từng bữa, công thức bằng chữ và định lượng theo số người.
-- Danh sách đi chợ có ô tích, nút sao chép dùng clipboard Android.
-- Lịch nấu dựa trên giờ ăn, món đã chọn và bếp hai vùng nấu.
-- Nhắc giờ bắt đầu nấu và đồng hồ nấu ăn bằng `AlarmManager` cùng thông báo Android. Lịch được lưu phía Android và khôi phục sau khi khởi động lại thiết bị hoặc cập nhật app.
-- Đổi món/giờ ăn cập nhật lịch nhắc tương ứng; tắt nhắc hoặc dừng đồng hồ hủy lịch đã đặt.
-- Chạm thông báo để mở bữa ăn tương ứng; thao tác Back đóng hộp thoại, trở về Hôm nay hoặc thoát ứng dụng.
-- Thêm lịch qua màn hình soạn sự kiện của ứng dụng lịch. Người dùng tự xác nhận lưu; Bếp Nhà không yêu cầu quyền đọc/ghi lịch.
-- Nội dung chạy offline và lưu trên thiết bị. APK không khai báo quyền truy cập Internet; WebView chỉ mở tài nguyên đóng gói qua `WebViewAssetLoader`, không cấp quyền đọc file.
+- **Hôm nay:** chọn ngày/bữa, xem ba món, chi phí và thời gian ước tính; đổi riêng từng món, lưu món yêu thích.
+- **Thực đơn:** kế hoạch bảy ngày, mỗi bữa có món mặn, canh và rau. Lựa chọn đã lưu được giữ khi sang ngày mới.
+- **Công thức:** nguyên liệu theo số người, các bước bằng chữ và mẹo nấu; mở bằng bottom sheet native.
+- **Đi chợ:** gộp nguyên liệu cùng tên và đơn vị, tích đồ đã có và sao chép danh sách qua clipboard Android.
+- **Vào bếp:** timeline tính ngược từ giờ ăn, canh/rau dùng lần lượt một vùng bếp; tích công việc, mở công thức và đặt đồng hồ. Đồng hồ giữ đúng bữa gốc khi bạn xem ngày khác.
+- **Gia đình:** tên, số người từ 1–12 và giờ ăn bằng đồng hồ chọn giờ Android; đổi khẩu phần cập nhật định lượng.
+- **Hỏi Bếp Nhà:** ô nhập native để tra món, xem lịch nấu, tìm món nhanh hoặc tiết kiệm trong công thức có sẵn. Chưa có AI tạo sinh.
+- **Nhắc nấu:** lưu lịch bằng AlarmManager, gửi thông báo Android, chạm thông báo mở đúng bữa ăn; cập nhật/hủy lịch khi thay đổi thực đơn, giờ ăn hoặc đồng hồ.
 
-## Giới hạn hiện tại
+Thêm sự kiện vào lịch bằng màn hình soạn sự kiện của ứng dụng lịch. Người dùng xác nhận lưu; Bếp Nhà không yêu cầu quyền đọc hoặc ghi lịch. Ứng dụng không khai báo quyền Internet.
 
-Trợ lý gợi ý theo công thức có sẵn, chưa kết nối AI tạo sinh. Giờ nấu và chi phí là ước tính. Chưa có đồng bộ, tài khoản hoặc nhập dữ liệu từ bản web.
+## Giao diện chạy trên máy ảo
 
-Thông báo cần quyền của người dùng; nhắc đúng giờ còn cần quyền Alarms & reminders trên Android hỗ trợ. Chế độ tiết kiệm pin hoặc hạn chế ứng dụng của nhà sản xuất có thể ảnh hưởng việc nhận thông báo. **Dừng bắt buộc** ứng dụng sẽ ngăn lịch nhắc cho đến khi bạn mở lại. Mỗi lần chỉ có một đồng hồ nấu ăn; các nhắc bữa ăn hoạt động độc lập.
+![Danh sách đi chợ Android native](docs/native-shopping.png)
 
-Đã build APK, chạy unit test Java/JavaScript và Android Lint. Chưa chạy thử trên điện thoại thật hoặc máy ảo Android; cần kiểm tra thao tác, âm báo khi khóa màn hình, cấp/từ chối quyền và khôi phục lịch sau reboot trước khi dùng thực tế.
+## Cấu trúc native
 
-## Mở bằng Android Studio
+| Tệp | Vai trò |
+| --- | --- |
+| `MainActivity.kt` | Điểm vào Compose, quyền, lịch hệ thống, clipboard và đồng hồ chọn giờ |
+| `PlannerApp.kt`, `PlannerSheets.kt`, `PlannerTheme.kt` | Giao diện và điều hướng Android native |
+| `PlannerViewModel.kt` | Trạng thái UI, thao tác người dùng, đồng hồ và xử lý thông báo |
+| `PlannerEngine.kt`, `PlannerModels.kt` | Thực đơn, đổi món, định lượng, timeline và lịch nhắc thuần Kotlin |
+| `PlannerStorage.kt` | Đọc công thức và lưu trạng thái bằng SharedPreferences trên luồng IO tuần tự |
+| `ReminderStore.java`, `ReminderReceiver.java` | Đặt/hủy/khôi phục lịch và hiện thông báo Android |
+| `src/main/assets/recipes.json` | Dữ liệu 14 công thức được đóng gói trong APK |
+| `src/main/res/drawable-nodpi/family_meal.webp` | Ảnh minh họa được đóng gói như tài nguyên Android |
 
-Mở thư mục `android/`, chọn Gradle JDK 17 và cài SDK Platform 36 cùng Build Tools 35.0.0. Dự án dùng Android Gradle Plugin 8.13.2, Gradle Wrapper 8.13 đã ghim SHA-256. Android Studio có thể tự tạo `local.properties` cho đường dẫn SDK của bạn; tệp này không đưa vào Git.
+Các tệp Kotlin/Java ở `app/src/main/java/vn/team03/bepnha/`. Build Android không dùng hoặc sao chép mã trong `ui/`.
+
+## Mở và build
+
+Mở thư mục `android/` trong Android Studio. Dùng JDK 17, SDK Platform 36 và Build Tools 35.0.0. Phiên bản đã ghim: AGP 8.13.2, Gradle 8.13, Kotlin/Compose Compiler 2.2.10 và Compose BOM 2025.08.00.
 
 ```bash
 ./gradlew testDebugUnitTest assembleDebug lintDebug
 ```
 
-Trên Windows dùng `gradlew.bat`. APK build nằm ở `app/build/outputs/apk/debug/app-debug.apk`.
+Windows dùng `gradlew.bat`. APK nằm ở `app/build/outputs/apk/debug/app-debug.apk`. Không cần Node, npm, máy chủ web hay khóa API để build/chạy bản Android.
 
-Kiểm tra logic dùng chung:
+Kiểm thử giao diện cần máy ảo riêng vì bộ kiểm thử xóa dữ liệu thử nghiệm Bếp Nhà trước mỗi ca:
 
 ```bash
-npm --prefix ../ui/bep-nha test
+./gradlew connectedDebugAndroidTest
 ```
 
-Không cần npm install. Task `prepareWebAssets` lấy mã từ `../ui/bep-nha/dist`, bỏ liên kết font từ Internet, thêm CSS Android và tạo tài nguyên trong `app/build/generated/bepNhaAssets/web/`. Không sửa trực tiếp các tệp sinh ra trong `build/`.
+## Xác minh
 
-## Cấu trúc
+Đã build bản native, chạy **12 unit test** và **6 kiểm thử instrumentation trên máy ảo Android 15/API 35**. Kiểm thử gồm: xác nhận có AndroidComposeView và không có WebView trong cây màn hình; đổi món; công thức chữ; danh sách đi chợ; khẩu phần sáu người; lưu/đọc dữ liệu; và hủy PendingIntent khi tắt nhắc. Unit test kiểm tra timeline hai vùng bếp, định lượng, giữ thực đơn qua ngày mới, nhắc quá hạn và đồng hồ giữ bữa gốc.
 
-| Thành phần | Vai trò |
-| --- | --- |
-| `app/src/main/java/vn/team03/bepnha/MainActivity.java` | WebView, cầu nối JavaScript, quyền, lịch và Back |
-| `ReminderStore.java` | Lưu, cập nhật, hủy và khôi phục lịch nhắc |
-| `ReminderReceiver.java` | Hiện thông báo, mở đúng bữa ăn |
-| `RestoreRemindersReceiver.java` | Khôi phục lịch khi hệ thống khởi động lại/cấp quyền |
-| `app/src/main/web/native.css` | Điều chỉnh giao diện trong Android |
-| `../ui/bep-nha/dist/platform.js` | Chuyển trạng thái thực đơn/đồng hồ thành lịch nhắc Android |
+Ảnh chụp native được tạo trực tiếp bằng Android instrumentation, không phải ảnh mockup. Android Lint không có lỗi chặn. Chưa kiểm tra trên điện thoại thật, các chế độ ngủ/tiết kiệm pin, reboot thực tế hoặc giao thông báo đúng giờ trên từng hãng máy.
 
-Tài liệu API áp dụng: [nội dung đóng gói trong WebView](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content), [quyền thông báo](https://developer.android.com/develop/ui/views/notifications/notification-permission), [AlarmManager và quyền nhắc đúng giờ](https://developer.android.com/develop/background-work/services/alarms).
+## Giới hạn
 
-## AI use
+Giờ nấu và giá là ước tính, cần kiểm tra độ chín thực tế. Dữ liệu lưu trên thiết bị, chưa có tài khoản hoặc đồng bộ. Chỉ có một đồng hồ đếm ngược tại một thời điểm; nhắc từng bữa hoạt động độc lập.
 
-Codex viết phần đóng gói Android, cầu nối JavaScript, logic lịch nhắc, kiểm tra Java/JavaScript và tài liệu. Codex chạy bộ kiểm tra và build APK. Chưa có bằng chứng review hoặc kiểm thử trên thiết bị của thành viên nhóm; không quy các phần mã/kiểm tra này cho người dùng tự viết.
+Thông báo cần quyền của người dùng; quyền Alarms & reminders hỗ trợ nhắc đúng giờ trên Android tương ứng. Tiết kiệm pin hoặc hạn chế ứng dụng của nhà sản xuất vẫn có thể ảnh hưởng. Dừng bắt buộc ứng dụng ngăn nhắc cho đến khi mở lại.
+
+## AI use và tài liệu
+
+Codex viết phần Kotlin/Compose native, logic thực đơn, persistence, unit test, instrumentation test và tài liệu; Codex thực hiện build và chạy các kiểm tra nêu trên. Phần nhắc Android bằng Java được giữ lại từ bản thử trước. Ảnh mâm cơm được tái sử dụng từ ảnh imagegen của dự án, có prompt và công bố trong `../ui/bep-nha/README.md`. Chưa có bằng chứng review thủ công của thành viên nhóm.
+
+Tham khảo: [Jetpack Compose](https://developer.android.com/develop/ui/compose), [Compose Compiler Gradle plugin](https://developer.android.com/develop/ui/compose/setup-compose-dependencies-and-compiler), [quyền thông báo](https://developer.android.com/develop/ui/views/notifications/notification-permission), [AlarmManager](https://developer.android.com/develop/background-work/services/alarms).

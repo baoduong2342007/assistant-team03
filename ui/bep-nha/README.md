@@ -2,7 +2,7 @@
 
 Bản web hoạt động độc lập với CLI Python hiện có. HTML, CSS và JavaScript thuần, không cần cài thư viện hoặc khóa API.
 
-Đã có thêm [dự án Android](../../android/README.md) tái sử dụng giao diện này, đóng gói nội dung offline và bổ sung thông báo nhắc nấu Android. Các giới hạn nhắc khi đóng trang bên dưới áp dụng cho bản web trong trình duyệt; xem README Android cho APK.
+Đã có thêm [dự án Android native](../../android/README.md) viết bằng Kotlin/Jetpack Compose, có giao diện và dữ liệu riêng, không dùng WebView. Các giới hạn nhắc khi đóng trang bên dưới áp dụng cho bản web trong trình duyệt; xem README Android cho APK.
 
 ## Chạy thử
 

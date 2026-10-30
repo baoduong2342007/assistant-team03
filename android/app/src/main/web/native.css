@@ -1,7 +1,0 @@
-/* All app content is bundled. Android supplies its readable system typefaces. */
-:root{font-family:Roboto,'Noto Sans',sans-serif}
-.brand,.hero h2{font-family:'Noto Serif',serif}
-@media(max-width:760px){.topbar{padding-top:12px}.main{padding-bottom:100px}.bottom-nav{padding-bottom:12px}.toast{bottom:95px}.timer-bar{bottom:82px}}
-.native-permissions{padding:15px;border:1px solid #dfe5d4;background:#f1f4e9;border-radius:12px;margin:15px 0}
-.native-permissions p{font-size:12px;line-height:1.9;margin-bottom:12px;color:#6c775f}
-.native-permissions .button{font-size:12px;width:100%;white-space:normal;margin-top:8px}

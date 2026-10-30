@@ -4,7 +4,7 @@ A starter repository for the CSC10014 Smart Virtual Assistant project.
 
 ## Bếp Nhà Android
 
-An installable Android app is available in [android/](android/README.md), reusing the Bếp Nhà interface with bundled offline recipes and Android cooking reminders. Open that folder in Android Studio, or build with:
+A native Kotlin/Jetpack Compose Android app is available in [android/](android/README.md), with native meal planning, text recipes, shopping lists, cooking timelines and Android reminders. It runs independently of the web frontend and does not use WebView. Open that folder in Android Studio, or build with:
 
 ```bash
 cd android
@@ -96,8 +96,8 @@ pytest -q
 - `data/`: CSV data files for campus offices
 - `tests/`: automated smoke tests
 - `docs/`: project documentation and team roster
-- `ui/`: React frontend and the standalone Bếp Nhà interface used by Android
-- `android/`: offline Android app with native cooking reminders
+- `ui/`: React frontend and an independent Bếp Nhà web prototype
+- `android/`: native Kotlin/Compose app with offline recipes and Android reminders
 - `scripts/`: environment check script
 
 ## Troubleshooting
