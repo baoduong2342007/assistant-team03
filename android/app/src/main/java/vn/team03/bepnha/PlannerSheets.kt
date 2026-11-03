@@ -46,6 +46,7 @@ import java.time.LocalTime
                 Text("${recipe.minutes} phút · ${vm.state.profile.people} người · Dễ nấu", color = KitchenMuted, style = MaterialTheme.typography.bodyMedium)
             }
         }
+        OutlinedButton(onClick = vm::openAssistant, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Hỏi về món này") }
         Text(recipe.note, color = KitchenMuted)
         Text("Chuẩn bị nguyên liệu", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         recipe.ingredients.forEach { item ->
@@ -58,7 +59,7 @@ import java.time.LocalTime
         Text("Cách nấu từng bước", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         recipe.steps.forEachIndexed { index, step ->
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Surface(shape = CircleShape, color = KitchenSoft, contentColor = KitchenGreen, modifier = Modifier.size(32.dp)) {
+                Surface(shape = CircleShape, color = KitchenSoft, contentColor = KitchenGreen, modifier = Modifier.sizeIn(minWidth = 40.dp, minHeight = 40.dp)) {
                     Box(contentAlignment = Alignment.Center) { Text("${index + 1}", fontWeight = FontWeight.SemiBold) }
                 }
                 Text(step, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -116,6 +117,7 @@ import java.time.LocalTime
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         SheetTitle("Nhắc mình vào bếp", vm)
         Text("${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)}", color = KitchenMuted)
+        Text("Giờ ăn áp dụng cho mọi ${vm.state.meal.title.lowercase()}, không chỉ ngày này.", color = KitchenMuted)
         Text("Cả nhà ăn lúc mấy giờ?", style = MaterialTheme.typography.titleMedium)
         OutlinedButton(onClick = { actions.pickTime(time) { time = it } }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("meal-time")) {
             Text(time.toString(), fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
@@ -163,7 +165,7 @@ import java.time.LocalTime
         item { KitchenCard {
             Text("Dữ liệu của nhà mình", style = MaterialTheme.typography.titleMedium)
             Text("Thực đơn và công thức được lưu trên thiết bị, dùng được offline. Chưa có đồng bộ giữa các máy.", color = KitchenMuted)
-            Text("Trợ lý hiện tra cứu 14 công thức có sẵn, chưa kết nối AI tạo sinh. Chi phí và thời gian nấu là ước tính.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
+            Text("Trợ lý Gemini hỗ trợ 14 công thức có sẵn. Có thể tra cứu offline khi mất mạng. Chi phí và thời gian nấu là ước tính.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
             OutlinedButton(onClick = { vm.navigate(Screen.FAVORITES) }, modifier = Modifier.fillMaxWidth()) { Text("Xem món đã lưu") }
         } }
     }
@@ -172,49 +174,5 @@ import java.time.LocalTime
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(time.toString(), fontSize = 20.sp) }
-    }
-}
-
-@Composable fun AssistantSheet(vm: PlannerViewModel) {
-    var question by remember { mutableStateOf("") }
-    var history by remember { mutableStateOf(emptyList<Pair<String, AssistantAnswer>>()) }
-    val scroll = rememberLazyListState()
-    fun ask(text: String) {
-        if (text.isBlank()) return
-        history = history + (text to vm.engine.answer(text, vm.state)); question = ""
-    }
-    LaunchedEffect(history.size) { if (history.isNotEmpty()) scroll.animateScrollToItem(history.size) }
-    Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SheetTitle("Hỏi Bếp Nhà", vm)
-        Text("Gợi ý từ 14 công thức có sẵn.", color = KitchenMuted, style = MaterialTheme.typography.bodyMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = { ask("Món nấu nhanh") }, label = { Text("Món nhanh") })
-            AssistChip(onClick = { ask("Tiết kiệm hơn") }, label = { Text("Tiết kiệm") })
-            AssistChip(onClick = { ask("Nấu món nào trước?") }, label = { Text("Lịch nấu") })
-        }
-        LazyColumn(Modifier.weight(1f), state = scroll, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item { Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
-                Text("Bạn có thể hỏi tên món, cách nấu, món nhanh hoặc thứ tự vào bếp theo thực đơn đã chọn.", Modifier.padding(16.dp))
-            } }
-            items(history) { (prompt, answer) ->
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(color = Color.White, shape = RoundedCornerShape(16.dp)) { Text(prompt, Modifier.padding(16.dp), fontWeight = FontWeight.Medium) }
-                    Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(answer.text)
-                            answer.recipes.forEach { id ->
-                                TextButton(onClick = { vm.openRecipe(id) }) { Text("Xem ${vm.engine.recipes.getValue(id).name.lowercase()}") }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = question, onValueChange = { question = it.take(300) }, modifier = Modifier.weight(1f),
-                placeholder = { Text("Bạn muốn nấu gì?") }, maxLines = 3,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { ask(question) }))
-            FilledIconButton(onClick = { ask(question) }, enabled = question.isNotBlank(), modifier = Modifier.size(52.dp)) { Icon(Icons.Outlined.Send, "Gửi câu hỏi") }
-        }
     }
 }

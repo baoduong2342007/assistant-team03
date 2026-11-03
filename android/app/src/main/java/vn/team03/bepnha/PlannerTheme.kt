@@ -31,10 +31,10 @@ val KitchenLine = Color(0xFFE1E5D8)
             titleLarge = TextStyle(fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
             titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
             bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 25.sp),
-            bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
-            bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 20.sp),
+            bodyMedium = TextStyle(fontSize = 16.sp, lineHeight = 25.sp),
+            bodySmall = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
             labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
-            labelMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+            labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
         ), content = content,
     )
 }

@@ -47,6 +47,5 @@ sealed interface PlannerSheet {
     data class RecipeDetail(val id: String) : PlannerSheet
     data class Swap(val index: Int) : PlannerSheet
     data object Reminder : PlannerSheet
-    data object Assistant : PlannerSheet
 }
 data class AssistantAnswer(val text: String, val recipes: List<String> = emptyList())

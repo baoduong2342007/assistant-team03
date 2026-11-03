@@ -14,13 +14,18 @@ android {
         versionCode 2
         versionName '0.2.0-native'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        def assistantUrl = providers.gradleProperty('assistantBaseUrl').getOrElse('')
+        if (assistantUrl && !(assistantUrl ==~ /https:\/\/[A-Za-z0-9.-]+(:[0-9]+)?(\/[A-Za-z0-9_\/-]*)?/)) {
+            throw new GradleException('assistantBaseUrl must be an HTTPS origin/base path')
+        }
+        buildConfigField 'String', 'ASSISTANT_BASE_URL', '"' + assistantUrl + '"'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = '17' }
-    buildFeatures { compose true }
+    buildFeatures { compose true; buildConfig true }
     buildTypes {
         release { minifyEnabled false }
     }
