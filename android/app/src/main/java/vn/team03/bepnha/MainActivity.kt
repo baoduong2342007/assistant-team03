@@ -18,6 +18,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
 import java.time.LocalTime
 
 data class NativeActions(
@@ -37,7 +40,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val paper = android.graphics.Color.rgb(250, 249, 245)
+        val paper = android.graphics.Color.rgb(248, 247, 242)
         enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(paper, paper))
         ReminderStore.createChannel(this)
         planner.openNotification(intent)
@@ -48,7 +51,12 @@ class MainActivity : ComponentActivity() {
             TimePickerDialog(this, { _, hour, minute -> selected(LocalTime.of(hour, minute)) },
                 initial.hour, initial.minute, true).show()
         })
-        setContent { BepNhaTheme { BepNhaApp(planner, actions) } }
+        setContent {
+            BepNhaTheme {
+                val mealPhoto = ImageBitmap.imageResource(R.drawable.family_meal)
+                CompositionLocalProvider(LocalMealPhoto provides mealPhoto) { BepNhaApp(planner, actions) }
+            }
+        }
     }
 
     override fun onResume() { super.onResume(); planner.refreshPermissions() }
