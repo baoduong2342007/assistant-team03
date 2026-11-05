@@ -74,6 +74,22 @@ class NativeAppTest {
         capture("native-cook.png")
     }
 
+    @Test fun switchingTabsRestoresTheHomeScrollPosition() {
+        compose.onNodeWithTag("swap-pork").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("shopping-list").assertExists()
+        compose.onNodeWithTag("tab-today").performClick()
+        compose.onNodeWithTag("swap-pork").assertIsDisplayed()
+    }
+
+    @Test fun ingredientRowIsOneAccessibleCheckboxAndKeepsItsState() {
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("tab-cook").performClick()
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOn().performClick().assertIsOff()
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
