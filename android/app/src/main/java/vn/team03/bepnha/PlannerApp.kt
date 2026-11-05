@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,9 +48,10 @@ import kotlinx.coroutines.isActive
     val snackbar = remember { SnackbarHostState() }
     val owner = LocalLifecycleOwner.current
     val fontScale = LocalDensity.current.fontScale
-    LaunchedEffect(owner, vm) {
+    val screenState = rememberSaveableStateHolder()
+    LaunchedEffect(owner, vm, vm.state.timer?.end) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) { vm.visibleTick(); delay(1000) }
+            while (isActive) { vm.visibleTick(); delay(if (vm.state.timer != null) 1000L else 30_000L) }
         }
     }
     LaunchedEffect(vm.message) {
@@ -114,13 +116,15 @@ import kotlinx.coroutines.isActive
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.widthIn(max = 680.dp).fillMaxSize()) {
-                when (vm.screen) {
-                    Screen.TODAY -> TodayScreen(vm)
-                    Screen.PLAN -> WeekScreen(vm)
-                    Screen.SHOPPING -> ShoppingScreen(vm, actions)
-                    Screen.COOK -> CookScreen(vm, actions)
-                    Screen.FAMILY -> FamilyScreen(vm, actions)
-                    Screen.FAVORITES -> FavoritesScreen(vm)
+                screenState.SaveableStateProvider(vm.screen.name) {
+                    when (vm.screen) {
+                        Screen.TODAY -> TodayScreen(vm)
+                        Screen.PLAN -> WeekScreen(vm)
+                        Screen.SHOPPING -> ShoppingScreen(vm, actions)
+                        Screen.COOK -> CookScreen(vm, actions)
+                        Screen.FAMILY -> FamilyScreen(vm, actions)
+                        Screen.FAVORITES -> FavoritesScreen(vm)
+                    }
                 }
             }
         }

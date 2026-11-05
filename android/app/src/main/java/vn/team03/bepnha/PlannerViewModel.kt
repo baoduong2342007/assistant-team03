@@ -3,6 +3,7 @@ package vn.team03.bepnha
 import android.app.Application
 import android.content.Intent
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,9 +44,9 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
         updates.trySend(state)
     }
 
-    val menu get() = engine.menu(state)
-    val tasks get() = engine.timeline(state)
-    val days get() = (0L..6L).map(today::plusDays)
+    val menu by derivedStateOf { engine.menu(state) }
+    val tasks by derivedStateOf { engine.timeline(state) }
+    val days by derivedStateOf { (0L..6L).map(today::plusDays) }
     val reminderEnabled get() = state.key in state.reminders
 
     private fun update(next: PlannerState) { state = next; updates.trySend(next) }
