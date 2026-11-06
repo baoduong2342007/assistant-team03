@@ -6,7 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.AndroidViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -15,7 +18,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
 
-class PlannerViewModel(application: Application) : AndroidViewModel(application) {
+class PlannerViewModel(application: Application, private val savedState: SavedStateHandle) : AndroidViewModel(application) {
     val engine = RecipeRepository(application).engine
     private val storage = PlannerStorage(application, engine)
     var today by mutableStateOf(PlannerEngine.today()); private set
@@ -29,12 +32,25 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
     var exactAlarms by mutableStateOf(ReminderStore.canScheduleExact(application)); private set
     var assistantVisible by mutableStateOf(false); private set
     var assistantHistory by mutableStateOf(emptyList<AssistantChatMessage>()); private set
-    var assistantQuestion by mutableStateOf("")
+    private var questionState by mutableStateOf(savedState.get<String>("assistant-draft").orEmpty())
+    var assistantQuestion: String
+        get() = questionState
+        set(value) { questionState = value.take(1000); savedState["assistant-draft"] = questionState }
     var assistantBusy by mutableStateOf(false); private set
     var assistantError by mutableStateOf<String?>(null); private set
     var assistantProposal by mutableStateOf<AssistantProposal?>(null); private set
     var assistantRecipeId by mutableStateOf<String?>(null); private set
     private var assistantOrigin = Screen.TODAY
+    private var returnRecipeId: String? = null
+    private data class Turn(val prompt: String, val history: List<AssistantChatMessage>, val base: PlannerState, val context: org.json.JSONObject, val messageId: String)
+    private var generation = 0L
+    private var activeJob: Job? = null
+    private var activeTurn: Turn? = null
+    private var failedTurn: Turn? = null
+    private val unansweredMessageIds = mutableSetOf<String>()
+    var failedMessageId by mutableStateOf<String?>(null); private set
+    val assistantConfigured get() = BuildConfig.ASSISTANT_BASE_URL.isNotBlank()
+    val canRetryAssistant get() = failedMessageId != null && !assistantBusy && assistantProposal == null
     internal var assistantTransport: (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply = AssistantGateway::ask
     private val commands = AssistantCommands(engine)
     private val updates = Channel<Pair<PlannerState, String?>>(Channel.UNLIMITED)
@@ -45,7 +61,7 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
                 try {
                     storage.save(snapshot)
                     ReminderStore.synchronize(application, PlannerStorage.alarmJson(engine.alarms(snapshot, System.currentTimeMillis())))
-                    if (outcome != null) withContext(Dispatchers.Main) { assistantHistory = assistantHistory + AssistantChatMessage("assistant", outcome) }
+                    if (outcome != null) withContext(Dispatchers.Main) { assistantHistory = assistantHistory + AssistantChatMessage("assistant", outcome, source = AssistantSource.SYSTEM) }
                 } catch (exception: Exception) {
                     withContext(Dispatchers.Main) {
                         message = "Chưa lưu được dữ liệu hoặc lịch nhắc. Bạn hãy mở lại ứng dụng để kiểm tra."
@@ -62,59 +78,176 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
     val days get() = (0L..6L).map(today::plusDays)
     val reminderEnabled get() = state.key in state.reminders
 
-    private fun update(next: PlannerState, outcome: String? = null) { state = next; updates.trySend(next to outcome) }
-    fun navigate(next: Screen) { screen = next; assistantVisible = false }
+    private fun update(next: PlannerState, outcome: String? = null) {
+        if (next != state && (assistantBusy || assistantProposal != null || failedTurn != null)) {
+            invalidateTurn("Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn.")
+            assistantProposal = null
+        }
+        state = next
+        updates.trySend(next to outcome)
+    }
+    fun navigate(next: Screen) {
+        if (assistantVisible) finishAssistant(restoreRecipe = false)
+        screen = next
+    }
     fun selectDate(date: LocalDate) { if (date in days) update(state.copy(date = date)) }
     fun selectMeal(meal: Meal) { update(state.copy(meal = meal)) }
-    fun openRecipe(id: String) { sheet = PlannerSheet.RecipeDetail(id) }
+    fun openRecipe(id: String) { if (id in engine.recipes) sheet = PlannerSheet.RecipeDetail(id) }
     fun openSwap(index: Int) { sheet = PlannerSheet.Swap(index) }
     fun openReminders() { sheet = PlannerSheet.Reminder }
     fun openAssistant() {
-        assistantRecipeId = (sheet as? PlannerSheet.RecipeDetail)?.id
-        assistantOrigin = screen; sheet = null; assistantVisible = true
+        if (assistantVisible) {
+            (sheet as? PlannerSheet.RecipeDetail)?.let { recipe ->
+                if (assistantRecipeId != recipe.id && (assistantBusy || assistantProposal != null || failedTurn != null)) {
+                    invalidateTurn("Món đang hỏi đã thay đổi. Hãy gửi lại câu hỏi.")
+                    assistantProposal = null
+                }
+                assistantRecipeId = recipe.id
+                returnRecipeId = recipe.id
+                sheet = null
+            }
+            return
+        }
+        returnRecipeId = (sheet as? PlannerSheet.RecipeDetail)?.id
+        assistantRecipeId = returnRecipeId
+        assistantOrigin = screen
+        sheet = null
+        assistantVisible = true
     }
-    fun closeAssistant() { assistantVisible = false }
-    fun cancelAssistantProposal() {
+    fun closeAssistant() = finishAssistant(restoreRecipe = true)
+    private fun finishAssistant(restoreRecipe: Boolean) {
+        if (assistantBusy) invalidateTurn("Yêu cầu trước đã dừng. Bạn có thể gửi lại câu hỏi.")
         assistantProposal = null
-        assistantHistory = assistantHistory + AssistantChatMessage("assistant", "Đã hủy đề xuất. Dữ liệu được giữ nguyên.")
+        assistantVisible = false
+        if (restoreRecipe) returnRecipeId?.let(::openRecipe)
+        returnRecipeId = null
+    }
+    private fun invalidateTurn(reason: String) {
+        val prompt = activeTurn?.prompt ?: failedTurn?.prompt ?: assistantProposal?.let { assistantHistory.lastOrNull { it.role == "user" }?.text }
+        if (assistantQuestion.isBlank() && prompt != null) assistantQuestion = prompt
+        generation++
+        activeJob?.cancel()
+        activeJob = null
+        activeTurn = null
+        failedTurn = null
+        failedMessageId = null
+        assistantBusy = false
+        assistantError = reason
+    }
+    fun cancelAssistantProposal() {
+        if (assistantProposal == null) return
+        assistantProposal = null
+        assistantHistory = assistantHistory + AssistantChatMessage("assistant", "Đã hủy đề xuất. Dữ liệu được giữ nguyên.", source = AssistantSource.SYSTEM)
+    }
+    fun submitAssistant() {
+        if (assistantConfigured) askAssistant() else lookupOffline()
     }
     fun askAssistant(question: String = assistantQuestion) {
-        if (question.isBlank() || assistantBusy || assistantProposal != null) return
+        if (question.isBlank() || assistantBusy || assistantProposal != null || !assistantVisible) return
         val prompt = question.trim().take(1000)
-        val base = state
-        val context = AssistantGateway.snapshot(engine, base, today, assistantOrigin, assistantRecipeId)
-        val history = assistantHistory
-        assistantHistory = history + AssistantChatMessage("user", prompt)
-        assistantQuestion = prompt; assistantBusy = true; assistantError = null
-        viewModelScope.launch {
+        // A failed message is not supplied as an already answered history turn.
+        val history = assistantHistory.filterNot { it.id in unansweredMessageIds }
+        val user = AssistantChatMessage("user", prompt)
+        unansweredMessageIds += user.id
+        assistantHistory = assistantHistory + user
+        assistantQuestion = ""
+        startTurn(Turn(prompt, history, state, AssistantGateway.snapshot(engine, state, today, assistantOrigin, assistantRecipeId), user.id))
+    }
+    fun retryAssistant() {
+        val turn = failedTurn ?: return
+        if (assistantBusy || assistantProposal != null || !assistantVisible) return
+        if (turn.base != state) {
+            invalidateTurn("Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn.")
+            return
+        }
+        startTurn(turn)
+    }
+    private fun startTurn(turn: Turn) {
+        val token = ++generation
+        activeTurn = turn
+        failedTurn = null
+        failedMessageId = null
+        assistantBusy = true
+        assistantError = null
+        activeJob = viewModelScope.launch {
             try {
-                val reply = withContext(Dispatchers.IO) { assistantTransport(prompt, history, context) }
-                require(state == base && assistantVisible) { "Ngữ cảnh đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn." }
+                val reply = withContext(Dispatchers.IO) { assistantTransport(turn.prompt, turn.history, turn.context) }
+                if (token != generation || !assistantVisible) return@launch
+                require(state == turn.base) { "Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn." }
                 var simulated = state
                 reply.actions.forEach { simulated = commands.apply(simulated, it, today, System.currentTimeMillis()) }
-                assistantHistory = assistantHistory + AssistantChatMessage("assistant", reply.text.take(8000))
-                assistantQuestion = ""
+                unansweredMessageIds -= turn.messageId
+                assistantHistory = assistantHistory + AssistantChatMessage("assistant", reply.text.take(8000),
+                    reply.actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }.distinct())
                 if (reply.actions.any { it.mutates }) {
-                    var previewState = base
+                    var previewState = turn.base
                     val descriptions = reply.actions.map { action ->
                         val description = commands.preview(previewState, action)
                         previewState = commands.apply(previewState, action, today, System.currentTimeMillis())
                         description
                     }
-                    assistantProposal = AssistantProposal(base, reply.actions, descriptions)
-                } else executeAssistantActions(reply.actions, base)
+                    assistantProposal = AssistantProposal(turn.base, reply.actions, descriptions)
+                } else {
+                    // The response is complete before navigation/actions can invalidate the turn.
+                    activeTurn = null
+                    assistantBusy = false
+                    executeAssistantActions(reply.actions, turn.base)
+                }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (exception: Exception) {
-                assistantError = exception.message ?: "Chưa kết nối được trợ lý. Hãy thử lại hoặc tra cứu offline."
-            } finally { assistantBusy = false }
+                if (token == generation) {
+                    failedTurn = turn
+                    failedMessageId = turn.messageId
+                    assistantError = exception.message?.takeUnless {
+                        it in setOf("Failed requirement.", "Required value was null.", "Check failed.")
+                    } ?: "Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tìm trong công thức có sẵn."
+                }
+            } finally {
+                if (token == generation) {
+                    assistantBusy = false
+                    activeTurn = null
+                    activeJob = null
+                }
+            }
         }
     }
-    fun lookupOffline() {
-        if (assistantQuestion.isBlank() || assistantBusy || assistantProposal != null) return
-        val prompt = assistantQuestion
-        val answer = engine.answer(prompt, state)
-        assistantHistory = assistantHistory + AssistantChatMessage("user", prompt) + AssistantChatMessage("assistant",
-            "Tra cứu offline\n${answer.text}\n" + answer.recipes.mapNotNull { engine.recipes[it]?.name }.joinToString("\n"), answer.recipes)
-        assistantQuestion = ""; assistantError = null
+    fun lookupOffline() = lookupOnDevice(assistantQuestion)
+    fun lookupFailedOffline() {
+        val turn = failedTurn ?: return
+        if (assistantBusy || assistantProposal != null) return
+        val answer = localAnswer(turn.prompt)
+        unansweredMessageIds -= turn.messageId
+        assistantHistory = assistantHistory + AssistantChatMessage("assistant", answer.text, answer.recipes, source = AssistantSource.LOCAL)
+        failedTurn = null
+        failedMessageId = null
+        assistantError = null
+    }
+    private fun lookupOnDevice(question: String) {
+        if (question.isBlank() || assistantBusy || assistantProposal != null) return
+        val prompt = question.trim().take(1000)
+        val answer = localAnswer(prompt)
+        assistantHistory = assistantHistory + AssistantChatMessage("user", prompt) +
+            AssistantChatMessage("assistant", answer.text, answer.recipes, source = AssistantSource.LOCAL)
+        assistantQuestion = ""
+        failedTurn = null
+        failedMessageId = null
+        assistantError = null
+    }
+    private fun localAnswer(prompt: String): AssistantAnswer {
+        val recipe = assistantRecipeId?.let(engine.recipes::get)
+        val query = PlannerEngine.normalize(prompt)
+        if (recipe != null && query.contains("mon nay")) {
+            val text = if (query.contains("nguyen lieu")) {
+                recipe.ingredients.joinToString("\n") {
+                    "${it.name}: ${PlannerEngine.quantity(it.amount * state.profile.people / 4.0)} ${it.unit}"
+                }
+            } else {
+                recipe.steps.mapIndexed { index, step -> "${index + 1}. $step" }.joinToString("\n\n")
+            }
+            return AssistantAnswer("${recipe.name}\n\n$text", listOf(recipe.id))
+        }
+        return engine.answer(prompt, state)
     }
     fun confirmAssistantProposal() {
         val proposal = assistantProposal ?: return
@@ -123,7 +256,7 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
             require(state == proposal.base) { "Dữ liệu đã thay đổi. Hãy gửi lại câu hỏi để xem đề xuất mới." }
             executeAssistantActions(proposal.actions, proposal.base)
         } catch (exception: Exception) {
-            assistantQuestion = assistantHistory.lastOrNull { it.role == "user" }?.text.orEmpty()
+            if (assistantQuestion.isBlank()) assistantQuestion = assistantHistory.lastOrNull { it.role == "user" }?.text.orEmpty()
             assistantError = exception.message ?: "Không thể thực hiện thao tác."
         }
     }
@@ -219,6 +352,7 @@ class PlannerViewModel(application: Application) : AndroidViewModel(application)
         val date = runCatching { LocalDate.parse(intent.getStringExtra("date")) }.getOrNull() ?: return
         val meal = Meal.from(intent.getStringExtra("meal").orEmpty()) ?: return
         if (date in days) update(state.copy(date = date, meal = meal))
+        if (assistantVisible) finishAssistant(restoreRecipe = false)
         sheet = null; screen = Screen.COOK
     }
     fun back(): Boolean {

@@ -8,6 +8,9 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class AssistantFlowTest {
@@ -96,6 +99,168 @@ class AssistantFlowTest {
         compose.runOnIdle {
             vm().openAssistant(); vm().assistantQuestion = "Món nấu nhanh"; vm().lookupOffline()
             assertTrue(vm().assistantHistory.last().recipeIds.isNotEmpty())
+            assertEquals(AssistantSource.LOCAL, vm().assistantHistory.last().source)
         }
+    }
+
+    @Test fun retryKeepsOneUserMessageAndDoesNotOverwriteTheNextDraft() {
+        val calls = AtomicInteger()
+        compose.runOnIdle {
+            vm().assistantTransport = { _, history, _ ->
+                assertTrue(history.isEmpty())
+                if (calls.incrementAndGet() == 1) error("Dịch vụ tạm ngừng")
+                AssistantReply("Đã kết nối lại", emptyList())
+            }
+            vm().openAssistant()
+            vm().askAssistant("Món nấu nhanh")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNotNull(vm().failedMessageId)
+            vm().assistantQuestion = "Câu hỏi tiếp theo"
+            vm().retryAssistant()
+            vm().retryAssistant()
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertEquals(2, calls.get())
+            assertEquals(1, vm().assistantHistory.count { it.role == "user" })
+            assertEquals("Đã kết nối lại", vm().assistantHistory.last().text)
+            assertEquals("Câu hỏi tiếp theo", vm().assistantQuestion)
+            assertNull(vm().assistantError)
+        }
+    }
+
+    @Test fun doubleSendIsIgnoredAndClosingDiscardsLateActions() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val calls = AtomicInteger()
+        lateinit var base: PlannerState
+        try {
+            compose.runOnIdle {
+                base = vm().state
+                vm().assistantTransport = { _, _, _ ->
+                    calls.incrementAndGet()
+                    entered.countDown()
+                    check(release.await(10, TimeUnit.SECONDS))
+                    AssistantReply("Phản hồi đã hết hiệu lực", listOf(
+                        AssistantAction(AssistantActionType.set_people, base.date, base.meal, people = 11)))
+                }
+                vm().openAssistant()
+                vm().askAssistant("Đổi số người")
+                vm().askAssistant("Không được gửi thêm")
+                vm().assistantQuestion = "Bản nháp mới"
+            }
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            compose.runOnIdle {
+                assertEquals(1, calls.get())
+                assertEquals(1, vm().assistantHistory.count { it.role == "user" })
+                vm().closeAssistant()
+                vm().openAssistant()
+            }
+            release.countDown()
+            compose.waitForIdle()
+            compose.runOnIdle {
+                assertFalse(vm().assistantBusy)
+                assertNull(vm().assistantProposal)
+                assertEquals(base, vm().state)
+                assertEquals("Bản nháp mới", vm().assistantQuestion)
+                assertFalse(vm().assistantHistory.any { it.text == "Phản hồi đã hết hiệu lực" })
+            }
+        } finally { release.countDown() }
+    }
+
+    @Test fun askingFromRecipeReturnsToThatRecipeAndKeepsDraftAfterRotation() {
+        compose.runOnIdle {
+            vm().openRecipe("tofu")
+            vm().openAssistant()
+            vm().assistantQuestion = "Giải thích cách nấu"
+        }
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("assistant-input").assertTextContains("Giải thích cách nấu")
+        compose.onNodeWithContentDescription("Quay lại").performClick()
+        compose.runOnIdle {
+            assertFalse(vm().assistantVisible)
+            assertEquals(PlannerSheet.RecipeDetail("tofu"), vm().sheet)
+        }
+    }
+
+    @Test fun familyAndReminderDraftsSurviveActivityRecreation() {
+        compose.runOnIdle { vm().navigate(Screen.FAMILY) }
+        compose.onNodeWithTag("family-name").performTextReplacement("Nhà thử nghiệm")
+        compose.onNodeWithContentDescription("Tăng số người ăn").performScrollTo().performClick()
+        val people = compose.onNodeWithTag("family-people").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithTag("family-name").assertTextContains("Nhà thử nghiệm")
+        compose.onNodeWithTag("family-people").assertTextEquals(people)
+        compose.runOnIdle { vm().openReminders() }
+        val before = vm().reminderEnabled
+        compose.onNodeWithTag("reminder-enabled").performScrollTo().performClick()
+        compose.activityRule.scenario.recreate()
+        if (before) compose.onNodeWithTag("reminder-enabled").assertIsOff()
+        else compose.onNodeWithTag("reminder-enabled").assertIsOn()
+    }
+
+    @Test fun recipeContextWorksForOnDeviceLookupAndCanChangeWithinChat() {
+        compose.runOnIdle {
+            vm().openRecipe("tofu")
+            vm().openAssistant()
+            vm().assistantQuestion = "Nguyên liệu món này gồm gì?"
+            vm().lookupOffline()
+            assertEquals(listOf("tofu"), vm().assistantHistory.last().recipeIds)
+            assertTrue(vm().assistantHistory.last().text.contains(vm().engine.recipes.getValue("tofu").ingredients.first().name))
+            vm().openRecipe("eggs")
+            vm().openAssistant()
+            assertNull(vm().sheet)
+            assertEquals("eggs", vm().assistantRecipeId)
+            vm().closeAssistant()
+            assertEquals(PlannerSheet.RecipeDetail("eggs"), vm().sheet)
+        }
+    }
+
+    @Test fun invalidBackendActionHasReadableErrorAndCannotChangeTheMeal() {
+        lateinit var base: PlannerState
+        compose.runOnIdle {
+            base = vm().state
+            vm().assistantTransport = { _, _, _ ->
+                AssistantReply("Không được hiển thị như một đề xuất hợp lệ", listOf(
+                    AssistantAction(AssistantActionType.set_people, base.date, base.meal, people = 999)))
+            }
+            vm().openAssistant()
+            vm().askAssistant("Đổi khẩu phần")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertEquals(base, vm().state)
+            assertNull(vm().assistantProposal)
+            assertTrue(vm().assistantError.orEmpty().contains("Phản hồi trợ lý chưa hợp lệ"))
+            assertFalse(vm().assistantError.orEmpty().contains("Failed requirement"))
+            assertFalse(vm().assistantHistory.any { it.role == "assistant" })
+        }
+    }
+
+    @Test fun restoredDraftDoesNotRestoreAConversationOrExecutableProposal() {
+        val application = compose.activity.application
+        val handle = androidx.lifecycle.SavedStateHandle(mapOf("assistant-draft" to "Câu hỏi chưa gửi"))
+        val restored = PlannerViewModel(application, handle)
+        val store = androidx.lifecycle.ViewModelStore()
+        store.put("restored", restored)
+        try {
+            assertEquals("Câu hỏi chưa gửi", restored.assistantQuestion)
+            assertTrue(restored.assistantHistory.isEmpty())
+            assertNull(restored.assistantProposal)
+            assertFalse(restored.assistantBusy)
+            restored.assistantQuestion = "Bản nháp mới"
+            assertEquals("Bản nháp mới", handle.get<String>("assistant-draft"))
+        } finally { store.clear() }
+    }
+
+    @Test fun openingChatDoesNotResetTodayScrollPosition() {
+        val lastId = vm().menu.last().id
+        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag("open-$lastId"))
+        compose.onNodeWithTag("open-$lastId").assertIsDisplayed()
+        compose.onNodeWithTag("ask-assistant").performClick()
+        compose.onNodeWithContentDescription("Quay lại").performClick()
+        compose.onNodeWithTag("open-$lastId").assertIsDisplayed()
     }
 }

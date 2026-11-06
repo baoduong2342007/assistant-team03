@@ -37,8 +37,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val paper = android.graphics.Color.rgb(250, 249, 245)
+        val paper = android.graphics.Color.rgb(247, 248, 245)
         enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(paper, paper))
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         ReminderStore.createChannel(this)
         planner.openNotification(intent)
         val actions = NativeActions(::requestNotifications, ::requestExactAlarms, ::openCalendar, { text ->

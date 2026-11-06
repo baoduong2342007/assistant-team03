@@ -63,6 +63,7 @@ class NativeAppTest {
     }
 
     @Test fun sixPersonProfileUpdatesShoppingAndOpensCookingTimeline() {
+        compose.onNodeWithTag("more-menu").performClick()
         compose.onNodeWithContentDescription("Thông tin gia đình").performClick()
         compose.onNodeWithText("+").performClick().performClick()
         compose.onNodeWithText("Lưu thông tin gia đình").performScrollTo().performClick()

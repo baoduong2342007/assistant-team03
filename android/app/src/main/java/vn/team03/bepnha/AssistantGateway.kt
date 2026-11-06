@@ -7,7 +7,16 @@ import java.net.URL
 import java.time.LocalDate
 import java.time.LocalTime
 
-data class AssistantChatMessage(val role: String, val text: String, val recipeIds: List<String> = emptyList())
+enum class AssistantSource { AI, LOCAL, SYSTEM }
+
+/** UI metadata is deliberately excluded from the HTTP payload. */
+data class AssistantChatMessage(
+    val role: String,
+    val text: String,
+    val recipeIds: List<String> = emptyList(),
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val source: AssistantSource = AssistantSource.AI,
+)
 data class AssistantReply(val text: String, val actions: List<AssistantAction>)
 data class AssistantProposal(val base: PlannerState, val actions: List<AssistantAction>, val descriptions: List<String>)
 
@@ -35,7 +44,7 @@ object AssistantGateway {
 
     fun ask(question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
         val base = BuildConfig.ASSISTANT_BASE_URL.trimEnd('/')
-        require(base.isNotBlank()) { "Chưa cấu hình địa chỉ trợ lý. Bạn vẫn có thể tra cứu offline." }
+        require(base.isNotBlank()) { "Chưa cấu hình địa chỉ trợ lý. Bạn vẫn có thể tìm trong công thức có sẵn." }
         val url = URL("$base/api/assistant/turn")
         require(url.protocol == "https" && url.userInfo == null) { "Địa chỉ trợ lý phải dùng HTTPS." }
         val connection = url.openConnection() as HttpURLConnection
@@ -47,7 +56,7 @@ object AssistantGateway {
             val body = JSONObject().put("message", question).put("context", context)
                 .put("history", JSONArray(history.takeLast(20).map { JSONObject().put("role", it.role).put("text", it.text) }))
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            check(connection.responseCode == 200) { "AI chưa sẵn sàng hoặc hết hạn mức. Hãy thử lại hoặc tra cứu offline." }
+            check(connection.responseCode == 200) { "AI chưa sẵn sàng hoặc hết hạn mức. Hãy thử lại hoặc tìm trong công thức có sẵn." }
             val bytes = connection.inputStream.use { input ->
                 val output = java.io.ByteArrayOutputStream()
                 val buffer = ByteArray(8192)
@@ -65,9 +74,11 @@ object AssistantGateway {
             require(actions.length() <= 8)
             return AssistantReply(result.getString("reply"), (0 until actions.length()).map { parseAction(actions.getJSONObject(it)) })
         } catch (exception: java.io.IOException) {
-            throw IllegalStateException("Chưa kết nối được trợ lý. Hãy kiểm tra mạng, thử lại hoặc tra cứu offline.", exception)
+            throw IllegalStateException("Chưa kết nối được trợ lý. Hãy kiểm tra mạng, thử lại hoặc tìm trong công thức có sẵn.", exception)
         } catch (exception: org.json.JSONException) {
-            throw IllegalArgumentException("Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tra cứu offline.", exception)
+            throw IllegalArgumentException("Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tìm trong công thức có sẵn.", exception)
+        } catch (exception: IllegalArgumentException) {
+            throw IllegalStateException("Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tìm trong công thức có sẵn.", exception)
         } finally { connection.disconnect() }
     }
 

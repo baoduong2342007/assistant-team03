@@ -1,0 +1,5 @@
+# Nguồn ảnh minh họa Android
+
+Ảnh `app/src/main/res/drawable-nodpi/family_meal.webp` được tạo bằng công cụ imagegen tích hợp trong giai đoạn prototype và được giữ lại trong dự án Android. Ảnh mang tính minh họa.
+
+Prompt ảnh: “Use case: photorealistic-natural. Asset type: main food photograph for a Vietnamese family meal planner web application. Primary request: authentic home cooked Vietnamese dinner, warmly appetizing editorial food photography. Scene: rustic light warm oak table, round rattan woven tray, off-white ceramic plates and bowls. Subject: a dark brown clay pot of glossy caramelized pork belly and boiled eggs (thit kho trung) prominent in lower center, bowl of light green mustard vegetable soup with minced pork upper left, plate of sauteed morning glory with garlic upper right, small bowl white rice and wooden chopsticks at right. Composition: overhead slightly angled close-up, wide landscape 3:2, food fills frame, artfully casual genuinely Vietnamese family home cooking, subtle linen napkin. Soft natural daylight, cream, leaf green and caramel tones, premium cookbook quality, realistic textures. No lettering, no logos, no people, no watermarks.”
