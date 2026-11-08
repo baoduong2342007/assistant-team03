@@ -1,0 +1,695 @@
+{
+  "recipes": [
+    {
+      "id": "pork",
+      "name": "Thịt kho trứng",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍲",
+      "photo": "pork",
+      "minutes": 45,
+      "cost": 65000,
+      "note": "Đậm đà, mềm thơm, đưa cơm",
+      "ingredients": [
+        {
+          "name": "Thịt ba chỉ",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 4,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước dừa",
+          "amount": 350,
+          "unit": "ml",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa thịt, thấm khô và cắt miếng vừa ăn. Băm hành tím. Luộc trứng chín, ngâm nước mát rồi bóc vỏ.",
+        "Ướp thịt với hành tím và nước mắm trong 10 phút. Thắng đường với một ít nước đến màu cánh gián nhạt.",
+        "Cho thịt vào đảo săn, thêm nước dừa và nước vừa ngập thịt. Đun sôi rồi hạ lửa nhỏ.",
+        "Cho trứng vào, kho liu riu khoảng 25 phút đến khi thịt chín mềm. Thêm nước nóng nếu cạn, nêm vừa ăn rồi tắt bếp."
+      ],
+      "tip": "Để lửa nhỏ sau khi sôi, thịt sẽ mềm và nước kho trong hơn."
+    },
+    {
+      "id": "soup",
+      "name": "Canh cải thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥣",
+      "photo": "soup",
+      "minutes": 15,
+      "cost": 25000,
+      "note": "Thanh mát, nhẹ bụng",
+      "ingredients": [
+        {
+          "name": "Cải xanh",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 10,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nhặt và rửa sạch cải xanh, cắt khúc vừa ăn. Gừng gọt vỏ, đập dập.",
+        "Đun sôi lượng nước vừa đủ cho khẩu phần cùng với gừng. Cho thịt bằm vào, khuấy tơi và hớt bọt.",
+        "Khi thịt chín, cho cải vào nấu 3–5 phút đến khi mềm vừa. Nêm nước mắm, đun sôi lại rồi tắt bếp."
+      ],
+      "tip": "Cho rau vào khi nước sôi để rau giữ màu xanh đẹp."
+    },
+    {
+      "id": "greens",
+      "name": "Rau muống xào tỏi",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥬",
+      "photo": "greens",
+      "minutes": 10,
+      "cost": 15000,
+      "note": "Giòn xanh, thơm mùi tỏi",
+      "ingredients": [
+        {
+          "name": "Rau muống",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 4,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nhặt rau muống, bỏ phần già, rửa sạch và để ráo. Bóc tỏi, đập dập.",
+        "Làm nóng dầu trên chảo, phi tỏi thơm. Cho rau vào đảo đều trên lửa lớn.",
+        "Thêm ít nước nếu chảo khô. Nêm nước mắm, xào 3–5 phút đến khi rau chín, còn giòn thì tắt bếp."
+      ],
+      "tip": "Xào rau sau cùng để cả nhà thưởng thức lúc còn nóng giòn."
+    },
+    {
+      "id": "chicken",
+      "name": "Gà kho gừng",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍗",
+      "minutes": 35,
+      "cost": 60000,
+      "note": "Thơm gừng, ấm bữa cơm nhà",
+      "ingredients": [
+        {
+          "name": "Thịt gà",
+          "amount": 600,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 30,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Thấm khô gà, cắt miếng vừa ăn. Gừng thái sợi, hành tím băm nhỏ. Rửa tay và dụng cụ sau khi xử lý thịt sống.",
+        "Ướp gà với nước mắm, đường và một nửa gừng khoảng 10 phút.",
+        "Phi hành, cho gà vào đảo săn. Thêm nước xâm xấp thịt, đậy nắp và kho lửa nhỏ 20 phút.",
+        "Thêm phần gừng còn lại. Nấu đến khi gà chín hoàn toàn, nêm vừa ăn rồi tắt bếp."
+      ],
+      "tip": "Thêm một nửa gừng ở cuối để món kho thơm hơn."
+    },
+    {
+      "id": "fish",
+      "name": "Cá basa kho tiêu",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🐟",
+      "minutes": 30,
+      "cost": 50000,
+      "note": "Cá mềm, nước kho sánh nhẹ",
+      "ingredients": [
+        {
+          "name": "Cá basa",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Làm sạch cá, để ráo. Ướp với nước mắm, hành băm và nửa phần tiêu trong 10 phút.",
+        "Thắng đường đến màu cánh gián nhạt, cẩn thận thêm nước vừa đủ ngập một nửa cá rồi xếp cá vào.",
+        "Kho lửa nhỏ khoảng 20 phút đến khi cá chín, thịt tách dễ dàng và nước hơi sánh. Thêm tiêu, nêm lại rồi tắt bếp."
+      ],
+      "tip": "Hạn chế trở cá nhiều lần để miếng cá không bị nát."
+    },
+    {
+      "id": "tofu",
+      "name": "Đậu hũ sốt cà chua",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍅",
+      "minutes": 20,
+      "cost": 25000,
+      "note": "Món quen dễ nấu, nhẹ chi phí",
+      "ingredients": [
+        {
+          "name": "Đậu hũ",
+          "amount": 4,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Thấm khô đậu hũ, cắt miếng. Cà chua rửa sạch, thái nhỏ; hành lá cắt khúc.",
+        "Áp chảo đậu hũ với một nửa dầu ăn đến khi vàng hai mặt, gắp ra.",
+        "Thêm phần dầu còn lại, xào cà chua cùng ít nước đến khi mềm thành sốt. Nêm nước tương.",
+        "Cho đậu hũ vào sốt, đun nhỏ lửa 5 phút, rắc hành lá và tắt bếp."
+      ],
+      "tip": "Dùng nước tương để có bữa cơm chay với món này."
+    },
+    {
+      "id": "shrimp",
+      "name": "Tôm rim mặn ngọt",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🦐",
+      "minutes": 20,
+      "cost": 70000,
+      "note": "Tôm săn ngọt, cả nhà dễ ăn",
+      "ingredients": [
+        {
+          "name": "Tôm",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa tôm, bỏ đầu và chỉ lưng. Tỏi bóc vỏ, băm nhỏ.",
+        "Phi tỏi với dầu, cho tôm vào đảo đến khi chuyển màu.",
+        "Thêm nước mắm, đường và một ít nước. Rim 7–10 phút đến khi tôm chín hoàn toàn và sốt bám đều."
+      ],
+      "tip": "Đảo nhẹ tay để tôm thấm đều nước rim."
+    },
+    {
+      "id": "eggs",
+      "name": "Trứng chiên hành",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍳",
+      "minutes": 10,
+      "cost": 22000,
+      "note": "Nhanh gọn cho ngày bận rộn",
+      "ingredients": [
+        {
+          "name": "Trứng gà",
+          "amount": 5,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 3,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa hành lá, cắt nhỏ. Đập trứng ra tô, thêm hành và nước mắm rồi đánh đều.",
+        "Làm nóng dầu trong chảo chống dính, đổ trứng vào và dàn đều.",
+        "Chiên lửa vừa đến khi mặt dưới vàng, lật nhẹ hoặc đậy nắp để trứng chín hoàn toàn rồi tắt bếp."
+      ],
+      "tip": "Lửa vừa giúp trứng chín đều mà không bị khô."
+    },
+    {
+      "id": "squash",
+      "name": "Canh bí đỏ thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🎃",
+      "minutes": 20,
+      "cost": 25000,
+      "note": "Bí bùi ngọt, nước canh thanh",
+      "ingredients": [
+        {
+          "name": "Bí đỏ",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bí đỏ gọt vỏ, bỏ hạt, rửa sạch và cắt miếng. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ cho khẩu phần, cho thịt bằm vào khuấy tơi, hớt bọt.",
+        "Thêm bí đỏ, nấu 10–15 phút đến khi bí mềm và thịt chín. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Cắt bí đều nhau để các miếng chín cùng lúc."
+    },
+    {
+      "id": "sour",
+      "name": "Canh chua cá",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🍋",
+      "minutes": 25,
+      "cost": 45000,
+      "note": "Chua dịu, ngọt thanh kiểu miền Nam",
+      "ingredients": [
+        {
+          "name": "Cá basa",
+          "amount": 300,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đậu bắp",
+          "amount": 100,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thơm",
+          "amount": 150,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Me chua",
+          "amount": 20,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa sạch cá và rau củ. Cà chua bổ múi, thơm thái miếng, đậu bắp cắt khúc. Dầm me với nước nóng, lọc bỏ hạt.",
+        "Đun lượng nước vừa đủ cho khẩu phần, cho nước me, cà chua và thơm vào. Khi sôi, cho cá vào nấu khoảng 10 phút.",
+        "Khi cá chín, cho đậu bắp vào nấu thêm 3 phút. Nêm nước mắm và điều chỉnh độ chua vừa ăn."
+      ],
+      "tip": "Cho đậu bắp vào gần cuối để giữ độ giòn."
+    },
+    {
+      "id": "cabbage",
+      "name": "Canh bắp cải cà rốt",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥕",
+      "minutes": 15,
+      "cost": 15000,
+      "note": "Ngọt từ rau củ, dễ kết hợp",
+      "ingredients": [
+        {
+          "name": "Bắp cải",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa sạch bắp cải, cắt miếng. Cà rốt gọt vỏ, thái mỏng. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ cho khẩu phần, cho cà rốt vào nấu 5 phút.",
+        "Thêm bắp cải, nấu 5 phút đến khi rau chín vừa. Nêm muối, thêm hành lá và tắt bếp."
+      ],
+      "tip": "Có thể dùng nước luộc rau để nấu, nếu có sẵn."
+    },
+    {
+      "id": "broccoli",
+      "name": "Bông cải xào cà rốt",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥦",
+      "minutes": 15,
+      "cost": 22000,
+      "note": "Thêm màu xanh cho bữa cơm",
+      "ingredients": [
+        {
+          "name": "Bông cải xanh",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bông cải tách nhánh, rửa sạch. Cà rốt thái mỏng, tỏi băm.",
+        "Phi tỏi với dầu, cho cà rốt vào đảo 2 phút.",
+        "Thêm bông cải và ít nước, đậy nắp 3 phút. Nêm nước tương và đảo đến khi rau chín vừa."
+      ],
+      "tip": "Thêm từng ít nước để rau chín mà không bị nhũn."
+    },
+    {
+      "id": "boiled",
+      "name": "Rau củ luộc",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥒",
+      "minutes": 10,
+      "cost": 15000,
+      "note": "Đơn giản, tươi ngon mỗi ngày",
+      "ingredients": [
+        {
+          "name": "Đậu bắp",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Bắp cải",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa sạch rau củ. Cà rốt thái thanh, bắp cải cắt miếng, đậu bắp để nguyên trái.",
+        "Đun sôi nước với ít muối, cho cà rốt vào trước 3 phút.",
+        "Thêm bắp cải và đậu bắp, luộc 4–5 phút đến khi chín vừa, vớt ra để ráo."
+      ],
+      "tip": "Luộc từng loại riêng nếu bạn muốn dễ canh độ chín."
+    },
+    {
+      "id": "cucumber",
+      "name": "Dưa leo trộn",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥗",
+      "minutes": 10,
+      "cost": 12000,
+      "note": "Giòn mát, cân bằng món kho",
+      "ingredients": [
+        {
+          "name": "Dưa leo",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Chanh",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa kỹ dưa leo, thái lát. Cà rốt gọt vỏ, bào sợi.",
+        "Pha nước tương với đường và nước cốt chanh, nếm cho vừa khẩu vị.",
+        "Trộn rau củ với nước trộn ngay trước khi ăn. Để riêng trong ngăn mát nếu chưa dùng ngay."
+      ],
+      "tip": "Chỉ trộn sát giờ ăn để dưa leo giữ được độ giòn."
+    }
+  ],
+  "combinations": [
+    [
+      "pork",
+      "soup",
+      "greens"
+    ],
+    [
+      "chicken",
+      "squash",
+      "boiled"
+    ],
+    [
+      "fish",
+      "cabbage",
+      "broccoli"
+    ],
+    [
+      "tofu",
+      "squash",
+      "greens"
+    ],
+    [
+      "shrimp",
+      "soup",
+      "cucumber"
+    ],
+    [
+      "eggs",
+      "sour",
+      "broccoli"
+    ],
+    [
+      "chicken",
+      "cabbage",
+      "cucumber"
+    ]
+  ]
+}

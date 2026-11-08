@@ -2,6 +2,17 @@
 
 A starter repository for the CSC10014 Smart Virtual Assistant project.
 
+## Bếp Nhà Android
+
+A native Kotlin/Jetpack Compose Android app is available in [android/](android/README.md), with native meal planning, text recipes, shopping lists, cooking timelines and Android reminders. It uses Jetpack Compose for the interface and does not use WebView. Open that folder in Android Studio, or build with:
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug lintDebug
+```
+
+The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. See the Android README for installation, notification permissions and verification limits.
+
 ## Setup
 Prerequisites: Python 3.10+, Git.
 
@@ -74,7 +85,8 @@ pytest -q
 - `data/`: CSV data files for campus offices
 - `tests/`: automated smoke tests
 - `docs/`: project documentation and team roster
-- `ui/`: user interface roadmap (Week 7)
+- `ui/`: React frontend
+- `android/`: native Kotlin/Compose app with offline recipes and Android reminders
 - `scripts/`: environment check script
 
 ## Troubleshooting
