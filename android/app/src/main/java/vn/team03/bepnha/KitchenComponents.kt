@@ -4,7 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -27,7 +28,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, LEAF }
+enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE }
 val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo must be provided by MainActivity") }
 
 /** Small native line illustrations; no icon-font or network dependency. */
@@ -52,23 +53,16 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                 KitchenGlyph.SPARKLE -> {
                     path { moveTo(10f, 3f); lineTo(12f, 9f); lineTo(18f, 11f); lineTo(12f, 13f); lineTo(10f, 19f); lineTo(8f, 13f); lineTo(2f, 11f); lineTo(8f, 9f); close(); moveTo(20f, 1f); lineTo(20f, 6f); moveTo(17.5f, 3.5f); lineTo(22.5f, 3.5f) }
                 }
-                KitchenGlyph.LEAF -> {
-                    path { moveTo(4f, 20f); cubicTo(0f, 6f, 12f, 5f, 21f, 3f); cubicTo(20f, 19f, 12f, 23f, 4f, 20f); moveTo(3f, 22f); lineTo(15f, 10f) }
-                }
             }
         }
     }
 }
-
 @Composable fun KitchenBrand() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(KitchenGreen), contentAlignment = Alignment.Center) {
-            Image(painterResource(R.drawable.ic_bowl), null, Modifier.size(32.dp))
+        Box(Modifier.size(38.dp).clip(MaterialTheme.shapes.small).background(KitchenGreen), contentAlignment = Alignment.Center) {
+            Image(painterResource(R.drawable.ic_bowl), null, Modifier.size(30.dp))
         }
-        Column {
-            Text("Bếp Nhà", style = MaterialTheme.typography.headlineSmall, color = KitchenGreen)
-            if (LocalDensity.current.fontScale <= 1.3f) Text("Chăm chút từng bữa cơm", fontSize = 10.sp, lineHeight = 15.sp, color = KitchenMuted)
-        }
+        Text("Bếp Nhà", style = MaterialTheme.typography.headlineSmall, color = KitchenGreen)
     }
 }
 
@@ -77,9 +71,43 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
 }
 
 @Composable fun KitchenSection(title: String, action: String? = null, onAction: () -> Unit = {}) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
-        if (action != null) TextButton(onClick = onAction) { Text(action) }
+        if (action != null) TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            Text(action)
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable fun KitchenActions(
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 248.dp || LocalDensity.current.fontScale > 1.25f) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                first(Modifier.fillMaxWidth())
+                second(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                first(Modifier.weight(1f))
+                second(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable fun RecipeKindLabel(kind: RecipeKind) {
+    val (background, color) = when (kind) {
+        RecipeKind.MAIN -> KitchenPeach to KitchenTerracotta
+        RecipeKind.SOUP -> Color(0xFFF7EBD0) to Color(0xFF77521F)
+        RecipeKind.VEG -> KitchenSoft to KitchenGreen
+    }
+    Surface(color = background, contentColor = color, shape = MaterialTheme.shapes.extraSmall) {
+        Text(kind.label, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -89,7 +117,7 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
         RecipeKind.SOUP -> Color(0xFFF3EFD9)
         RecipeKind.VEG -> KitchenSoft
     }
-    Box(Modifier.size(size).clip(RoundedCornerShape(18.dp)).background(background), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(size).clip(MaterialTheme.shapes.medium).background(background), contentAlignment = Alignment.Center) {
         // The three dishes actually pictured in the bundled photograph share one decoded bitmap.
         if (recipe.id in setOf("pork", "soup", "greens")) {
             val bitmap = LocalMealPhoto.current
@@ -105,9 +133,4 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
             }
         } else Text(recipe.emoji, fontSize = (size.value * 0.46f).sp)
     }
-}
-
-@Composable fun MealContext(vm: PlannerViewModel) {
-    Text("${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)} · ${vm.state.profile.people} người",
-        style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
 }

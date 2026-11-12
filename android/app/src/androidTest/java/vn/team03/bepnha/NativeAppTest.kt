@@ -30,7 +30,7 @@ class NativeAppTest {
 
     @Test fun screenUsesActualComposeViews() {
         compose.onNodeWithTag("native-root").assertExists()
-        compose.onNodeWithText("Hôm nay nhà mình ăn gì?").assertIsDisplayed()
+        compose.onNodeWithText("Nhà mình ăn gì?").assertIsDisplayed()
         compose.activityRule.scenario.onActivity { activity ->
             val views = mutableListOf<View>()
             fun collect(view: View) {
@@ -58,7 +58,7 @@ class NativeAppTest {
         compose.onNodeWithContentDescription("Đóng").performClick()
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("shopping-list").assertExists()
-        compose.onNodeWithText("Đi chợ đủ bữa ngon").assertIsDisplayed()
+        compose.onNodeWithText("Danh sách đi chợ").assertIsDisplayed()
         capture("native-shopping.png")
     }
 
