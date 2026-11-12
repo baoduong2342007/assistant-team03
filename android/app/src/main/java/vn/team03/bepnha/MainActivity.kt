@@ -20,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.imageResource
 import java.time.LocalTime
 
@@ -40,8 +41,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val paper = android.graphics.Color.rgb(248, 247, 242)
-        enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(paper, paper))
+        val paper = KitchenPaper.toArgb()
+        val surface = KitchenSurface.toArgb()
+        enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(surface, surface))
         ReminderStore.createChannel(this)
         planner.openNotification(intent)
         val actions = NativeActions(::requestNotifications, ::requestExactAlarms, ::openCalendar, { text ->
