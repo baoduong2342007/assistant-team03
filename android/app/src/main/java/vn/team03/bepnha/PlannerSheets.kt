@@ -2,17 +2,18 @@
 package vn.team03.bepnha
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -33,52 +34,64 @@ import java.time.LocalTime
 @Composable private fun SheetTitle(title: String, vm: PlannerViewModel) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
-        IconButton(onClick = vm::dismissSheet) { Icon(Icons.Outlined.Close, "Đóng") }
+        FilledTonalIconButton(onClick = vm::dismissSheet) { Icon(Icons.Outlined.Close, "Đóng") }
     }
 }
 
 @Composable fun RecipeSheet(vm: PlannerViewModel, id: String, actions: NativeActions) {
     val recipe = vm.engine.recipes.getValue(id)
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        SheetTitle("Công thức nhà mình", vm)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            RecipePortrait(recipe, 88.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                KitchenEyebrow(recipe.kind.label.uppercase(PlannerEngine.locale), KitchenTerracotta)
-                Text(recipe.name, style = MaterialTheme.typography.headlineSmall)
-                Text("${recipe.minutes} phút · ${vm.state.profile.people} người · Dễ nấu", color = KitchenMuted, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        Text(recipe.note, color = KitchenMuted)
-        KitchenSection("Chuẩn bị nguyên liệu")
-        recipe.ingredients.forEach { item ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(item.name, modifier = Modifier.weight(1f))
-                Text("${PlannerEngine.quantity(item.amount * vm.state.profile.people / 4.0)} ${item.unit}", color = KitchenGreen)
-            }
-            HorizontalDivider(color = KitchenLine)
-        }
-        KitchenSection("Cách nấu từng bước")
-        recipe.steps.forEachIndexed { index, step ->
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Surface(shape = RoundedCornerShape(12.dp), color = KitchenSoft, contentColor = KitchenGreen, modifier = Modifier.size(36.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Text("${index + 1}", fontWeight = FontWeight.SemiBold) }
+    val people = vm.state.profile.people
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        SheetTitle("Công thức", vm)
+        Column(
+            Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Surface(color = KitchenSoft, contentColor = KitchenGreen, shape = MaterialTheme.shapes.large) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        RecipePortrait(recipe, 82.dp)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            RecipeKindLabel(recipe.kind)
+                            Text(recipe.name, style = MaterialTheme.typography.headlineSmall)
+                            Text("${recipe.minutes} phút · $people người", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
+                        }
+                    }
+                    Text(recipe.note, style = MaterialTheme.typography.bodyMedium)
                 }
-                Text(step, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             }
-        }
-        Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Mẹo nhỏ của Bếp Nhà", style = MaterialTheme.typography.titleMedium, color = KitchenGreen)
-                Text(recipe.tip)
+            KitchenCard {
+                KitchenSection("Chuẩn bị nguyên liệu")
+                recipe.ingredients.forEachIndexed { index, item ->
+                    if (index > 0) HorizontalDivider(color = KitchenLine)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(item.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text("${PlannerEngine.quantity(item.amount * people / 4.0)} ${item.unit}",
+                            style = MaterialTheme.typography.labelLarge, color = KitchenGreen)
+                    }
+                }
             }
+            KitchenSection("Cách nấu từng bước")
+            recipe.steps.forEachIndexed { index, step ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(shape = MaterialTheme.shapes.small, color = KitchenPeach, contentColor = KitchenTerracotta) {
+                        Text("${index + 1}", Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelLarge)
+                    }
+                    Text(step, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Surface(color = KitchenSoft, shape = MaterialTheme.shapes.medium) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Mẹo nấu", style = MaterialTheme.typography.titleMedium, color = KitchenGreen)
+                    Text(recipe.tip, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            Text("Thời gian là gợi ý. Bạn cần kiểm tra độ chín thực tế trước khi dùng.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
+            Button(onClick = {
+                vm.startTimer(recipe.minutes, recipe.name)
+                if (!vm.notifications) actions.notifications()
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Hẹn giờ ${recipe.minutes} phút") }
         }
-        Text("Thời gian là gợi ý. Bạn cần kiểm tra độ chín thực tế trước khi dùng.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
-        Button(onClick = {
-            vm.startTimer(recipe.minutes, recipe.name)
-            if (!vm.notifications) actions.notifications()
-        }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Hẹn giờ ${recipe.minutes} phút") }
     }
 }
 
@@ -86,17 +99,19 @@ import java.time.LocalTime
     val current = vm.menu[index]
     val choices = vm.engine.recipes.values.filter { it.kind == current.kind && it.id != current.id }
     LazyColumn(Modifier.fillMaxWidth().testTag("swap-list"), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SheetTitle("Đổi một món, thêm một vị", vm) }
-        item { Text("Thay ${current.name.lowercase()} bằng món nào? Nguyên liệu và lịch nấu sẽ tự cập nhật.", color = KitchenMuted) }
+        item { SheetTitle("Đổi món", vm) }
+        item { Text("Chọn món thay cho ${current.name.lowercase(PlannerEngine.locale)}. Danh sách đi chợ và lịch nấu sẽ tự cập nhật.", color = KitchenMuted) }
         items(choices, key = { it.id }) { recipe ->
             OutlinedCard(onClick = { vm.swap(index, recipe.id) }, modifier = Modifier.fillMaxWidth().testTag("choose-${recipe.id}"),
-                shape = RoundedCornerShape(20.dp), colors = CardDefaults.outlinedCardColors(containerColor = Color.White)) {
+                shape = MaterialTheme.shapes.large, border = BorderStroke(1.dp, KitchenLine),
+                colors = CardDefaults.outlinedCardColors(containerColor = KitchenSurface)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     RecipePortrait(recipe, 60.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(recipe.name, style = MaterialTheme.typography.titleMedium)
                         Text("${recipe.minutes} phút · ~${PlannerEngine.money((recipe.cost * vm.state.profile.people / 4.0).toLong())}", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
                     }
+                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp), tint = KitchenGreen)
                 }
             }
         }
@@ -118,9 +133,9 @@ import java.time.LocalTime
     var time by remember(vm.state.key) { mutableStateOf(vm.state.profile.time(vm.state.meal)) }
     var enabled by remember(vm.state.key) { mutableStateOf(vm.reminderEnabled) }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        SheetTitle("Nhắc mình vào bếp", vm)
+        SheetTitle("Nhắc nấu", vm)
         Text("${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)}", color = KitchenMuted)
-        Text("Cả nhà ăn lúc mấy giờ?", style = MaterialTheme.typography.titleMedium)
+        Text("Giờ ăn", style = MaterialTheme.typography.titleMedium)
         OutlinedButton(onClick = { actions.pickTime(time) { time = it } }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("meal-time")) {
             Text(time.toString(), fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -153,13 +168,13 @@ import java.time.LocalTime
                 Box(Modifier.size(64.dp).background(KitchenPeach, RoundedCornerShape(22.dp)), contentAlignment = Alignment.Center) {
                     KitchenIcon(KitchenGlyph.PEOPLE, Modifier.size(30.dp), KitchenTerracotta)
                 }
-                SectionHeading("Hiểu nhà mình, nấu vừa ý", "Điều chỉnh khẩu phần và giờ ăn cho gia đình.")
+                SectionHeading("Khẩu phần và giờ ăn")
             }
         }
         item { KitchenCard {
             OutlinedTextField(value = name, onValueChange = { name = it.take(35) }, label = { Text("Tên gia đình") }, singleLine = true,
                 shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
-            Text("Nhà mình có mấy người ăn?", style = MaterialTheme.typography.titleMedium)
+            Text("Số người ăn", style = MaterialTheme.typography.titleMedium)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { if (people > 1) people-- }, enabled = people > 1,
                     modifier = Modifier.heightIn(min = 52.dp).semantics { contentDescription = "Giảm số người" }) { Text("−", fontSize = 24.sp) }
@@ -167,10 +182,10 @@ import java.time.LocalTime
                 OutlinedButton(onClick = { if (people < 12) people++ }, enabled = people < 12,
                     modifier = Modifier.heightIn(min = 52.dp).semantics { contentDescription = "Tăng số người" }) { Text("+", fontSize = 24.sp) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TimeField("Giờ ăn trưa", lunch, Modifier.weight(1f)) { actions.pickTime(lunch) { lunch = it } }
-                TimeField("Giờ ăn tối", dinner, Modifier.weight(1f)) { actions.pickTime(dinner) { dinner = it } }
-            }
+            KitchenActions(
+                first = { modifier -> TimeField("Giờ ăn trưa", lunch, modifier) { actions.pickTime(lunch) { lunch = it } } },
+                second = { modifier -> TimeField("Giờ ăn tối", dinner, modifier) { actions.pickTime(dinner) { dinner = it } } },
+            )
             Button(onClick = { vm.saveFamily(name, people, lunch, dinner) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Lưu thông tin gia đình") }
         } }
         item { PermissionInfo(vm, actions) }
@@ -210,8 +225,7 @@ import java.time.LocalTime
             item { Surface(color = KitchenSoft, shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     KitchenIcon(KitchenGlyph.SPARKLE)
-                    Text("Chuyện bếp núc, có Bếp cùng lo.", style = MaterialTheme.typography.titleMedium)
-                    Text("Bạn có thể hỏi tên món, cách nấu, món nhanh hoặc thứ tự vào bếp theo thực đơn đã chọn.")
+                    Text("Bạn có thể hỏi tên món, cách nấu hoặc thứ tự vào bếp theo thực đơn đã chọn.")
                 }
             } }
             items(history) { (prompt, answer) ->
