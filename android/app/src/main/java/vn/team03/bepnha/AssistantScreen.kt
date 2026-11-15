@@ -38,9 +38,32 @@ data class AssistantUiState(
     val suggestions: List<String> = emptyList(),
     val recipeNames: Map<String, String> = emptyMap(),
     val timer: KitchenTimerUi? = null,
+    val mealSuggestions: List<AssistantMealCard> = emptyList(),
+    val canEditProposal: Boolean = false,
+    val revisionTarget: String? = null,
+)
+
+data class AssistantMealCard(
+    val id: Int,
+    val target: String,
+    val dishes: List<String>,
+    val available: List<String>,
+    val missing: List<String>,
 )
 
 @Composable fun AssistantScreen(vm: PlannerViewModel) {
+    val meals = vm.assistantMealSuggestions.map { suggestion ->
+        val menu = suggestion.recipeIds.map(vm.engine.recipes::getValue)
+        val (available, missing) = vm.engine.ingredients(menu, vm.state.profile.people)
+            .partition { it.key in suggestion.pantryKeys }
+        AssistantMealCard(
+            id = suggestion.id,
+            target = "${suggestion.meal.title} · ${PlannerEngine.fullDate(suggestion.date)}",
+            dishes = menu.map { it.name },
+            available = available.map { "${it.name} ${PlannerEngine.quantity(it.amount)} ${it.unit}" },
+            missing = missing.map { "${it.name} ${PlannerEngine.quantity(it.amount)} ${it.unit}" },
+        )
+    }
     AssistantContent(
         ui = AssistantUiState(
             context = "${vm.state.meal.title} cho ${vm.state.profile.people} người",
@@ -52,11 +75,14 @@ data class AssistantUiState(
             proposal = vm.assistantProposal?.descriptions.orEmpty(),
             configured = vm.assistantConfigured, suggestions = vm.assistantSuggestions(),
             recipeNames = vm.engine.recipes.mapValues { it.value.name }, timer = vm.timerUi(),
+            mealSuggestions = meals, canEditProposal = vm.assistantProposal?.canReviseMenu == true,
+            revisionTarget = vm.assistantRevisionTarget,
         ),
         onQuestion = { vm.assistantQuestion = it }, onSend = vm::submitAssistant,
         onRetry = vm::retryAssistant, onOffline = vm::lookupFailedOffline,
         onRecipe = vm::openRecipe, onConfirm = vm::confirmAssistantProposal,
         onCancel = vm::cancelAssistantProposal, onCancelTimer = vm::cancelTimer,
+        onChooseMeal = vm::chooseAssistantMeal, onEdit = vm::editAssistantProposal,
     )
 }
 
@@ -66,6 +92,7 @@ data class AssistantUiState(
     onQuestion: (String) -> Unit = {}, onSend: () -> Unit = {},
     onRetry: () -> Unit = {}, onOffline: () -> Unit = {}, onRecipe: (String) -> Unit = {},
     onConfirm: () -> Unit = {}, onCancel: () -> Unit = {}, onCancelTimer: () -> Unit = {},
+    onChooseMeal: (Int) -> Unit = {}, onEdit: () -> Unit = {},
 ) {
     val scroll = rememberLazyListState()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
@@ -79,17 +106,17 @@ data class AssistantUiState(
             if (!more) newMessages = false
         }
     }
-    LaunchedEffect(ui.messages.size, ui.busy, ui.proposal, ui.error) {
+    LaunchedEffect(ui.messages.size, ui.busy, ui.proposal, ui.error, ui.revisionTarget) {
         val added = ui.messages.size > previousCount
         val follow = followingLatest || (added && ui.messages.lastOrNull()?.role == "user")
         previousCount = ui.messages.size
-        if (!added && !ui.busy && ui.proposal.isEmpty() && ui.error == null) return@LaunchedEffect
+        if (!added && !ui.busy && ui.proposal.isEmpty() && ui.error == null && ui.revisionTarget == null) return@LaunchedEffect
         withFrameNanos { }
         if (follow && scroll.layoutInfo.totalItemsCount > 0) {
             scroll.animateScrollToItem(scroll.layoutInfo.totalItemsCount - 1)
             followingLatest = true
             newMessages = false
-        } else if (added || ui.proposal.isNotEmpty() || ui.error != null) newMessages = true
+        } else if (added || ui.proposal.isNotEmpty() || ui.error != null || ui.revisionTarget != null) newMessages = true
     }
     LaunchedEffect(jumpToEnd) {
         if (jumpToEnd > 0 && scroll.layoutInfo.totalItemsCount > 0) {
@@ -141,6 +168,24 @@ data class AssistantUiState(
                             }
                         }
                     }
+                    if (ui.mealSuggestions.isNotEmpty()) item("meal-suggestions") {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            ui.mealSuggestions.forEach { meal ->
+                                MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) }
+                            }
+                        }
+                    }
+                    ui.revisionTarget?.let { target ->
+                        item("revision") {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Đang sửa đề xuất cho ${target.replaceFirstChar { it.lowercase() }}",
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                                KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                    Text("Hủy đề xuất")
+                                }
+                            }
+                        }
+                    }
                     if (ui.busy) item("busy") {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -161,6 +206,12 @@ data class AssistantUiState(
                                 Text("Chỉ áp dụng sau khi bạn xác nhận.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                                 KitchenButton(onClick = onConfirm,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) { Text("Xác nhận thay đổi") }
+                                if (ui.canEditProposal) {
+                                    KitchenOutlinedButton(onClick = onEdit,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-edit")) {
+                                        Text("Sửa đề xuất")
+                                    }
+                                }
                                 KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Hủy") }
                             }
                         }
@@ -181,6 +232,33 @@ data class AssistantUiState(
     }
 }
 
+@Composable private fun MealSuggestionCard(meal: AssistantMealCard, enabled: Boolean, onChoose: () -> Unit) {
+    OutlinedCard(
+        Modifier.fillMaxWidth().testTag("assistant-meal-${meal.id}"),
+        border = BorderStroke(1.dp, KitchenGreen),
+        colors = CardDefaults.outlinedCardColors(containerColor = KitchenSoft),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Mâm ${meal.id}", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() })
+            Text(meal.target, color = KitchenMuted)
+            Text(meal.dishes.joinToString("\n"))
+            Text("Nguyên liệu bạn đã nêu, lượng cần cho mâm: ${meal.available.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                if (meal.missing.isEmpty()) "Đã nhận ra đủ loại nguyên liệu."
+                else "Cần thêm ${meal.missing.joinToString(", ")}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Bạn kiểm tra lại lượng thực tế đang có trước khi nấu.", style = MaterialTheme.typography.bodySmall)
+            KitchenOutlinedButton(
+                onClick = onChoose,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-choose-meal-${meal.id}"),
+            ) { Text("Dùng mâm ${meal.id}") }
+        }
+    }
+}
+
 @Composable private fun AssistantComposer(
     ui: AssistantUiState, compact: Boolean, cramped: Boolean, inline: Boolean,
     onQuestion: (String) -> Unit, onSend: () -> Unit, onProposal: () -> Unit,
@@ -197,7 +275,13 @@ data class AssistantUiState(
         OutlinedTextField(
             value = ui.question, onValueChange = { onQuestion(it.take(1000)) },
             label = if (cramped) null else { { Text("Câu hỏi của bạn") } },
-            placeholder = { Text(if (cramped) "Câu hỏi của bạn" else "Ví dụ: Món nào nấu nhanh?") },
+            placeholder = {
+                Text(when {
+                    cramped -> "Câu hỏi của bạn"
+                    ui.revisionTarget != null -> "Bạn muốn đổi món nào?"
+                    else -> "Ví dụ: Món nào nấu nhanh?"
+                })
+            },
             modifier = modifier.testTag("assistant-input").semantics { contentDescription = "Câu hỏi của bạn" },
             singleLine = cramped, minLines = 1, maxLines = if (compact) 1 else 3,
             enabled = ui.proposal.isEmpty(),
@@ -225,7 +309,8 @@ data class AssistantUiState(
         } else {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (ui.proposal.isNotEmpty()) Text("Xác nhận hoặc hủy đề xuất để hỏi tiếp.",
+                if (ui.proposal.isNotEmpty()) Text(if (ui.canEditProposal) "Xem, sửa hoặc xác nhận đề xuất ở trên."
+                    else "Xác nhận hoặc hủy đề xuất để hỏi tiếp.",
                     style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                 input(Modifier.fillMaxWidth())
                 send(Modifier.fillMaxWidth())

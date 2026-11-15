@@ -66,6 +66,26 @@ class PlannerEngineTest {
         engine.swap(state(), 2, "pork")
     }
 
+    @Test fun swappingRechecksIngredientsWhenTheRequiredAmountIncreases() {
+        fun dish(id: String, amount: Double) = Recipe(id, id, RecipeKind.MAIN, "", 10, 1000, "",
+            listOf(Ingredient("Thịt", amount, "g", "Thịt")), listOf("Nấu"), "")
+        val local = PlannerEngine((records.filter { it.kind != RecipeKind.MAIN } + listOf(dish("small", 100.0), dish("large", 300.0)))
+            .associateBy { it.id }, listOf(listOf("small", "soup", "greens")))
+        val base = local.ensureWeek(PlannerState(date = day), day).let {
+            it.copy(checked = mapOf(it.key to setOf("Thịt|g", "Gạo|g", "Đã bỏ|g"), "other" to setOf("Gạo|g")))
+        }
+        val changed = local.swap(base, 0, "large")
+        assertEquals(setOf("Gạo|g"), changed.checked[base.key])
+        assertEquals(base.checked["other"], changed.checked["other"])
+        val stocked = changed.copy(checked = changed.checked + (changed.key to setOf("Thịt|g")))
+        assertEquals(setOf("Thịt|g"), local.swap(stocked, 0, "small").checked[stocked.key])
+    }
+
+    @Test fun selectingTheSameDishKeepsCookingProgress() {
+        val initial = state().let { it.copy(done = mapOf(it.key to setOf("main"))) }
+        assertEquals(initial, engine.swap(initial, 0, engine.menu(initial)[0].id))
+    }
+
     @Test fun disabledAndExpiredMealsProduceNoAndroidAlarm() {
         val initial = state()
         assertTrue(engine.alarms(initial, now).isEmpty())

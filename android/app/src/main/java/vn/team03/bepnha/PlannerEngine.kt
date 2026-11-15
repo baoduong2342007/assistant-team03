@@ -80,8 +80,14 @@ class PlannerEngine(val recipes: Map<String, Recipe>, val combinations: List<Lis
         require(index in 0..2)
         val old = state.plans.getValue(state.key)
         require(recipes.getValue(old[index]).kind == recipes.getValue(recipeId).kind)
+        if (old[index] == recipeId) return state
         val changed = old.toMutableList().apply { this[index] = recipeId }
-        return state.copy(plans = state.plans + (state.key to changed), done = state.done - state.key)
+        val previousAmounts = ingredients(old.map(recipes::getValue), state.profile.people).associate { it.key to it.amount }
+        val stillStocked = ingredients(changed.map(recipes::getValue), state.profile.people)
+            .filter { it.key in state.checked[state.key].orEmpty() && it.amount <= (previousAmounts[it.key] ?: 0.0) }
+            .map { it.key }.toSet()
+        return state.copy(plans = state.plans + (state.key to changed), done = state.done - state.key,
+            checked = if (state.key in state.checked) state.checked + (state.key to stillStocked) else state.checked)
     }
 
     fun alarms(state: PlannerState, now: Long): List<NativeAlarm> {

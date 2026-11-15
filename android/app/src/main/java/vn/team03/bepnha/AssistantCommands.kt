@@ -12,22 +12,69 @@ data class AssistantAction(
     val minutes: Int? = null, val label: String? = null, val key: String? = null,
 ) {
     val mutates get() = type !in setOf(AssistantActionType.navigate, AssistantActionType.open_recipe)
+    fun targetsSameMealAs(other: AssistantAction) = date == other.date && meal == other.meal
 }
 
 /** Pure validation/reducer shared by preview and execution. Never toggles state. */
 class AssistantCommands(private val engine: PlannerEngine) {
+    fun proposal(state: PlannerState, actions: List<AssistantAction>, today: LocalDate, now: Long): AssistantProposal {
+        require(actions.size <= 8)
+        val slots = actions.filter { it.type == AssistantActionType.swap_recipe }.map { Triple(it.date, it.meal, it.index) }
+        require(slots.distinct().size == slots.size) { "Một vị trí món có nhiều thay đổi." }
+        var simulated = state
+        val effective = mutableListOf<AssistantAction>()
+        val descriptions = mutableListOf<String>()
+        for (action in actions) {
+            val next = apply(simulated, action, today, now)
+            if (action.type != AssistantActionType.swap_recipe || next != simulated) {
+                effective.add(action)
+                descriptions.add(preview(simulated, action))
+            }
+            simulated = next
+        }
+        return AssistantProposal(state, effective, descriptions)
+    }
+
+    fun reviseMenu(previous: AssistantProposal, changes: List<AssistantAction>): List<AssistantAction> {
+        val first = previous.actions.first()
+        if (changes.isEmpty() || !changes.all { it.type == AssistantActionType.swap_recipe && it.targetsSameMealAs(first) }) return changes
+        val replaced = changes.map { it.index }.toSet()
+        return (previous.actions.filterNot { it.index in replaced } + changes).sortedBy { it.index }
+    }
+
+    fun actionsFor(state: PlannerState, suggestion: AssistantMealSuggestion, today: LocalDate): List<AssistantAction> {
+        val current = requireMeal(state, suggestion.date, suggestion.meal, today)
+        require(engine.validPlan(suggestion.recipeIds)) { "Mâm gợi ý có món hoặc nhóm món chưa hợp lệ." }
+        val recipes = suggestion.recipeIds.map(engine.recipes::getValue)
+        val keys = engine.ingredients(recipes, state.profile.people).map { it.key }.toSet()
+        require(suggestion.pantryKeys.isNotEmpty() && suggestion.pantryKeys.all { it in keys }) {
+            "Nguyên liệu có sẵn chưa khớp với mâm gợi ý."
+        }
+        return suggestion.recipeIds.mapIndexedNotNull { index, id ->
+            if (id == current[index]) null
+            else AssistantAction(AssistantActionType.swap_recipe, suggestion.date, suggestion.meal, recipeId = id, index = index)
+        }
+    }
+
+    private fun requireMeal(state: PlannerState, date: LocalDate, meal: Meal, today: LocalDate): List<String> {
+        require(date in today..today.plusDays(6)) { "Ngày nằm ngoài thực đơn bảy ngày." }
+        val ids = state.plans[PlannerEngine.key(date, meal)].orEmpty()
+        require(engine.validPlan(ids)) { "Không tìm thấy bữa ăn." }
+        return ids
+    }
+
     fun apply(state: PlannerState, action: AssistantAction, today: LocalDate, now: Long): PlannerState {
-        require(action.date in today..today.plusDays(6)) { "Ngày nằm ngoài thực đơn bảy ngày." }
+        val current = requireMeal(state, action.date, action.meal, today)
         val key = PlannerEngine.key(action.date, action.meal)
-        require(engine.validPlan(state.plans[key].orEmpty())) { "Không tìm thấy bữa ăn." }
         fun flag(set: Set<String>, item: String): Set<String> = if (requireNotNull(action.enabled)) set + item else set - item
         return when (action.type) {
             AssistantActionType.navigate -> { requireNotNull(action.screen); state }
             AssistantActionType.open_recipe -> { require(action.recipeId in engine.recipes); state }
             AssistantActionType.swap_recipe -> {
-                val index = requireNotNull(action.index); require(index in 0..2)
+                val index = requireNotNull(action.index)
+                require(index in 0..2)
                 val target = state.copy(date = action.date, meal = action.meal)
-                if (engine.menu(target)[index].id == action.recipeId) return state
+                if (current[index] == action.recipeId) return state
                 val changed = engine.swap(target, index, requireNotNull(action.recipeId))
                 changed.copy(date = state.date, meal = state.meal)
             }
@@ -73,7 +120,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
         val text = when (a.type) {
             AssistantActionType.navigate -> "Mở ${a.screen?.title}"
             AssistantActionType.open_recipe -> "Xem công thức $name"
-            AssistantActionType.swap_recipe -> "Thay ${engine.menu(state, a.date, a.meal)[requireNotNull(a.index)].name} bằng $name. Nguyên liệu và lịch nấu sẽ cập nhật; tiến độ nấu bữa này được đặt lại."
+            AssistantActionType.swap_recipe -> "Thay ${engine.menu(state, a.date, a.meal)[requireNotNull(a.index)].name} bằng $name. Nguyên liệu và lịch nấu sẽ cập nhật; tiến độ nấu bữa này được đặt lại. Nguyên liệu cần nhiều hơn sẽ bỏ dấu đã có để bạn kiểm tra lại."
             AssistantActionType.set_people -> "Đổi khẩu phần toàn gia đình từ ${state.profile.people} thành ${a.people} người. Định lượng mọi bữa cập nhật, danh sách nguyên liệu đã tích sẽ được xóa."
             AssistantActionType.set_meal_time -> "Đổi giờ ăn ${a.meal.title.lowercase()} từ ${state.profile.time(a.meal)} thành ${a.time} cho mọi ngày. Các lịch nhắc liên quan sẽ cập nhật."
             AssistantActionType.set_reminder -> "$flag nhắc chuẩn bị bữa ăn theo lịch nấu. Cần quyền thông báo và nhắc đúng giờ trên Android."
