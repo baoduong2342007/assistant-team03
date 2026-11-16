@@ -39,6 +39,7 @@ data class AssistantUiState(
     val recipeNames: Map<String, String> = emptyMap(),
     val timer: KitchenTimerUi? = null,
     val mealSuggestions: List<AssistantMealCard> = emptyList(),
+    val mealSuggestionMessageId: String? = null,
     val canEditProposal: Boolean = false,
     val revisionTarget: String? = null,
 )
@@ -76,6 +77,7 @@ data class AssistantMealCard(
             configured = vm.assistantConfigured, suggestions = vm.assistantSuggestions(),
             recipeNames = vm.engine.recipes.mapValues { it.value.name }, timer = vm.timerUi(),
             mealSuggestions = meals, canEditProposal = vm.assistantProposal?.canReviseMenu == true,
+            mealSuggestionMessageId = vm.assistantMealMessageId,
             revisionTarget = vm.assistantRevisionTarget,
         ),
         onQuestion = { vm.assistantQuestion = it }, onSend = vm::submitAssistant,
@@ -151,13 +153,16 @@ data class AssistantMealCard(
                     item("connection") {
                         Text(
                             if (ui.configured) "Khi dùng AI, câu hỏi và ngữ cảnh bữa ăn được gửi đến máy chủ. Hãy xem lại các gợi ý."
-                            else "AI chưa được kết nối. Bạn có thể tìm trong 14 công thức có sẵn trên máy.",
+                            else "Đang dùng trợ lý trên máy với 14 công thức có sẵn. Bạn có thể tra cứu, gợi ý mâm và đề xuất đổi món.",
                             style = MaterialTheme.typography.bodySmall, color = KitchenMuted,
                         )
                     }
                     items(ui.messages, key = { it.id }) { message ->
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             AssistantMessage(message)
+                            if (message.id == ui.mealSuggestionMessageId) {
+                                ui.mealSuggestions.forEach { meal -> MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) } }
+                            }
                             message.recipeIds.filter { it in ui.recipeNames }.forEach { id ->
                                 KitchenOutlinedButton(onClick = { onRecipe(id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                                     Text("Xem ${ui.recipeNames.getValue(id)}")
@@ -168,7 +173,7 @@ data class AssistantMealCard(
                             }
                         }
                     }
-                    if (ui.mealSuggestions.isNotEmpty()) item("meal-suggestions") {
+                    if (ui.mealSuggestions.isNotEmpty() && ui.mealSuggestionMessageId == null) item("meal-suggestions") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             ui.mealSuggestions.forEach { meal ->
                                 MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) }
@@ -220,10 +225,11 @@ data class AssistantMealCard(
                         AssistantError(ui.error, false, onRetry, onOffline)
                     }
                 }
-                if (newMessages && scroll.canScrollForward) {
-                    KitchenTonalButton(onClick = { jumpToEnd++ },
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp).heightIn(min = 48.dp)) { Text("Tin nhắn mới") }
-                }
+            }
+            // Keep this control outside the scroll viewport so it cannot cover proposal buttons.
+            if (newMessages && scroll.canScrollForward) {
+                KitchenTonalButton(onClick = { jumpToEnd++ },
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp).heightIn(min = 48.dp)) { Text("Tin nhắn mới") }
             }
             AssistantComposer(ui, compact, cramped = cramped,
                 inline = inlineComposer,
@@ -292,9 +298,9 @@ data class AssistantMealCard(
     val send: @Composable (Modifier) -> Unit = { modifier ->
         KitchenButton(onClick = submit, enabled = canSend,
             modifier = modifier.testTag("assistant-send").semantics {
-                contentDescription = if (ui.configured) "Gửi câu hỏi" else "Tìm công thức"
+                contentDescription = "Gửi câu hỏi"
             }) {
-            Text(if (ui.configured) "Gửi" else if (inline) "Tìm" else "Tìm công thức")
+            Text("Gửi")
         }
     }
     Surface(color = MaterialTheme.colorScheme.surface) {
@@ -357,6 +363,7 @@ data class AssistantMealCard(
                 SelectionContainer { Text(message.text, Modifier.padding(16.dp)) }
             }
         } else {
+            message.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = KitchenMuted) }
             SelectionContainer {
                 Text(message.text, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             }

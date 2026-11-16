@@ -1,5 +1,7 @@
 # Trợ lý Gemini cho Bếp Nhà Android
 
+> **Tài liệu lịch sử của backend Python.** APK hiện dùng Firebase AI Logic/Spark và xử lý Kotlin. Hướng dẫn đang áp dụng: [Firebase Spark demo](firebase-spark-demo.md). Các lệnh backend và `assistantBaseUrl` bên dưới chỉ phục vụ đối chiếu bản cũ, không cấu hình APK hiện tại.
+
 ## Chạy backend
 
 Từ gốc repo, dùng Python 3.10+:

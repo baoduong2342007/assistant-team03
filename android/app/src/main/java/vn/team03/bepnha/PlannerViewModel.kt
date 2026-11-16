@@ -40,9 +40,10 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     var assistantError by mutableStateOf<String?>(null); private set
     var assistantProposal by mutableStateOf<AssistantProposal?>(null); private set
     var assistantRecipeId by mutableStateOf<String?>(null); private set
-    private data class MealSuggestions(val base: PlannerState, val options: List<AssistantMealSuggestion>)
+    private data class MealSuggestions(val base: PlannerState, val options: List<AssistantMealSuggestion>, val messageId: String, val requestId: String, val constraints: PantryConstraints?)
     private var offeredMeals by mutableStateOf<MealSuggestions?>(null)
     val assistantMealSuggestions get() = offeredMeals?.options.orEmpty()
+    val assistantMealMessageId get() = offeredMeals?.messageId
     private var revisingProposal by mutableStateOf<AssistantProposal?>(null)
     val assistantRevisionTarget: String?
         get() = revisingProposal?.actions?.firstOrNull()?.let { action ->
@@ -58,9 +59,10 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     private var failedTurn: Turn? = null
     private val unansweredMessageIds = mutableSetOf<String>()
     var failedMessageId by mutableStateOf<String?>(null); private set
-    val assistantConfigured get() = BuildConfig.ASSISTANT_BASE_URL.isNotBlank()
+    val assistantConfigured get() = BuildConfig.DEBUG && BuildConfig.FIREBASE_CONFIGURED
     val canRetryAssistant get() = failedMessageId != null && !assistantBusy && assistantProposal == null
-    internal var assistantTransport: (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply = AssistantGateway::ask
+    private val assistantService = AssistantService(engine, if (assistantConfigured) FirebaseAssistantProvider(application) else null)
+    internal var assistantTransport: suspend (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply = assistantService::ask
     private val commands = AssistantCommands(engine)
     private val updates = Channel<Pair<PlannerState, String?>>(Channel.UNLIMITED)
 
@@ -194,7 +196,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
 
     fun submitAssistant() {
-        if (assistantConfigured) askAssistant() else lookupOffline()
+        askAssistant()
     }
     fun askAssistant(question: String = assistantQuestion) {
         if (question.isBlank() || assistantBusy || assistantProposal != null || !assistantVisible) return
@@ -216,6 +218,25 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             pendingMenuChanges = revisingProposal?.actions.orEmpty(),
             lastMenuChanges = lastMenuChanges,
         )
+        offeredMeals?.takeIf { it.base == state }?.options?.firstOrNull()?.let {
+            context.put("suggested_meal", org.json.JSONObject().put("date", it.date.toString()).put("meal", it.meal.value))
+        }
+        offeredMeals?.takeIf { it.base == state }?.constraints?.let {
+            context.put("suggestion_constraints", org.json.JSONObject()
+                .put("pantry", org.json.JSONArray(it.pantry.toList())).put("excluded", org.json.JSONArray(it.excluded.toList())).put("only", it.only))
+        }
+        if (MealPlanning.isComparison(prompt)) {
+            offeredMeals?.takeIf { it.base == state }?.let { batch ->
+                context.put("suggestion_turn_id", batch.requestId)
+                context.put("active_suggestions", org.json.JSONArray(batch.options.map { option ->
+                    org.json.JSONObject().put("id", option.id).put("date", option.date.toString()).put("meal", option.meal.value)
+                        .put("recipe_ids", org.json.JSONArray(option.recipeIds))
+                }))
+            }
+        } else {
+            // Any new instruction can change constraints, even if the next reply fails or asks for clarification.
+            offeredMeals = null
+        }
         startTurn(Turn(prompt, history, state, context, user.id))
     }
     fun retryAssistant() {
@@ -241,6 +262,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 require(state == turn.base) { "Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn." }
                 val actions = revisingProposal?.let { commands.reviseMenu(it, reply.actions) } ?: reply.actions
                 val proposal = commands.proposal(state, actions, today, System.currentTimeMillis())
+                val responseId = java.util.UUID.randomUUID().toString()
                 if (reply.suggestions.isNotEmpty()) {
                     val first = reply.suggestions.first()
                     require(reply.actions.isEmpty() && reply.suggestions.size <= 2)
@@ -248,7 +270,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                         require(suggestion.id == index + 1 && suggestion.date == first.date && suggestion.meal == first.meal)
                         commands.actionsFor(state, suggestion, today)
                     }
-                    offeredMeals = MealSuggestions(state, reply.suggestions)
+                    offeredMeals = MealSuggestions(state, reply.suggestions, responseId, turn.messageId, reply.suggestionConstraints)
                     revisingProposal = null
                 }
                 val replyText = if (actions.isNotEmpty() && proposal.actions.isEmpty()) {
@@ -257,7 +279,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 } else reply.text
                 unansweredMessageIds -= turn.messageId
                 assistantHistory = assistantHistory + AssistantChatMessage("assistant", replyText.take(8000),
-                    proposal.actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }.distinct())
+                    (reply.recipeIds + proposal.actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }).distinct(),
+                    id = responseId, source = reply.source, notice = reply.notice)
                 if (proposal.actions.any { it.mutates }) {
                     offeredMeals = null
                     revisingProposal = null

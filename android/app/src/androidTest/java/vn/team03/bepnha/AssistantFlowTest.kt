@@ -111,13 +111,18 @@ class AssistantFlowTest {
             assertEquals(1, calls.get())
             assertEquals(chosen, vm().assistantProposal?.actions?.map { it.recipeId })
         }
-        compose.onNodeWithTag("assistant-edit").performScrollTo().performClick()
-        compose.runOnIdle { vm().askAssistant("À đổi món canh") }
+        compose.onNodeWithTag("assistant-edit").performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertNull("Edit button must dismiss preview", vm().assistantProposal)
+            assertNotNull("Edit button must retain revision context", vm().assistantRevisionTarget)
+            vm().askAssistant("À đổi món canh")
+        }
         compose.waitUntil(5000) { !vm().assistantBusy }
         compose.runOnIdle {
             assertEquals(base, vm().state)
             assertEquals(listOf(chosen[0], finalSoup, chosen[2]), vm().assistantProposal?.actions?.map { it.recipeId })
         }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-confirm"))
         compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
         compose.waitUntil(5000) { vm().assistantHistory.any { it.text.startsWith("Đã lưu và áp dụng") } }
         compose.runOnIdle {
@@ -334,6 +339,105 @@ class AssistantFlowTest {
             restored.assistantQuestion = "Bản nháp mới"
             assertEquals("Bản nháp mới", handle.get<String>("assistant-draft"))
         } finally { store.clear() }
+    }
+
+    @Test fun localServiceSuggestsRevisesAndPersistsWithoutFirebase() {
+        lateinit var base: PlannerState
+        lateinit var chosen: List<String>
+        lateinit var replacement: Recipe
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, null)::ask
+            base = model.state
+            model.openAssistant()
+            model.assistantQuestion = "Tủ lạnh có thịt heo, trứng và rau muống. Tối mai nấu gì?"
+            model.submitAssistant()
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertEquals(2, vm().assistantMealSuggestions.size)
+            chosen = vm().assistantMealSuggestions.first().recipeIds
+            val oldSoup = vm().engine.menu(base, vm().today.plusDays(1), Meal.DINNER)[1].id
+            replacement = vm().engine.recipes.values.first { it.kind == RecipeKind.SOUP && it.id != chosen[1] && it.id != oldSoup }
+            assertEquals(AssistantSource.LOCAL, vm().assistantHistory.last().source)
+            assertEquals(base, vm().state)
+        }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-choose-meal-1"))
+        compose.onNodeWithTag("assistant-choose-meal-1").performClick()
+        compose.onNodeWithTag("assistant-edit").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertNull("Edit button must dismiss preview", vm().assistantProposal)
+            assertNotNull("Edit button must retain revision context", vm().assistantRevisionTarget)
+            vm().askAssistant("À đổi món canh thành ${replacement.name}")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError); assertEquals(base, vm().state)
+            assertNotNull("Revision must create a proposal", vm().assistantProposal)
+        }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-confirm"))
+        compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
+        compose.waitUntil(5000) { vm().assistantHistory.last().text.startsWith("Đã lưu và áp dụng") }
+        compose.runOnIdle {
+            val saved = PlannerStorage(compose.activity.application, vm().engine).load(vm().today)
+            assertEquals(listOf(chosen[0], replacement.id, chosen[2]), vm().engine.menu(saved, vm().today.plusDays(1), Meal.DINNER).map { it.id })
+            val once = vm().state
+            vm().confirmAssistantProposal()
+            assertEquals(once, vm().state)
+        }
+    }
+
+    @Test fun comparisonUsesCurrentBatchAndNewConstraintsInvalidateOldCards() {
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, null)::ask
+            model.openAssistant(); model.askAssistant("Tủ lạnh có trứng, rau muống. Tối mai nấu gì?")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        var firstMessage: String? = null
+        compose.runOnIdle {
+            assertEquals(2, vm().assistantMealSuggestions.size)
+            firstMessage = vm().assistantMealMessageId
+            vm().askAssistant("Mâm 2 khác mâm 1 thế nào?")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertEquals(firstMessage, vm().assistantMealMessageId)
+            assertTrue(vm().assistantHistory.last().text.contains("Mâm 1:"))
+            vm().askAssistant("Chỉ dùng rau muống, không mua thêm")
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+            val before = vm().state
+            vm().chooseAssistantMeal(1)
+            assertNull(vm().assistantProposal)
+            assertEquals(before, vm().state)
+        }
+    }
+
+    @Test fun quotaFallbackKeepsOriginalSwapAndShowsLocalSource() {
+        val calls = AtomicInteger()
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, AssistantProvider {
+                calls.incrementAndGet(); throw AssistantFailure(AssistantFailureKind.QUOTA)
+            })::ask
+            model.openAssistant(); model.askAssistant("Tối mai đổi món canh thành canh chua cá")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertEquals(1, calls.get())
+            assertEquals(AssistantSource.LOCAL, vm().assistantHistory.last().source)
+            assertEquals(AssistantFailureKind.QUOTA.explanation, vm().assistantHistory.last().notice)
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+            // A no-op is allowed when the original meal already contains this soup.
+            vm().assistantProposal?.actions?.forEach { assertEquals("sour", it.recipeId); assertEquals(1, it.index) }
+        }
     }
 
     @Test fun openingChatDoesNotResetTodayScrollPosition() {
