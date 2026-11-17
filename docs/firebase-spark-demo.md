@@ -1,6 +1,6 @@
 # Bếp Nhà Mình — demo Firebase Spark
 
-Android gọi Firebase AI Logic bằng Gemini Developer API. APK không cần Python, backend riêng, đăng nhập người dùng hay nhập Gemini API key. Model ghim trong build là `gemini-3.8-flash`; không tự đổi model hoặc gửi lại khi lỗi. Firebase BoM: `35.2.0`.
+Android gọi Firebase AI Logic bằng Gemini Developer API. APK không cần Python, backend riêng, đăng nhập người dùng hay nhập Gemini API key. Model ghim trong build là `gemini-3.5-flash-lite`; không tự đổi model hoặc gửi lại khi lỗi. Firebase BoM: `35.2.0`.
 
 ## Dự án và cấu hình
 
