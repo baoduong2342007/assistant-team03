@@ -23,7 +23,7 @@ Từ thư mục `android` (cần JDK 17 và Android SDK; đặt `ANDROID_HOME` h
 .\gradlew.bat testDebugUnitTest assembleDebug lintDebug compileDebugAndroidTestKotlin
 ```
 
-Kết quả gần nhất trên nhánh này: 139 test JVM đạt, build, lint và biên dịch instrumentation thành công.
+Kết quả gần nhất trên nhánh này: 139 test JVM đạt, build, lint và biên dịch instrumentation thành công. Trên emulator `Medium_Phone_API_37.0` (API 37, không có `google-services.json`): 51 test thiết bị, 43 đạt, 8 bỏ qua vì cần AI thật hoặc kịch bản nâng cấp cài đè (`FirebaseLiveTest`, `AgentEvalTest`, `UpgradeCompatibilityTest`), 0 lỗi. Có 5 test giao diện riêng cho agent trong `AgentUiTest`: Nấu cùng tôi, hồ sơ ăn uống, lời chào và micro, hoàn tác, xóa lịch sử.
 
 Kiểm thử giao diện trên emulator (`connectedDebugAndroidTest`) dùng dữ liệu thử, **xóa dữ liệu app và có thể gỡ APK**, làm mất debug token App Check. Chỉ chạy trên emulator riêng cho kiểm thử, không chạy trên máy demo đã đăng ký.
 

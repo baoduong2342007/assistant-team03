@@ -506,7 +506,9 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 if (token != generation || !assistantVisible) return@launch
                 require(state == turn.base) { "Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn." }
                 val actions = revisingProposal?.let { commands.reviseMenu(it, reply.actions) } ?: reply.actions
-                val proposal = commands.proposal(state, actions, today, System.currentTimeMillis())
+                // Validation messages are written for the model; the user only needs to know the reply was unusable.
+                val proposal = try { commands.proposal(state, actions, today, System.currentTimeMillis()) }
+                    catch (_: IllegalArgumentException) { throw IllegalStateException(INVALID_REPLY) }
                 val responseId = java.util.UUID.randomUUID().toString()
                 if (reply.suggestions.isNotEmpty()) {
                     val first = reply.suggestions.first()
@@ -546,7 +548,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                     failedMessageId = turn.messageId
                     assistantError = exception.message?.takeUnless {
                         it in setOf("Failed requirement.", "Required value was null.", "Check failed.")
-                    } ?: "Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tìm trong công thức có sẵn."
+                    } ?: INVALID_REPLY
                 }
             } finally {
                 if (token == generation) {
@@ -784,6 +786,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
 }
 
 private val mealChoice = Regex("""(?:minh )?(?:chon|lay|dung|ap dung)\s+mam\s+(?:so\s+)?(1|2|mot|hai|thu nhat|thu hai)(?:\s+(?:nhe|di))?""")
+private const val INVALID_REPLY = "Phản hồi trợ lý chưa hợp lệ. Hãy thử lại hoặc tìm trong công thức có sẵn."
 private val undoPhrase = Regex("""(?:hoan tac|tra lai nhu cu|quay lai nhu cu|undo)(?:\s+(?:di|nhe|giup minh|giup toi|giup chau))?""")
 
 private fun Set<String>.toggle(value: String) = if (value in this) this - value else this + value

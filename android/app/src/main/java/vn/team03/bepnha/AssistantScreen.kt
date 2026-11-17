@@ -294,8 +294,9 @@ data class AssistantMealCard(
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp).heightIn(min = 48.dp)) { Text("Tin nhắn mới") }
             }
             if (ui.voiceAvailable && !cramped) VoiceBar(ui, compact, onMic, onReadAgain, onStopSpeaking)
+            // With the large microphone above, typing is secondary: keep the text box and Gửi on one row.
             AssistantComposer(ui, compact, cramped = cramped,
-                inline = inlineComposer,
+                inline = inlineComposer || (ui.voiceAvailable && !cramped),
                 onQuestion = onQuestion, onSend = onSend, onProposal = { jumpToEnd++ })
         }
     }
