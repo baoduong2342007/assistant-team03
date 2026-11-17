@@ -38,6 +38,13 @@ data class FamilyProfile(
 ) { fun time(meal: Meal) = if (meal == Meal.LUNCH) lunch else dinner }
 /** Daily morning reminder listing what is still missing for that day's lunch and dinner. */
 data class ShoppingReminder(val enabled: Boolean = false, val time: LocalTime = LocalTime.of(7, 0))
+/** How the assistant talks: what it calls the user, and whether/how fast it reads replies aloud. */
+data class VoiceSettings(val addressAs: String = "bạn", val readAloud: Boolean = true, val rate: Float = 0.85f) {
+    companion object {
+        val RATES = listOf(0.7f to "Chậm", 0.85f to "Vừa", 1.0f to "Nhanh")
+        fun clean(addressAs: String) = addressAs.trim().take(20).ifBlank { "bạn" }
+    }
+}
 data class CookingTimer(val end: Long, val label: String, val date: LocalDate, val meal: Meal)
 data class PlannerState(
     val profile: FamilyProfile = FamilyProfile(),
@@ -49,6 +56,7 @@ data class PlannerState(
     val reminders: Set<String> = emptySet(),
     val timer: CookingTimer? = null,
     val shopping: ShoppingReminder = ShoppingReminder(),
+    val voice: VoiceSettings = VoiceSettings(),
 ) { val key: String get() = PlannerEngine.key(date, meal) }
 data class CookingTask(
     val key: String, val title: String, val detail: String, val at: Long,

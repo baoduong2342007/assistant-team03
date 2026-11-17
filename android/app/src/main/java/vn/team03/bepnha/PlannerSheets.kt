@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -181,18 +182,51 @@ import java.time.LocalTime
             KitchenButton(onClick = { focus.clearFocus(); vm.saveFamily(name, people, lunch, dinner) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Lưu thông tin gia đình") }
         } }
+        item { VoiceSettingsCard(vm) }
         item { ShoppingReminderCard(vm, actions) }
         item { PermissionInfo(vm, actions) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Dữ liệu của nhà mình", style = MaterialTheme.typography.titleMedium)
                 Text("Thực đơn và công thức lưu trên thiết bị. Chưa có đồng bộ giữa các máy.", color = KitchenMuted)
-                Text("Dùng AI sẽ gửi câu hỏi và ngữ cảnh bữa ăn đến máy chủ. Tìm trong 14 công thức có sẵn dùng được khi mất mạng.",
+                Text("Dùng AI sẽ gửi câu hỏi và ngữ cảnh bữa ăn đến máy chủ. Tìm trong công thức có sẵn dùng được khi mất mạng.",
                     style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                 KitchenOutlinedButton(onClick = { vm.navigate(Screen.FAVORITES) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Xem món đã lưu") }
             }
         }
+    }
+}
+
+@Composable private fun VoiceSettingsCard(vm: PlannerViewModel) {
+    val saved = vm.state.voice
+    var address by rememberSaveable(saved) { mutableStateOf(saved.addressAs) }
+    var readAloud by rememberSaveable(saved) { mutableStateOf(saved.readAloud) }
+    var rate by rememberSaveable(saved) { mutableFloatStateOf(saved.rate) }
+    KitchenCard {
+        Text("Trợ lý nói chuyện", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        OutlinedTextField(value = address, onValueChange = { address = it.take(20) }, label = { Text("Trợ lý gọi bạn là") },
+            placeholder = { Text("Ví dụ: bác, cô, bà, bạn") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("voice-address"))
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .toggleable(value = readAloud, role = Role.Switch, onValueChange = { readAloud = it }).testTag("voice-read-aloud"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Đọc to câu trả lời", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Switch(checked = readAloud, onCheckedChange = null)
+        }
+        Text("Tốc độ đọc", style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            VoiceSettings.RATES.forEach { (value, label) ->
+                val selected = rate == value
+                val modifier = Modifier.weight(1f).heightIn(min = 56.dp).semantics { this.selected = selected }
+                if (selected) KitchenButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
+                else KitchenOutlinedButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
+            }
+        }
+        KitchenOutlinedButton(onClick = { vm.previewVoice(address, rate) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-preview")) { Text("Nghe thử") }
+        KitchenButton(onClick = { vm.saveVoiceSettings(address, readAloud, rate) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-save")) { Text("Lưu cách nói chuyện") }
     }
 }
 

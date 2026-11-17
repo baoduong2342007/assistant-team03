@@ -52,11 +52,14 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
         val shopping = root.optJSONObject("shopping")?.let { item -> ShoppingReminder(item.optBoolean("enabled", false),
             runCatching { LocalTime.parse(item.optString("time", "07:00")) }.getOrDefault(LocalTime.of(7, 0)))
         } ?: ShoppingReminder()
+        val voice = root.optJSONObject("voice")?.let { item -> VoiceSettings(VoiceSettings.clean(item.optString("address_as", "bạn")),
+            item.optBoolean("read_aloud", true), item.optDouble("rate", 0.85).toFloat().takeIf { it in 0.5f..1.5f } ?: 0.85f)
+        } ?: VoiceSettings()
         engine.ensureWeek(PlannerState(family, selected, Meal.from(root.optString("meal")) ?: Meal.DINNER, plans,
             root.optJSONObject("checked").stringLists().mapValues { it.value.toSet() },
             root.optJSONObject("done").stringLists().mapValues { it.value.toSet() },
             root.optJSONArray("favorites")?.strings()?.filter { it in engine.recipes }?.toSet().orEmpty(),
-            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer, shopping), today)
+            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer, shopping, voice), today)
     }.getOrElse { engine.ensureWeek(PlannerState(date = today), today) }
 
     fun save(state: PlannerState) {
@@ -67,6 +70,8 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             .put("plans", jsonLists(state.plans)).put("checked", jsonLists(state.checked)).put("done", jsonLists(state.done))
             .put("favorites", JSONArray(state.favorites.toList())).put("reminders", JSONArray(state.reminders.toList()))
             .put("shopping", JSONObject().put("enabled", state.shopping.enabled).put("time", state.shopping.time.toString()))
+            .put("voice", JSONObject().put("address_as", state.voice.addressAs).put("read_aloud", state.voice.readAloud)
+                .put("rate", state.voice.rate.toDouble()))
         state.timer?.let { timer -> root.put("timer", JSONObject().put("end", timer.end).put("label", timer.label)
             .put("date", timer.date.toString()).put("meal", timer.meal.value)) }
         // Called on the ViewModel's serial IO worker, so confirmed state survives process termination.

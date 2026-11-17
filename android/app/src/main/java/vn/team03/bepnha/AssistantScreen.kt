@@ -22,6 +22,9 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import vn.team03.bepnha.voice.SpeechState
+import vn.team03.bepnha.voice.VoiceState
+import vn.team03.bepnha.voice.rememberMicPermission
 
 data class AssistantUiState(
     val context: String,
@@ -46,6 +49,13 @@ data class AssistantUiState(
     val proposalMeals: List<ProposalMealUi> = emptyList(),
     val proposalOther: List<String> = emptyList(),
     val canUndo: Boolean = false,
+    /** Voice: hidden entirely when [voiceAvailable] is false (e.g. previews). */
+    val voiceAvailable: Boolean = false,
+    val listening: Boolean = false,
+    val partial: String = "",
+    val voiceNotice: String? = null,
+    val micGranted: Boolean = true,
+    val speaking: Boolean = false,
 )
 
 data class AssistantMealCard(
@@ -57,7 +67,11 @@ data class AssistantMealCard(
 )
 
 @Composable fun AssistantScreen(vm: PlannerViewModel) {
-    val meals = vm.assistantMealSuggestions.map { suggestion ->
+    val voice = remember(vm) { vm.voice }
+    val heard by voice.state.collectAsState()
+    val speech by voice.speech.collectAsState()
+    val mic = rememberMicPermission { granted -> if (granted) vm.startListening() }
+    val meals =vm.assistantMealSuggestions.map { suggestion ->
         val menu = suggestion.recipeIds.map(vm.engine.recipes::getValue)
         val (available, missing) = vm.engine.ingredients(menu, vm.state.profile.people)
             .partition { it.key in suggestion.pantryKeys }
@@ -85,7 +99,18 @@ data class AssistantMealCard(
             revisionTarget = vm.assistantRevisionTarget,
             proposalMeals = vm.proposalMeals(), proposalOther = vm.proposalOther(),
             canUndo = vm.canUndoAssistant && vm.assistantProposal == null && !vm.assistantBusy,
+            voiceAvailable = true, listening = heard is VoiceState.Listening,
+            partial = (heard as? VoiceState.Listening)?.partial.orEmpty(), voiceNotice = vm.voiceNotice,
+            micGranted = mic.granted, speaking = speech == SpeechState.Speaking,
         ),
+        onMic = {
+            when {
+                heard is VoiceState.Listening -> vm.stopListening()
+                mic.granted -> vm.startListening()
+                else -> mic.request()
+            }
+        },
+        onReadAgain = vm::readAgain, onStopSpeaking = vm::stopSpeaking,
         onQuestion = { vm.assistantQuestion = it }, onSend = vm::submitAssistant,
         onRetry = vm::retryAssistant, onOffline = vm::lookupFailedOffline,
         onRecipe = vm::openRecipe, onConfirm = vm::confirmAssistantProposal,
@@ -103,6 +128,7 @@ data class AssistantMealCard(
     onConfirm: () -> Unit = {}, onCancel: () -> Unit = {}, onCancelTimer: () -> Unit = {},
     onChooseMeal: (Int) -> Unit = {}, onEdit: () -> Unit = {},
     onDropMeal: (ProposalMealUi) -> Unit = {}, onUndo: () -> Unit = {},
+    onMic: () -> Unit = {}, onReadAgain: () -> Unit = {}, onStopSpeaking: () -> Unit = {},
 ) {
     val scroll = rememberLazyListState()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
@@ -252,9 +278,44 @@ data class AssistantMealCard(
                 KitchenTonalButton(onClick = { jumpToEnd++ },
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp).heightIn(min = 48.dp)) { Text("Tin nhắn mới") }
             }
+            if (ui.voiceAvailable && !cramped) VoiceBar(ui, compact, onMic, onReadAgain, onStopSpeaking)
             AssistantComposer(ui, compact, cramped = cramped,
                 inline = inlineComposer,
                 onQuestion = onQuestion, onSend = onSend, onProposal = { jumpToEnd++ })
+        }
+    }
+}
+
+/** The large microphone is the main way to talk; typing stays available below it. */
+@Composable private fun VoiceBar(ui: AssistantUiState, compact: Boolean, onMic: () -> Unit, onReadAgain: () -> Unit, onStopSpeaking: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (ui.listening) {
+                Text(ui.partial.ifBlank { "Đang nghe…" }, style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.fillMaxWidth().testTag("assistant-partial").semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            ui.voiceNotice?.let {
+                Text(it, color = KitchenMuted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            val label = when {
+                ui.listening -> "Đang nghe… Bấm để dừng"
+                ui.proposal.isNotEmpty() -> "Bấm rồi nói “đồng ý” hoặc “không”"
+                else -> "Bấm để nói"
+            }
+            val button = Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("assistant-mic").semantics {
+                contentDescription = if (ui.listening) "Dừng nghe" else "Nói với trợ lý"
+            }
+            if (ui.listening) KitchenOutlinedButton(onClick = onMic, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
+            else KitchenButton(onClick = onMic, enabled = !ui.busy, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
+            if (!ui.micGranted && !compact) {
+                Text("Lần đầu bấm, điện thoại sẽ hỏi quyền dùng micro để nghe bạn nói.",
+                    style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+            }
+            if (ui.speaking) {
+                TextButton(onClick = onStopSpeaking, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-stop-speaking")) { Text("Dừng đọc") }
+            } else if (!compact && ui.messages.any { it.role == "assistant" }) {
+                TextButton(onClick = onReadAgain, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-read-again")) { Text("Đọc lại câu trả lời") }
+            }
         }
     }
 }

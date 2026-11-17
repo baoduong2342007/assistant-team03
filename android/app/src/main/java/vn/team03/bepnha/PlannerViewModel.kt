@@ -6,7 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
+import vn.team03.bepnha.voice.VoiceController
+import vn.team03.bepnha.voice.VoiceState
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -71,6 +74,93 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     /** One pending Activity-side effect (share sheet, calendar, permission screen); see [consumeEffect]. */
     var effect by mutableStateOf<PlannerEffect?>(null); private set
     fun consumeEffect(shown: PlannerEffect) { if (effect == shown) effect = null }
+
+    // ---- Voice: speak to the assistant and hear its replies ----
+    internal var voiceFactory: (Application) -> VoiceController = { VoiceController.create(it) }
+    private var voiceController: VoiceController? = null
+    /** Created on first use (assistant opened); the main thread owns it. */
+    val voice: VoiceController
+        get() = voiceController ?: voiceFactory(getApplication()).also { created ->
+            voiceController = created
+            created.setRate(state.voice.rate)
+            viewModelScope.launch { created.state.collect(::onVoice) }
+            // Read new replies and pending proposals aloud while the assistant is open.
+            viewModelScope.launch {
+                snapshotFlow { assistantHistory.lastOrNull() to assistantProposal }.collect { (last, proposal) -> speakNew(last, proposal) }
+            }
+        }
+    /** Shown under the microphone: what went wrong while listening, or what to say next. */
+    var voiceNotice by mutableStateOf<String?>(null); private set
+    private var spokenMessageId: String? = null
+    private var spokenProposal: AssistantProposal? = null
+
+    fun startListening() {
+        if (!assistantVisible || assistantBusy) return
+        voiceNotice = null
+        voice.start()
+    }
+    fun stopListening() { voiceController?.stop() }
+    fun stopSpeaking() { voiceController?.stopSpeaking() }
+    /** "Đọc lại": reads the latest reply even when automatic reading is off. */
+    fun readAgain() {
+        val last = assistantHistory.lastOrNull { it.role == "assistant" } ?: return
+        voice.speak(AssistantVoice.spoken(last.text))
+    }
+
+    private fun onVoice(heard: VoiceState) {
+        val address = state.voice.addressAs
+        when (heard) {
+            is VoiceState.Result -> {
+                voice.reset()
+                when (val intent = AssistantVoice.route(heard.text, assistantProposal != null)) {
+                    HeardIntent.Confirm -> { assistantHistory = assistantHistory + AssistantChatMessage("user", heard.text); confirmAssistantProposal() }
+                    HeardIntent.Cancel -> { assistantHistory = assistantHistory + AssistantChatMessage("user", heard.text); cancelAssistantProposal() }
+                    HeardIntent.AskAgain -> { voiceNotice = AssistantVoice.askAgain(address); say(voiceNotice.orEmpty()) }
+                    is HeardIntent.Send -> if (intent.text.isNotBlank()) askAssistant(intent.text)
+                }
+            }
+            is VoiceState.Error -> {
+                voice.reset()
+                voiceNotice = AssistantVoice.error(heard.kind, address)
+                say(voiceNotice.orEmpty())
+            }
+            else -> Unit
+        }
+    }
+
+    private fun speakNew(last: AssistantChatMessage?, proposal: AssistantProposal?) {
+        val parts = mutableListOf<String>()
+        if (last != null && last.role == "assistant" && last.id != spokenMessageId) { spokenMessageId = last.id; parts += last.text }
+        if (proposal != null && proposal !== spokenProposal) {
+            spokenProposal = proposal
+            val meals = proposal.actions.filter { it.type == AssistantActionType.swap_recipe }.map { it.date to it.meal }.distinct().size
+            parts += AssistantVoice.proposalPrompt(proposal.descriptions, meals, state.voice.addressAs)
+        }
+        if (parts.isNotEmpty()) say(parts.joinToString(". "))
+    }
+
+    private fun say(text: String) {
+        if (assistantVisible && state.voice.readAloud && text.isNotBlank()) voiceController?.speak(AssistantVoice.spoken(text))
+    }
+
+    fun saveVoiceSettings(addressAs: String, readAloud: Boolean, rate: Float) {
+        val settings = VoiceSettings(VoiceSettings.clean(addressAs), readAloud, rate.coerceIn(VoiceController.MIN_RATE, VoiceController.MAX_RATE))
+        update(state.copy(voice = settings))
+        voiceController?.setRate(settings.rate)
+        if (!readAloud) stopSpeaking()
+        message = "Đã lưu cách trợ lý nói chuyện."
+    }
+    /** "Nghe thử" on the Family screen, at the chosen speed. */
+    fun previewVoice(addressAs: String, rate: Float) {
+        voice.setRate(rate)
+        voice.speak("Chào ${VoiceSettings.clean(addressAs)}, mình là trợ lý Bếp Nhà. Hôm nay mình nấu gì nhé?")
+    }
+
+    override fun onCleared() {
+        voiceController?.release()
+        voiceController = null
+        super.onCleared()
+    }
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -139,6 +229,11 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         assistantOrigin = screen
         sheet = null
         assistantVisible = true
+        voiceNotice = null
+        // Earlier replies were heard (or skipped) already; only read what arrives from now on.
+        spokenMessageId = assistantHistory.lastOrNull()?.id
+        spokenProposal = assistantProposal
+        if (state.voice.readAloud) voice.setRate(state.voice.rate)
     }
     fun closeAssistant() = finishAssistant(restoreRecipe = true)
     private fun finishAssistant(restoreRecipe: Boolean) {
@@ -149,6 +244,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         revisingProposal = null
         offeredMeals = null
         assistantVisible = false
+        voiceController?.reset()
+        voiceController?.stopSpeaking()
         if (restoreRecipe) returnRecipeId?.let(::openRecipe)
         returnRecipeId = null
     }

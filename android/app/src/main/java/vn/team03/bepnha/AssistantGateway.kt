@@ -81,6 +81,7 @@ object AssistantGateway {
         return JSONObject().put("today", today.toString()).put("timezone", PlannerEngine.zone.id)
             .put("date", state.date.toString()).put("meal", state.meal.value).put("screen", screen.name).put("recipe_id", recipeId ?: JSONObject.NULL)
             .put("people", state.profile.people).put("lunch", state.profile.lunch.toString()).put("dinner", state.profile.dinner.toString())
+            .put("address_as", state.voice.addressAs)
             .put("meals", meals).put("favorites", JSONArray(state.favorites.toList()))
             .put("timer", state.timer?.let { JSONObject().put("label", it.label).put("end", it.end).put("date", it.date.toString()).put("meal", it.meal.value) } ?: JSONObject.NULL)
             .apply {
