@@ -15,6 +15,7 @@ data class AssistantChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val source: AssistantSource = AssistantSource.AI,
     val notice: String? = null,
+    val at: Long = System.currentTimeMillis(),
 )
 data class AssistantMealSuggestion(
     val id: Int,

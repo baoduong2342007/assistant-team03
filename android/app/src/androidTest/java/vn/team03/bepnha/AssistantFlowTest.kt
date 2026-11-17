@@ -17,7 +17,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class AssistantFlowTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private val compose = createAndroidComposeRule<MainActivity>()
+    // Chat is now kept on the device; each case starts from an empty conversation.
+    private val resetChat = object : org.junit.rules.ExternalResource() {
+        override fun before() {
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+                .getSharedPreferences("bep_nha_chat", 0).edit().clear().commit()
+        }
+    }
+    @get:Rule val chain: org.junit.rules.TestRule = org.junit.rules.RuleChain.outerRule(resetChat).around(compose)
     private fun vm() = ViewModelProvider(compose.activity)[PlannerViewModel::class.java]
 
     @Test fun assistantIsReachableFromEveryMainTabAndKeepsConversationAfterRecipeAndRotation() {
@@ -333,7 +341,8 @@ class AssistantFlowTest {
         store.put("restored", restored)
         try {
             assertEquals("Câu hỏi chưa gửi", restored.assistantQuestion)
-            assertTrue(restored.assistantHistory.isEmpty())
+            // Chat text may be restored from the device, but never greetings, cards or an executable proposal.
+            assertTrue(restored.assistantHistory.none { it.id.startsWith("greeting-") })
             assertNull(restored.assistantProposal)
             assertFalse(restored.assistantBusy)
             restored.assistantQuestion = "Bản nháp mới"

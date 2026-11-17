@@ -56,6 +56,7 @@ data class AssistantUiState(
     val voiceNotice: String? = null,
     val micGranted: Boolean = true,
     val speaking: Boolean = false,
+    val canClearHistory: Boolean = false,
 )
 
 data class AssistantMealCard(
@@ -102,7 +103,9 @@ data class AssistantMealCard(
             voiceAvailable = true, listening = heard is VoiceState.Listening,
             partial = (heard as? VoiceState.Listening)?.partial.orEmpty(), voiceNotice = vm.voiceNotice,
             micGranted = mic.granted, speaking = speech == SpeechState.Speaking,
+            canClearHistory = vm.assistantHistory.any { it.role == "user" } && !vm.assistantBusy && vm.assistantProposal == null,
         ),
+        onClearHistory = vm::clearAssistantHistory,
         onMic = {
             when {
                 heard is VoiceState.Listening -> vm.stopListening()
@@ -129,7 +132,14 @@ data class AssistantMealCard(
     onChooseMeal: (Int) -> Unit = {}, onEdit: () -> Unit = {},
     onDropMeal: (ProposalMealUi) -> Unit = {}, onUndo: () -> Unit = {},
     onMic: () -> Unit = {}, onReadAgain: () -> Unit = {}, onStopSpeaking: () -> Unit = {},
+    onClearHistory: () -> Unit = {},
 ) {
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    if (confirmClear) AlertDialog(onDismissRequest = { confirmClear = false },
+        title = { Text("Xóa lịch sử trò chuyện?") },
+        text = { Text("Các tin nhắn sẽ bị xóa khỏi máy. Thực đơn và dữ liệu nhà mình vẫn giữ nguyên.") },
+        confirmButton = { TextButton(onClick = { confirmClear = false; onClearHistory() }, modifier = Modifier.testTag("assistant-clear-confirm")) { Text("Xóa") } },
+        dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Giữ lại") } })
     val scroll = rememberLazyListState()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
     var previousCount by rememberSaveable { mutableIntStateOf(ui.messages.size) }
@@ -225,6 +235,10 @@ data class AssistantMealCard(
                                 }
                             }
                         }
+                    }
+                    if (ui.canClearHistory) item("clear-history") {
+                        TextButton(onClick = { confirmClear = true },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-clear")) { Text("Xóa lịch sử trò chuyện") }
                     }
                     if (ui.busy) item("busy") {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

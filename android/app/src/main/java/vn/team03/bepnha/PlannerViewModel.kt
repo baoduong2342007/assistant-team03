@@ -36,7 +36,16 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     var notifications by mutableStateOf(ReminderStore.canNotify(application)); private set
     var exactAlarms by mutableStateOf(ReminderStore.canScheduleExact(application)); private set
     var assistantVisible by mutableStateOf(false); private set
-    var assistantHistory by mutableStateOf(emptyList<AssistantChatMessage>()); private set
+    private val chatStore = ChatStore(application)
+    private val chatSaves = Channel<List<AssistantChatMessage>>(Channel.CONFLATED)
+    private var historyState by mutableStateOf(chatStore.load(engine.recipes.keys))
+    /** Restored from the device on start (text only); every change is saved in the background. */
+    var assistantHistory: List<AssistantChatMessage>
+        get() = historyState
+        private set(value) {
+            historyState = value
+            chatSaves.trySend(ChatStore.keep(value, unansweredMessageIds.toSet()))
+        }
     private var questionState by mutableStateOf(savedState.get<String>("assistant-draft").orEmpty())
     var assistantQuestion: String
         get() = questionState
@@ -194,6 +203,25 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             }
         }
         updates.trySend(state to null)
+        viewModelScope.launch(Dispatchers.IO) {
+            for (messages in chatSaves) runCatching { chatStore.save(messages) }
+        }
+    }
+
+    /** "Xóa lịch sử trò chuyện": clears the chat on screen and on the device. Saved meal data is untouched. */
+    fun clearAssistantHistory() {
+        if (assistantBusy || assistantProposal != null) return
+        revisingProposal = null
+        offeredMeals = null
+        failedTurn = null
+        failedMessageId = null
+        assistantError = null
+        unansweredMessageIds.clear()
+        lastMenuChanges = emptyList()
+        greetedFor = null
+        assistantHistory = emptyList()
+        voiceController?.stopSpeaking()
+        message = "Đã xóa lịch sử trò chuyện."
     }
 
     val menu get() = engine.menu(state)
@@ -424,7 +452,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         }
         // A failed message is not supplied as an already answered history turn.
         // Local greetings are not part of the conversation the model needs.
-        val history = assistantHistory.filterNot { it.id in unansweredMessageIds || it.id.startsWith("greeting-") }
+        val recent = System.currentTimeMillis() - ChatStore.MODEL_WINDOW_MS
+        val history = assistantHistory.filterNot { it.id in unansweredMessageIds || it.id.startsWith("greeting-") || it.at < recent }
         val user = AssistantChatMessage("user", prompt)
         unansweredMessageIds += user.id
         assistantHistory = assistantHistory + user

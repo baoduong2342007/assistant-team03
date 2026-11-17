@@ -79,6 +79,8 @@ Các ca riêng: `realPantryExclusionProducesGroundedSuggestions`, `realPendingRe
 4. **Xác nhận thay đổi**; kiểm tra đúng ngày/bữa, Đi chợ, Vào bếp rồi đóng/mở lại ứng dụng.
 5. Ngắt mạng và lặp lại với tên món rõ; kiểm tra nhãn cục bộ và lý do chuyển chế độ.
 
+Kịch bản đầy đủ cho bản agent (giọng nói, hồ sơ ăn uống, lên thực đơn cả tuần, "Nấu cùng tôi", bộ câu thử `AgentEvalTest`): [kitchen-agent-acceptance.md](kitchen-agent-acceptance.md).
+
 Quota xem trong Google AI Studio/Firebase AI Logic của đúng project. Spark không tự nâng lên trả phí; hạn mức cụ thể phụ thuộc model và project. App không hứa thời điểm quota phục hồi.
 
 Kết quả thực tế và giới hạn nghiệm thu ghi tại [firebase-spark-verification.md](firebase-spark-verification.md). Điện thoại thật chưa kiểm thử theo lựa chọn của người dùng trong đợt này.
