@@ -196,6 +196,7 @@ object AssistantGateway {
         AssistantActionType.set_diet_tag to setOf("key", "enabled"),
         AssistantActionType.set_avoid to setOf("key", "enabled"),
         AssistantActionType.set_meal_limits to setOf("minutes", "cost"),
+        AssistantActionType.start_cook_along to emptySet(),
     )
     private val OPTIONAL_FIELDS = mapOf(AssistantActionType.open_sheet to setOf("index"), AssistantActionType.share_shopping_list to setOf("option"),
         AssistantActionType.set_meal_limits to setOf("minutes", "cost"))

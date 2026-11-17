@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
+import vn.team03.bepnha.voice.CookCommand
+import vn.team03.bepnha.voice.VoiceCommand
 import vn.team03.bepnha.voice.VoiceController
 import vn.team03.bepnha.voice.VoiceState
 import androidx.lifecycle.AndroidViewModel
@@ -109,6 +111,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
 
     private fun onVoice(heard: VoiceState) {
         val address = state.voice.addressAs
+        if (cookAlong != null) { onCookVoice(heard); return }
         when (heard) {
             is VoiceState.Result -> {
                 voice.reset()
@@ -246,7 +249,97 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         // Earlier replies were heard (or skipped) already; only read what arrives from now on.
         spokenMessageId = assistantHistory.lastOrNull()?.id
         spokenProposal = assistantProposal
+        greet()
         if (state.voice.readAloud) voice.setRate(state.voice.rate)
+    }
+
+    private var greetedFor: String? = null
+    /** A local summary of the next meal, once per meal, while no turn is open. Read aloud like any reply. */
+    private fun greet() {
+        if (assistantBusy || assistantProposal != null) return
+        val next = AssistantGreeting.upcoming(state, today, System.currentTimeMillis())
+        val key = next?.let { PlannerEngine.key(it.date, it.meal) } ?: "none"
+        if (greetedFor == key) return
+        greetedFor = key
+        assistantHistory = assistantHistory + AssistantChatMessage("assistant",
+            AssistantGreeting.text(engine, state, today, System.currentTimeMillis()),
+            next?.let { engine.menu(state, it.date, it.meal).map { recipe -> recipe.id } }.orEmpty(),
+            id = "greeting-${java.util.UUID.randomUUID()}", source = AssistantSource.SYSTEM)
+    }
+
+    // ---- "Nấu cùng tôi": one step per screen, read aloud, voice commands ----
+    var cookAlong by mutableStateOf<CookAlong?>(null); private set
+
+    fun startCookAlong(date: LocalDate = state.date, meal: Meal = state.meal) {
+        if (date !in days) return
+        if (assistantVisible) finishAssistant(restoreRecipe = false)
+        sheet = null
+        if (state.date != date || state.meal != meal) update(state.copy(date = date, meal = meal))
+        val steps = CookAlongPlan.steps(engine, state, date, meal)
+        if (steps.isEmpty()) return
+        // Resume at the first step of the first task not done yet.
+        val done = state.done[PlannerEngine.key(date, meal)].orEmpty()
+        val start = steps.indexOfFirst { it.taskKey !in done }.takeIf { it >= 0 } ?: 0
+        cookAlong = CookAlong(date, meal, steps, start)
+        voiceNotice = null
+        readStep()
+    }
+    fun cookNext() {
+        val session = cookAlong ?: return
+        if (session.finishesTask) markTaskDone(session.date, session.meal, session.step.taskKey)
+        if (session.isLast) {
+            exitCookAlong()
+            message = "Xong rồi! Chúc cả nhà ngon miệng."
+            voice.speak("Xong rồi! Chúc cả nhà ngon miệng.")
+            return
+        }
+        cookAlong = session.copy(index = session.index + 1)
+        readStep()
+    }
+    fun cookBack() { val session = cookAlong ?: return; if (session.index > 0) { cookAlong = session.copy(index = session.index - 1) }; readStep() }
+    fun readStep() { cookAlong?.let { voice.speak(AssistantVoice.spoken(CookAlongPlan.spoken(it))) } }
+    fun cookTimer(minutes: Int) {
+        val session = cookAlong ?: return
+        if (minutes !in 1..180) return
+        startTimer(minutes, "${session.step.title}: bước ${session.index + 1}")
+        if (pendingTimer == null) voice.speak("Đã hẹn $minutes phút.")
+    }
+    fun exitCookAlong() {
+        cookAlong = null
+        voiceController?.reset()
+        voiceController?.stopSpeaking()
+        voiceNotice = null
+    }
+    fun startCookListening() { if (cookAlong != null) { voiceNotice = null; voice.start() } }
+
+    private fun onCookVoice(heard: VoiceState) {
+        when (heard) {
+            is VoiceState.Result -> {
+                voice.reset()
+                when (val command = VoiceCommand.parse(heard.text)) {
+                    CookCommand.Next -> cookNext()
+                    CookCommand.Back, CookCommand.Undo -> cookBack()
+                    CookCommand.Repeat -> readStep()
+                    is CookCommand.Timer -> cookTimer(command.minutes)
+                    CookCommand.Unknown -> {
+                        voiceNotice = "Nói “tiếp”, “đọc lại”, “quay lại” hoặc “hẹn giờ 10 phút” nhé."
+                        voice.speak(voiceNotice.orEmpty())
+                    }
+                }
+            }
+            is VoiceState.Error -> {
+                voice.reset()
+                voiceNotice = AssistantVoice.error(heard.kind, state.voice.addressAs)
+                voice.speak(voiceNotice.orEmpty())
+            }
+            else -> Unit
+        }
+    }
+
+    private fun markTaskDone(date: LocalDate, meal: Meal, task: String) {
+        val key = PlannerEngine.key(date, meal)
+        val done = state.done[key].orEmpty()
+        if (task !in done && engine.timeline(state, date, meal).any { it.key == task }) update(state.copy(done = state.done + (key to done + task)))
     }
     fun closeAssistant() = finishAssistant(restoreRecipe = true)
     private fun finishAssistant(restoreRecipe: Boolean) {
@@ -330,7 +423,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             return
         }
         // A failed message is not supplied as an already answered history turn.
-        val history = assistantHistory.filterNot { it.id in unansweredMessageIds }
+        // Local greetings are not part of the conversation the model needs.
+        val history = assistantHistory.filterNot { it.id in unansweredMessageIds || it.id.startsWith("greeting-") }
         val user = AssistantChatMessage("user", prompt)
         unansweredMessageIds += user.id
         assistantHistory = assistantHistory + user
@@ -553,6 +647,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 AssistantActionType.add_to_calendar -> effect = PlannerEffect.Calendar(engine.timeline(state, action.date, action.meal))
                 AssistantActionType.request_permission ->
                     effect = if (action.option == "exact_alarms") PlannerEffect.ExactAlarms else PlannerEffect.Notifications
+                AssistantActionType.start_cook_along -> startCookAlong(action.date, action.meal)
                 else -> Unit
             }
         }
@@ -636,10 +731,12 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         val meal = Meal.from(intent.getStringExtra("meal").orEmpty()) ?: return
         if (date in days) update(state.copy(date = date, meal = meal))
         if (assistantVisible) finishAssistant(restoreRecipe = false)
+        exitCookAlong()
         sheet = null; screen = if (intent.getStringExtra("screen") == "shopping") Screen.SHOPPING else Screen.COOK
     }
     fun back(): Boolean {
         if (sheet != null) { sheet = null; return true }
+        if (cookAlong != null) { exitCookAlong(); return true }
         if (assistantVisible) { closeAssistant(); return true }
         if (screen != Screen.TODAY) { screen = Screen.TODAY; return true }
         return false

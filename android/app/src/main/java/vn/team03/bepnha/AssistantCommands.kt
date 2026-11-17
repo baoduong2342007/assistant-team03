@@ -7,7 +7,7 @@ enum class AssistantActionType {
     navigate, open_recipe, swap_recipe, set_people, set_meal_time, set_reminder, start_timer, cancel_timer,
     set_ingredient, set_task, set_favorite,
     select_meal, open_sheet, close_assistant, share_shopping_list, add_to_calendar, request_permission, set_family_name,
-    set_diet_tag, set_avoid, set_meal_limits,
+    set_diet_tag, set_avoid, set_meal_limits, start_cook_along,
 }
 
 /**
@@ -130,7 +130,8 @@ class AssistantCommands(private val engine: PlannerEngine) {
         return when (action.type) {
             AssistantActionType.navigate -> { requireNotNull(action.screen) { "Thiếu màn hình cần mở." }; state }
             AssistantActionType.open_recipe -> { require(action.recipeId in engine.recipes) { "Không có công thức ${action.recipeId}." }; state }
-            AssistantActionType.select_meal, AssistantActionType.close_assistant, AssistantActionType.add_to_calendar -> state
+            AssistantActionType.select_meal, AssistantActionType.close_assistant, AssistantActionType.add_to_calendar,
+            AssistantActionType.start_cook_along -> state
             AssistantActionType.open_sheet -> {
                 require(action.option in AssistantAction.SHEETS) { "Sheet phải là swap_options hoặc reminder." }
                 if (action.option == "swap_options") require(action.index in 0..2) { "Vị trí món phải là 0, 1 hoặc 2." }
@@ -226,6 +227,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
             AssistantActionType.close_assistant -> "Đóng trợ lý"
             AssistantActionType.share_shopping_list -> if (a.option == "day") "Chia sẻ danh sách đi chợ cả ngày" else "Chia sẻ danh sách đi chợ bữa này"
             AssistantActionType.add_to_calendar -> "Thêm lịch nấu vào lịch điện thoại"
+            AssistantActionType.start_cook_along -> "Bắt đầu nấu cùng trợ lý, đọc to từng bước"
             AssistantActionType.request_permission -> if (a.option == "exact_alarms") "Mở phần cho phép nhắc đúng giờ" else "Mở phần cho phép thông báo"
             AssistantActionType.swap_recipe -> "${swapLine(state, a)}. Nguyên liệu và lịch nấu sẽ cập nhật."
             AssistantActionType.set_people -> "Đổi khẩu phần từ ${state.profile.people} thành ${a.people} người cho mọi bữa. Dấu đã có trong danh sách đi chợ sẽ được xóa."

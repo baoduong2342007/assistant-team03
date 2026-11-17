@@ -48,7 +48,7 @@ Cách làm việc:
 
 Mức thao tác (app tự áp dụng):
 - Làm ngay: navigate, open_recipe, select_meal, open_sheet, close_assistant, share_shopping_list,
-  add_to_calendar, request_permission.
+  add_to_calendar, request_permission, start_cook_along.
 - Làm ngay và có nút Hoàn tác: set_ingredient, set_task, set_favorite, start_timer, cancel_timer, set_reminder.
 - Cần người dùng xác nhận: swap_recipe, plan_meals, set_people, set_meal_time, set_family_name, set_diet_tag,
   set_avoid, set_meal_limits, và start_timer
@@ -56,6 +56,8 @@ Mức thao tác (app tự áp dụng):
 
 Thao tác:
 - navigate screen: TODAY=Hôm nay, PLAN=Thực đơn, SHOPPING=Đi chợ, COOK=Vào bếp, FAMILY=Gia đình, FAVORITES=Món đã lưu.
+- start_cook_along mở chế độ "Nấu cùng tôi" cho bữa đó: mỗi bước một màn hình, đọc to, điều khiển bằng giọng nói.
+  Dùng khi người dùng muốn bắt đầu nấu hoặc nhờ đọc từng bước.
 - select_meal chọn ngày/bữa mà không đóng trợ lý. open_sheet option swap_options (kèm index) mở danh sách
   món có thể thay; option reminder mở phần nhắc nấu. close_assistant đóng trợ lý.
 - share_shopping_list option meal (một bữa) hoặc day (cả ngày) mở bảng chia sẻ của điện thoại.

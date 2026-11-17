@@ -321,7 +321,7 @@ class AssistantFlowTest {
             assertNull(vm().assistantProposal)
             assertTrue(vm().assistantError.orEmpty().contains("Phản hồi trợ lý chưa hợp lệ"))
             assertFalse(vm().assistantError.orEmpty().contains("Failed requirement"))
-            assertFalse(vm().assistantHistory.any { it.role == "assistant" })
+            assertFalse(vm().assistantHistory.any { it.role == "assistant" && !it.id.startsWith("greeting-") })
         }
     }
 

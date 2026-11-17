@@ -181,9 +181,6 @@ data class AssistantMealCard(
                         item("context") { AssistantContext(ui) }
                         ui.timer?.let { timer -> item("timer") { KitchenTimer(timer, onCancelTimer) } }
                     }
-                    if (ui.messages.isEmpty()) item("welcome") {
-                        AssistantWelcome(ui.suggestions, canSend, onQuestion)
-                    }
                     item("connection") {
                         Text(
                             if (ui.configured) "Khi dùng AI, câu hỏi và ngữ cảnh bữa ăn được gửi đến máy chủ. Hãy xem lại các gợi ý."
@@ -206,6 +203,10 @@ data class AssistantMealCard(
                                 AssistantError(ui.error, ui.canRetry, onRetry, onOffline)
                             }
                         }
+                    }
+                    // The greeting is not a question, so suggestions stay until the user asks something.
+                    if (ui.messages.none { it.role == "user" }) item("welcome") {
+                        AssistantWelcome(ui.suggestions, canSend, onQuestion)
                     }
                     if (ui.mealSuggestions.isNotEmpty() && ui.mealSuggestionMessageId == null) item("meal-suggestions") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {

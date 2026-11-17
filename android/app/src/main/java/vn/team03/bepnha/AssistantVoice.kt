@@ -25,6 +25,9 @@ object AssistantVoice {
         }
     }
 
+    /** How the assistant refers to itself: "cháu" to elders, otherwise "mình". */
+    fun self(addressAs: String) = if (MealPlanning.normalize(VoiceSettings.clean(addressAs)) in setOf("bac", "co", "chu", "ong", "ba", "di", "thim", "mo")) "cháu" else "mình"
+
     /** "bác" → "Bác"; used at the start of spoken sentences. */
     fun title(addressAs: String) = VoiceSettings.clean(addressAs).replaceFirstChar { it.titlecase(PlannerEngine.locale) }
 

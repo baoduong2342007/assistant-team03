@@ -230,7 +230,7 @@ class AssistantServiceTest {
             "share_shopping_list" to mapOf("option" to "day"), "add_to_calendar" to emptyMap(),
             "request_permission" to mapOf("option" to "notifications"), "set_family_name" to mapOf("name" to "Nhà bà Tư"),
             "set_diet_tag" to mapOf("key" to "low_salt", "enabled" to true), "set_avoid" to mapOf("key" to "tôm", "enabled" to true),
-            "set_meal_limits" to mapOf("minutes" to 30),
+            "set_meal_limits" to mapOf("minutes" to 30), "start_cook_along" to emptyMap(),
         )
         assertEquals(AssistantActionType.entries.map { it.name }.toSet(), fields.keys)
         fields.forEach { (type, extra) ->
