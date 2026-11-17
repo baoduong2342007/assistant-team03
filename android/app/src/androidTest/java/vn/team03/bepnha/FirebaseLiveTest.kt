@@ -1,6 +1,8 @@
 package vn.team03.bepnha
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.firebase.Firebase
+import com.google.firebase.ai.ai
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -67,6 +69,26 @@ class FirebaseLiveTest {
         assertEquals(response.notice, AssistantSource.AI, response.source)
         assertEquals(AssistantActionType.navigate, response.actions.single().type)
         assertEquals(Screen.SHOPPING, response.actions.single().screen)
+    }
+
+    /**
+     * Separates where a hang happens: token counting (no generation), then a bare one-line
+     * generation without tools, thinking or system prompt. `-e diagModel <name>` tries another model.
+     */
+    @Test fun diagnoseLatency() = runBlocking {
+        enabled("firebaseDiag")
+        val name = InstrumentationRegistry.getArguments().getString("diagModel") ?: BuildConfig.ASSISTANT_MODEL
+        val model = Firebase.ai(backend = com.google.firebase.ai.type.GenerativeBackend.googleAI(), useLimitedUseAppCheckTokens = true)
+            .generativeModel(modelName = name, requestOptions = com.google.firebase.ai.type.RequestOptions(timeoutInMillis = 60_000))
+        fun log(step: String, started: Long, outcome: String) =
+            android.util.Log.i("BepNhaDiag", "$name $step ${System.currentTimeMillis() - started} ms: $outcome")
+        var started = System.currentTimeMillis()
+        runCatching { kotlinx.coroutines.withTimeout(60_000) { model.countTokens("Xin chào").totalTokens } }
+            .onSuccess { log("countTokens", started, "ok $it tokens") }.onFailure { log("countTokens", started, "${it.javaClass.simpleName}: ${it.message?.take(300)}") }
+        started = System.currentTimeMillis()
+        val reply = runCatching { kotlinx.coroutines.withTimeout(60_000) { model.generateContent("Chào bạn, trả lời một câu ngắn.").text } }
+            .onSuccess { log("generateContent", started, "ok ${it?.take(80)}") }.onFailure { log("generateContent", started, "${it.javaClass.simpleName}: ${it.message?.take(300)}") }
+        assertTrue(reply.exceptionOrNull()?.toString() ?: "", reply.isSuccess)
     }
 
     @Test fun unregisteredDeviceCannotCallAI() = runBlocking {

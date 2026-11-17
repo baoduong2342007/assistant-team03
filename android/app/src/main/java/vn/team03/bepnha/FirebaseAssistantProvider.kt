@@ -31,7 +31,7 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
             },
             tools = listOf(Tool.functionDeclarations(declarations())),
             toolConfig = ToolConfig(FunctionCallingConfig.auto()),
-            requestOptions = RequestOptions(timeoutInMillis = 25_000),
+            requestOptions = RequestOptions(timeoutInMillis = BuildConfig.ASSISTANT_TIMEOUT_MS),
         )
     }
 
@@ -60,9 +60,10 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
     private suspend fun call(block: suspend () -> GenerateContentResponse): AssistantModelReply {
         if (!BuildConfig.DEBUG || !BuildConfig.FIREBASE_CONFIGURED) throw AssistantFailure(AssistantFailureKind.UNCONFIGURED)
         try {
-            return withTimeout(25_000) {
+            val started = System.currentTimeMillis()
+            return withTimeout(BuildConfig.ASSISTANT_TIMEOUT_MS) {
                 val result = block()
-                if (BuildConfig.DEBUG) android.util.Log.d("BepNhaAI", "AI response received")
+                if (BuildConfig.DEBUG) android.util.Log.d("BepNhaAI", "AI response received in ${System.currentTimeMillis() - started} ms")
                 require(result.candidates.size == 1)
                 require(result.candidates.single().finishReason == FinishReason.STOP)
                 val calls = result.functionCalls
@@ -84,6 +85,8 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
         FirebaseAppCheck.getInstance().getAppCheckToken(false)
             .addOnSuccessListener { if (continuation.isActive) continuation.resume(Unit) }
             .addOnFailureListener { error ->
+                // Debug builds only: the reason (e.g. "403 App attestation failed") helps register the device.
+                if (BuildConfig.DEBUG) android.util.Log.w("BepNhaAI", "App Check token failed: ${causes(error).joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message}" }}")
                 if (continuation.isActive) continuation.resumeWithException(AssistantFailure(
                     if (causes(error).any { it is IOException || it is FirebaseNetworkException }) AssistantFailureKind.NETWORK else AssistantFailureKind.CONFIGURATION))
             }

@@ -41,6 +41,20 @@ Nhóm: `swap`, `plan`, `diet`, `pantry`, `app`, `clarify` (23 câu). Dùng `-e e
 adb shell run-as vn.team03.bepnha cat files/agent-eval.json
 ```
 
+### Khi AI không trả lời
+
+- Lấy debug token: token chỉ được in **một lần**, lúc tạo, dưới tag `com.google.firebase.appcheck.debug.internal.DebugAppCheckProvider`:
+  `adb logcat -d | Select-String "App Check debug token"`. Nếu Logcat đã bị xóa, đọc lại trong
+  `adb shell "run-as vn.team03.bepnha sh -c 'cat shared_prefs/com.google.firebase.appcheck.debug.store*'"`.
+  Không bật emulator với `-no-snapshot-save` trước khi đăng ký: lần khởi động sau quay về trạng thái cũ và mất token.
+- Bản debug ghi lý do App Check từ chối vào Logcat với tag `BepNhaAI`.
+- Tách lỗi theo bước (không tốn nhiều quota):
+  `adb shell am instrument -w -e class vn.team03.bepnha.FirebaseLiveTest#diagnoseLatency -e firebaseDiag true [-e diagModel <tên>] vn.team03.bepnha.test/androidx.test.runner.AndroidJUnitRunner`,
+  rồi xem `adb logcat -d -s BepNhaDiag`. `countTokens` đạt mà `generateContent` báo *high demand* hoặc chờ hết 60 giây là model đang quá tải phía Google, không phải lỗi cấu hình; thử lại sau.
+- Thời gian chờ mỗi lần gọi mặc định 25 giây; đổi khi build bằng `-PassistantTimeoutMs=60000`.
+
+Ghi nhận ngày 17/11/2026 (emulator, project `bep-nha-team03-20261116-21eb9`): App Check debug token được chấp nhận, `countTokens` khoảng 2,3 giây; `generateContent` với `gemini-3.8-flash` lúc báo *high demand*, lúc không phản hồi sau 60 giây; `gemini-3.6-flash` cũng không phản hồi; `gemini-2.5-flash` không còn cho người dùng mới. Chưa có lượt AI thật thành công cho bản agent.
+
 ## 3. Kịch bản thủ công trên điện thoại
 
 Dùng chữ hệ thống 200% và bật TalkBack ít nhất một lần.

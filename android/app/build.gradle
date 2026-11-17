@@ -22,6 +22,9 @@ android {
         def assistantModel = providers.gradleProperty('assistantModel').getOrElse('gemini-3.8-flash')
         if (!(assistantModel ==~ /gemini-[A-Za-z0-9.-]+/)) throw new GradleException('Invalid assistantModel')
         buildConfigField 'String', 'ASSISTANT_MODEL', '"' + assistantModel + '"'
+        def assistantTimeout = providers.gradleProperty('assistantTimeoutMs').getOrElse('25000')
+        if (!(assistantTimeout ==~ /[1-9][0-9]{3,5}/)) throw new GradleException('Invalid assistantTimeoutMs')
+        buildConfigField 'long', 'ASSISTANT_TIMEOUT_MS', assistantTimeout + 'L'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
