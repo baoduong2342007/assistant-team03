@@ -1,5 +1,7 @@
 # Bếp Nhà Mình — kiểm thử Gemini và rà soát chức năng
 
+> **Tài liệu lịch sử.** Báo cáo này kiểm thử backend Python `src/bep_nha_api`, nay đã được gỡ. Các lệnh Python bên dưới không còn chạy được.
+
 Ngày báo cáo: 16/11/2026. Model kiểm thử: `gemini-3.6-flash`.
 
 ## Kết quả chính

@@ -37,7 +37,7 @@ Không chạy `connectedDebugAndroidTest` sau khi đăng ký thiết bị demo m
 
 ## Hợp đồng và xử lý trên Android
 
-`AssistantProvider.generate` là giao diện bất đồng bộ có thể thay bằng phản hồi giả lập. `FirebaseAssistantProvider` chỉ vận chuyển yêu cầu; `AssistantService`, `MealPlanning`, `AssistantCommands` kiểm tra và tạo đề xuất. `recipes.json` trên Android là nguồn duy nhất cho catalog, giá, định lượng và lịch nấu. Python trong `src/bep_nha_api` được giữ làm đối chiếu lịch sử, không nằm trong luồng APK.
+`AssistantProvider.generate` là giao diện bất đồng bộ có thể thay bằng phản hồi giả lập. `FirebaseAssistantProvider` chỉ vận chuyển yêu cầu; `AssistantService`, `MealPlanning`, `AssistantCommands` kiểm tra và tạo đề xuất. `recipes.json` trên Android là nguồn duy nhất cho catalog, giá, định lượng và lịch nấu. Backend Python cũ đã được gỡ khỏi repo.
 
 Mỗi lượt tối đa một lần gọi sinh nội dung, một tool call, tám actions và hai mâm; timeout 25 giây. App Check có yêu cầu chứng thực riêng. Không có vòng tự retry hay gọi model tiếp sau kết quả tool.
 

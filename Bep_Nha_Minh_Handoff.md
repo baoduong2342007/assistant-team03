@@ -1,5 +1,7 @@
 # Bếp Nhà Mình — bàn giao triển khai Gemini và hướng phát triển
 
+> **Tài liệu lịch sử.** Backend Python `src/bep_nha_api` đã được gỡ. APK hiện dùng Firebase AI Logic và xử lý hoàn toàn bằng Kotlin; xem [docs/firebase-spark-demo.md](docs/firebase-spark-demo.md).
+
 Cập nhật ngày 16/11/2026. Phạm vi hiện tại là trợ lý tiếng Việt để gợi ý và chỉnh từng bữa trong thực đơn bảy ngày, hỗ trợ bữa trưa và tối.
 
 ## Trạng thái mã nguồn
