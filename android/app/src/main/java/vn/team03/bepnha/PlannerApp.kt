@@ -49,6 +49,16 @@ import kotlinx.coroutines.isActive
     LaunchedEffect(vm.message) {
         vm.message?.let { message -> snackbar.showSnackbar(message); vm.clearMessage(message) }
     }
+    LaunchedEffect(vm.effect) {
+        val effect = vm.effect ?: return@LaunchedEffect
+        vm.consumeEffect(effect)
+        when (effect) {
+            is PlannerEffect.Share -> actions.share(effect.text)
+            is PlannerEffect.Calendar -> actions.calendar(effect.tasks)
+            PlannerEffect.Notifications -> actions.notifications()
+            PlannerEffect.ExactAlarms -> actions.exactAlarms()
+        }
+    }
     BackHandler(enabled = vm.sheet == null && (vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
     KitchenFrame(
         title = if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,

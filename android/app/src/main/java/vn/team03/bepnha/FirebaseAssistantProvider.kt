@@ -3,6 +3,7 @@ package vn.team03.bepnha
 import android.content.Context
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.ai.Chat
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.*
 import com.google.firebase.appcheck.FirebaseAppCheck
@@ -10,6 +11,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
 import java.io.IOException
 import kotlin.coroutines.resume
@@ -32,23 +35,42 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
         )
     }
 
-    override suspend fun generate(payload: JSONObject): AssistantModelReply {
+    /** One chat per user turn, so thought signatures and tool calls stay paired with their results. */
+    override fun open(payload: JSONObject): AssistantSession {
+        var chat: Chat? = null
+        return AssistantSession { results ->
+            call {
+                val current = chat
+                if (current == null) {
+                    checkAppToken()
+                    model.startChat().also { chat = it }.sendMessage(payload.toString())
+                } else {
+                    require(results.isNotEmpty())
+                    current.sendMessage(Content("function", results.map { result ->
+                        FunctionResponsePart(result.call.name, Json.parseToJsonElement(result.result.toString()).jsonObject, result.call.id)
+                    }))
+                }
+            }
+        }
+    }
+
+    /** Single-shot helper kept for live smoke tests. */
+    suspend fun generate(payload: JSONObject): AssistantModelReply = open(payload).send(emptyList())
+
+    private suspend fun call(block: suspend () -> GenerateContentResponse): AssistantModelReply {
         if (!BuildConfig.DEBUG || !BuildConfig.FIREBASE_CONFIGURED) throw AssistantFailure(AssistantFailureKind.UNCONFIGURED)
         try {
             return withTimeout(25_000) {
-                // Fail explicitly on unregistered demo devices instead of silently sending an invalid token.
-                checkAppToken()
-                if (BuildConfig.DEBUG) android.util.Log.d("BepNhaAI", "App Check verified; starting AI request")
-                val result = model.generateContent(payload.toString())
+                val result = block()
                 if (BuildConfig.DEBUG) android.util.Log.d("BepNhaAI", "AI response received")
                 require(result.candidates.size == 1)
                 require(result.candidates.single().finishReason == FinishReason.STOP)
                 val calls = result.functionCalls
-                require(calls.size <= 1)
+                require(calls.size <= AssistantService.MAX_CALLS_PER_REPLY)
                 AssistantModelReply(result.text, calls.map { call ->
                     val args = call.args.entries.joinToString(",", "{", "}") { (key, value) -> "${JSONObject.quote(key)}:$value" }
                     require(args.length <= 100_000)
-                    AssistantToolCall(call.name, JSONObject(args))
+                    AssistantToolCall(call.name, JSONObject(args), call.id)
                 })
             }
         } catch (_: TimeoutCancellationException) { throw AssistantFailure(AssistantFailureKind.TIMEOUT)
@@ -57,6 +79,7 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
         } catch (e: Exception) { throw AssistantFailure(classify(e)) }
     }
 
+    // Fail explicitly on unregistered demo devices instead of silently sending an invalid token.
     private suspend fun checkAppToken() = suspendCancellableCoroutine<Unit> { continuation ->
         FirebaseAppCheck.getInstance().getAppCheckToken(false)
             .addOnSuccessListener { if (continuation.isActive) continuation.resume(Unit) }
@@ -91,27 +114,18 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
             else -> AssistantFailureKind.CONFIGURATION
         }
 
-        internal fun declarations(): List<FunctionDeclaration> {
-            val fields = linkedMapOf(
-                "type" to Schema.enumeration(AssistantActionType.entries.map { it.name }),
-                "date" to Schema.string("Ngày YYYY-MM-DD trong thực đơn bảy ngày"),
-                "meal" to Schema.enumeration(listOf("lunch", "dinner")),
-                "screen" to Schema.enumeration(Screen.entries.map { it.name }),
-                "recipe_id" to Schema.string("ID công thức trong catalog"),
-                "index" to Schema.integer("0=mặn, 1=canh, 2=rau"),
-                "people" to Schema.integer("Số người từ 1 đến 12"),
-                "time" to Schema.string("Giờ ăn HH:mm"), "enabled" to Schema.boolean(),
-                "minutes" to Schema.integer("Số phút từ 1 đến 180"), "label" to Schema.string(), "key" to Schema.string("Key chính xác từ context"),
-            )
-            return listOf(
-                FunctionDeclaration("propose_actions", "Đề xuất thao tác để ứng dụng kiểm tra và người dùng xác nhận.", mapOf(
-                    "reply" to Schema.string(), "actions" to Schema.array(Schema.obj(fields, fields.keys.drop(3)), maxItems = 8))),
-                FunctionDeclaration("suggest_meals", "Tìm mâm theo nguyên liệu người dùng đang có; ứng dụng tự chọn món.", mapOf(
-                    "date" to Schema.string("YYYY-MM-DD"), "meal" to Schema.enumeration(listOf("lunch", "dinner")),
-                    "pantry_items" to Schema.array(Schema.string(), minItems = 1, maxItems = 30),
-                    "exclude_ingredients" to Schema.array(Schema.string(), maxItems = 30), "pantry_only" to Schema.boolean()),
-                    optionalParameters = listOf("exclude_ingredients", "pantry_only")),
-            )
+        internal fun declarations(): List<FunctionDeclaration> = AgentTools.specs.map { spec ->
+            FunctionDeclaration(spec.name, spec.description, spec.parameters.mapValues { schema(it.value) }, spec.optional)
+        }
+
+        private fun schema(param: ToolParam): Schema = when (param.type) {
+            "string" -> Schema.string(param.description)
+            "integer" -> Schema.integer(param.description)
+            "boolean" -> Schema.boolean(param.description)
+            "enum" -> Schema.enumeration(requireNotNull(param.values), param.description)
+            "array" -> Schema.array(schema(requireNotNull(param.items)), param.description, maxItems = param.maxItems)
+            "object" -> Schema.obj(param.properties.mapValues { schema(it.value) }, param.optional, param.description)
+            else -> error("Unknown schema type ${param.type}")
         }
     }
 }

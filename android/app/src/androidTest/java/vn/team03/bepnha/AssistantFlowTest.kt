@@ -423,7 +423,7 @@ class AssistantFlowTest {
         val calls = AtomicInteger()
         compose.runOnIdle {
             val model = vm()
-            model.assistantTransport = AssistantService(model.engine, AssistantProvider {
+            model.assistantTransport = AssistantService(model.engine, AssistantProvider.reply {
                 calls.incrementAndGet(); throw AssistantFailure(AssistantFailureKind.QUOTA)
             })::ask
             model.openAssistant(); model.askAssistant("Tối mai đổi món canh thành canh chua cá")

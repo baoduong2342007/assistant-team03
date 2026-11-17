@@ -34,7 +34,13 @@ data class AssistantReply(
     val suggestionConstraints: PantryConstraints? = null,
 )
 
-data class AssistantProposal(val base: PlannerState, val actions: List<AssistantAction>, val descriptions: List<String>) {
+data class AssistantProposal(
+    val base: PlannerState,
+    val actions: List<AssistantAction>,
+    val descriptions: List<String>,
+    /** True when at least one action is HIGH risk and must be confirmed. */
+    val needsConfirmation: Boolean = true,
+) {
     val canReviseMenu: Boolean
         get() {
             val first = actions.firstOrNull() ?: return false
@@ -43,6 +49,10 @@ data class AssistantProposal(val base: PlannerState, val actions: List<Assistant
 }
 
 object AssistantGateway {
+    /**
+     * Compact snapshot for the model. Only the selected meal carries ingredients and tasks;
+     * the agent reads other details with tools (get_shopping_list, get_cooking_plan, get_recipe).
+     */
     fun snapshot(
         engine: PlannerEngine,
         state: PlannerState,
@@ -55,15 +65,18 @@ object AssistantGateway {
         val meals = JSONArray()
         state.plans.keys.sorted().forEach { key ->
             val parts = key.split('|'); val date = LocalDate.parse(parts[0]); val meal = Meal.from(parts[1]) ?: return@forEach
-            if (date !in today..today.plusDays(6)) return@forEach
+            if (date !in today..today.plusDays(6) || !engine.validPlan(state.plans.getValue(key))) return@forEach
             val menu = engine.menu(state, date, meal)
-            meals.put(JSONObject().put("date", date.toString()).put("meal", meal.value).put("recipes", JSONArray(menu.map { it.id }))
+            val entry = JSONObject().put("date", date.toString()).put("meal", meal.value).put("recipes", JSONArray(menu.map { it.id }))
                 .put("cost", engine.cost(menu, state.profile.people)).put("minutes", engine.minutes(menu))
                 .put("reminder", key in state.reminders)
-                .put("ingredients", JSONArray(engine.ingredients(menu, state.profile.people).map { i ->
+            if (key == state.key) {
+                entry.put("ingredients", JSONArray(engine.ingredients(menu, state.profile.people).map { i ->
                     JSONObject().put("key", i.key).put("amount", i.amount).put("checked", i.key in state.checked[key].orEmpty()) }))
-                .put("tasks", JSONArray(engine.timeline(state, date, meal).map { t ->
-                    JSONObject().put("key", t.key).put("title", t.title).put("time", PlannerEngine.time(t.at)).put("done", t.key in state.done[key].orEmpty()) })))
+                entry.put("tasks", JSONArray(engine.timeline(state, date, meal).map { t ->
+                    JSONObject().put("key", t.key).put("title", t.title).put("time", PlannerEngine.time(t.at)).put("done", t.key in state.done[key].orEmpty()) }))
+            }
+            meals.put(entry)
         }
         return JSONObject().put("today", today.toString()).put("timezone", PlannerEngine.zone.id)
             .put("date", state.date.toString()).put("meal", state.meal.value).put("screen", screen.name).put("recipe_id", recipeId ?: JSONObject.NULL)
@@ -74,6 +87,39 @@ object AssistantGateway {
                 if (pendingMenuChanges.isNotEmpty()) put("pending_menu_changes", menuChangesJson(pendingMenuChanges))
                 if (lastMenuChanges.isNotEmpty()) put("last_menu_changes", menuChangesJson(lastMenuChanges))
             }
+    }
+
+    /**
+     * Rebuild the planner state the snapshot describes, so agent proposals can be validated
+     * (and errors returned to the model) before they reach the ViewModel.
+     */
+    fun stateFrom(engine: PlannerEngine, context: JSONObject): PlannerState {
+        val meals = context.getJSONArray("meals")
+        val plans = mutableMapOf<String, List<String>>()
+        val checked = mutableMapOf<String, Set<String>>()
+        val done = mutableMapOf<String, Set<String>>()
+        val reminders = mutableSetOf<String>()
+        for (i in 0 until meals.length()) {
+            val entry = meals.getJSONObject(i)
+            val key = PlannerEngine.key(LocalDate.parse(entry.getString("date")), requireNotNull(Meal.from(entry.getString("meal"))))
+            plans[key] = entry.getJSONArray("recipes").let { ids -> (0 until ids.length()).map(ids::getString) }
+            if (entry.optBoolean("reminder")) reminders += key
+            entry.optJSONArray("ingredients")?.let { items ->
+                checked[key] = (0 until items.length()).map(items::getJSONObject).filter { it.optBoolean("checked") }.map { it.getString("key") }.toSet()
+            }
+            entry.optJSONArray("tasks")?.let { items ->
+                done[key] = (0 until items.length()).map(items::getJSONObject).filter { it.optBoolean("done") }.map { it.getString("key") }.toSet()
+            }
+        }
+        val timer = context.optJSONObject("timer")?.let {
+            CookingTimer(it.getLong("end"), it.getString("label"), LocalDate.parse(it.getString("date")), requireNotNull(Meal.from(it.getString("meal"))))
+        }
+        val favorites = context.optJSONArray("favorites")?.let { ids -> (0 until ids.length()).map(ids::getString).filter { it in engine.recipes }.toSet() }.orEmpty()
+        return PlannerState(
+            profile = FamilyProfile(people = context.getInt("people"), lunch = LocalTime.parse(context.getString("lunch")), dinner = LocalTime.parse(context.getString("dinner"))),
+            date = LocalDate.parse(context.getString("date")), meal = requireNotNull(Meal.from(context.getString("meal"))),
+            plans = plans, checked = checked, done = done, favorites = favorites, reminders = reminders, timer = timer,
+        )
     }
 
     private fun menuChangesJson(changes: List<AssistantAction>) = JSONArray(changes.map { action ->
@@ -98,23 +144,23 @@ object AssistantGateway {
         else -> "AI chưa sẵn sàng. Hãy thử lại hoặc tìm trong công thức có sẵn."
     }
 
+    /** Parse a serialized reply (`reply`, `actions`, optional `suggestions`); used by device tests. */
     internal fun parseReply(result: JSONObject): AssistantReply {
         val actions = result.getJSONArray("actions")
         val suggestions = if (result.has("suggestions")) result.getJSONArray("suggestions") else JSONArray()
-        require(actions.length() <= 8 && suggestions.length() <= 2)
+        require(actions.length() <= AssistantAction.MAX_ACTIONS && suggestions.length() <= 2)
         require(actions.length() == 0 || suggestions.length() == 0)
         return AssistantReply(
             result.getString("reply"),
             (0 until actions.length()).map { parseAction(actions.getJSONObject(it)) },
             (0 until suggestions.length()).map { index ->
                 val suggestion = suggestions.getJSONObject(index)
-                val id = suggestion.get("id") as? Int
-                require(id == index + 1)
+                require(wholeNumber(suggestion.get("id")) == index + 1)
                 val recipes = suggestion.getJSONArray("recipe_ids")
                 val pantry = suggestion.getJSONArray("pantry_keys")
                 require(recipes.length() == 3 && pantry.length() in 1..60)
                 AssistantMealSuggestion(
-                    id = requireNotNull(id),
+                    id = index + 1,
                     date = LocalDate.parse(suggestion.getString("date")),
                     meal = requireNotNull(Meal.from(suggestion.getString("meal"))),
                     recipeIds = (0 until recipes.length()).map { recipes.getString(it) },
@@ -124,30 +170,58 @@ object AssistantGateway {
         )
     }
 
-    fun parseAction(o: JSONObject): AssistantAction {
-        fun text(key: String) = if (!o.has(key) || o.isNull(key)) null else (o.get(key) as? String ?: error("Tham số chữ không hợp lệ"))
+    /** Fields each action type accepts besides type/date/meal. Required unless listed in [OPTIONAL_FIELDS]. */
+    val ACTION_FIELDS: Map<AssistantActionType, Set<String>> = mapOf(
+        AssistantActionType.navigate to setOf("screen"),
+        AssistantActionType.open_recipe to setOf("recipe_id"),
+        AssistantActionType.swap_recipe to setOf("recipe_id", "index"),
+        AssistantActionType.set_people to setOf("people"),
+        AssistantActionType.set_meal_time to setOf("time"),
+        AssistantActionType.set_reminder to setOf("enabled"),
+        AssistantActionType.start_timer to setOf("minutes", "label"),
+        AssistantActionType.cancel_timer to emptySet(),
+        AssistantActionType.set_ingredient to setOf("key", "enabled"),
+        AssistantActionType.set_task to setOf("key", "enabled"),
+        AssistantActionType.set_favorite to setOf("recipe_id", "enabled"),
+        AssistantActionType.select_meal to emptySet(),
+        AssistantActionType.open_sheet to setOf("option", "index"),
+        AssistantActionType.close_assistant to emptySet(),
+        AssistantActionType.share_shopping_list to setOf("option"),
+        AssistantActionType.add_to_calendar to emptySet(),
+        AssistantActionType.request_permission to setOf("option"),
+        AssistantActionType.set_family_name to setOf("name"),
+    )
+    private val OPTIONAL_FIELDS = mapOf(AssistantActionType.open_sheet to setOf("index"), AssistantActionType.share_shopping_list to setOf("option"))
+
+    /**
+     * Parse one action. Global actions and actions without an explicit target use the
+     * currently selected meal ([defaultDate], [defaultMeal]). Errors are in Vietnamese and
+     * precise enough to send back to the model for self-correction.
+     */
+    fun parseAction(o: JSONObject, defaultDate: LocalDate? = null, defaultMeal: Meal? = null): AssistantAction {
+        fun text(key: String) = if (!o.has(key) || o.isNull(key)) null else (o.get(key) as? String ?: throw IllegalArgumentException("$key phải là chuỗi."))
         fun number(key: String): Int? {
             if (!o.has(key) || o.isNull(key)) return null
-            return (o.get(key) as? Int) ?: error("Tham số số không hợp lệ")
+            return wholeNumber(o.get(key)) ?: throw IllegalArgumentException("$key phải là số nguyên.")
         }
-        val type = AssistantActionType.valueOf(o.getString("type"))
-        val fields = when (type) {
-            AssistantActionType.navigate -> setOf("screen")
-            AssistantActionType.open_recipe -> setOf("recipe_id")
-            AssistantActionType.swap_recipe -> setOf("recipe_id", "index")
-            AssistantActionType.set_people -> setOf("people")
-            AssistantActionType.set_meal_time -> setOf("time")
-            AssistantActionType.set_reminder -> setOf("enabled")
-            AssistantActionType.start_timer -> setOf("minutes", "label")
-            AssistantActionType.cancel_timer -> emptySet()
-            AssistantActionType.set_ingredient, AssistantActionType.set_task -> setOf("key", "enabled")
-            AssistantActionType.set_favorite -> setOf("recipe_id", "enabled")
-        }
-        require(o.keys().asSequence().all { it in fields + setOf("type", "date", "meal") || o.isNull(it) })
-        require(fields.all { o.has(it) && !o.isNull(it) })
-        return AssistantAction(type, MealPlanning.parseDay(o.getString("date")), requireNotNull(Meal.from(o.getString("meal"))),
-            text("screen")?.let(Screen::valueOf), text("recipe_id"), number("index"), number("people"), text("time")?.let { require(Regex("([01][0-9]|2[0-3]):[0-5][0-9]").matches(it)); LocalTime.parse(it) },
-            if (o.has("enabled") && !o.isNull("enabled")) o.get("enabled") as? Boolean ?: error("Trạng thái không hợp lệ") else null,
-            number("minutes"), text("label"), text("key"))
+        val typeName = o.optString("type")
+        val type = AssistantActionType.entries.firstOrNull { it.name == typeName }
+            ?: throw IllegalArgumentException("Không có loại thao tác \"$typeName\".")
+        val fields = ACTION_FIELDS.getValue(type)
+        val unknown = o.keys().asSequence().filter { it !in fields + setOf("type", "date", "meal") && !o.isNull(it) }.toList()
+        require(unknown.isEmpty()) { "Thao tác $typeName không nhận tham số ${unknown.joinToString()}." }
+        val missing = (fields - OPTIONAL_FIELDS[type].orEmpty()).filter { !o.has(it) || o.isNull(it) }
+        require(missing.isEmpty()) { "Thao tác $typeName thiếu tham số ${missing.joinToString()}." }
+        val date = text("date")?.let(MealPlanning::parseDay) ?: requireNotNull(defaultDate) { "Thao tác $typeName thiếu date." }
+        val meal = text("meal")?.let { requireNotNull(Meal.from(it)) { "meal phải là lunch hoặc dinner." } }
+            ?: requireNotNull(defaultMeal) { "Thao tác $typeName thiếu meal." }
+        return AssistantAction(type, date, meal,
+            text("screen")?.let { name -> Screen.entries.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Không có màn hình $name.") },
+            text("recipe_id"), number("index"), number("people"),
+            text("time")?.let { require(Regex("([01][0-9]|2[0-3]):[0-5][0-9]").matches(it)) { "time phải có dạng HH:mm." }; LocalTime.parse(it) },
+            if (o.has("enabled") && !o.isNull("enabled")) o.get("enabled") as? Boolean ?: throw IllegalArgumentException("enabled phải là true/false.") else null,
+            number("minutes"), text("label"), text("key"),
+            text("option") ?: if (type == AssistantActionType.share_shopping_list) "meal" else null,
+            text("name"))
     }
 }

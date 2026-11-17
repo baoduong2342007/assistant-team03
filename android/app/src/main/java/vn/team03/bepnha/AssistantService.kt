@@ -3,10 +3,21 @@ package vn.team03.bepnha
 import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 
-data class AssistantToolCall(val name: String, val arguments: JSONObject)
+data class AssistantToolCall(val name: String, val arguments: JSONObject, val id: String? = null)
 data class AssistantModelReply(val text: String? = null, val calls: List<AssistantToolCall> = emptyList())
-fun interface AssistantProvider { suspend fun generate(payload: JSONObject): AssistantModelReply }
+data class AssistantToolResult(val call: AssistantToolCall, val result: JSONObject)
+
+/** One model conversation for one user turn. The first [send] carries no results. */
+fun interface AssistantSession { suspend fun send(results: List<AssistantToolResult>): AssistantModelReply }
+fun interface AssistantProvider {
+    fun open(payload: JSONObject): AssistantSession
+    companion object {
+        /** A provider whose every model call is answered by [block] (handy for fakes and tests). */
+        fun reply(block: suspend (List<AssistantToolResult>) -> AssistantModelReply) = AssistantProvider { AssistantSession { block(it) } }
+    }
+}
 
 enum class AssistantFailureKind(val localFallback: Boolean, val explanation: String) {
     UNCONFIGURED(true, "AI chưa được kết nối. Đang dùng trợ lý trên máy."),
@@ -20,63 +31,203 @@ enum class AssistantFailureKind(val localFallback: Boolean, val explanation: Str
 }
 class AssistantFailure(val kind: AssistantFailureKind) : IllegalStateException(kind.explanation)
 
-/** One turn: scope -> provider/local -> semantic validation. Never commits planner state. */
-class AssistantService(private val engine: PlannerEngine, private val provider: AssistantProvider?) {
+/**
+ * One user turn as a small agent loop: the model may read app data with tools, then end with
+ * one proposal. Proposals are validated against the snapshot; errors go back to the model so it
+ * can correct itself. Never commits planner state — the ViewModel applies by risk level.
+ */
+class AssistantService(
+    private val engine: PlannerEngine,
+    private val provider: AssistantProvider?,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+    companion object {
+        const val MAX_MODEL_CALLS = 4
+        const val MAX_CALLS_PER_REPLY = 6
+        const val GAVE_UP = "Mình chưa làm được yêu cầu này. Bạn nói rõ hơn ngày, bữa hoặc món giúp mình nhé."
+        const val UNSURE = "Mình chưa chắc đã hiểu đúng món bạn muốn đổi hay giữ. Bạn nói lại giúp mình món và bữa nhé."
+    }
     private val rules = MealPlanning(engine.recipes)
+    private val commands = AssistantCommands(engine)
+    private val reads = AgentReadTools(engine, rules)
+    private val planner = MealPlanner(engine)
 
     suspend fun ask(question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
         require(question.isNotBlank() && question.length <= 1000 && context.toString().length <= 100_000)
         val recent = history.takeLast(20)
-        val scope = rules.scope(question, context, rules.previousQuestion(recent))
-        rules.clarification(question, recent, context, scope)?.let { return AssistantReply(it, emptyList(), source = AssistantSource.LOCAL) }
         if (MealPlanning.isComparison(question)) compare(context)?.let { return it }
-        val payload = JSONObject().put("question", question).put("context", context)
-            .put("history", JSONArray(recent.map { JSONObject().put("role", it.role).put("text", it.text) }))
-            .put("catalog", catalog())
-            .put("menu_scope", JSONObject().put("date", scope.day?.toString() ?: JSONObject.NULL)
-                .put("meal", scope.meal?.value ?: JSONObject.NULL).put("clarification", scope.clarification ?: JSONObject.NULL))
-        val answer = try {
-            val response = (provider ?: throw AssistantFailure(AssistantFailureKind.UNCONFIGURED)).generate(payload)
-            decode(response, question, recent, context, scope)
+        if (provider == null) return localTurn(question, recent, context, AssistantFailureKind.UNCONFIGURED)
+        return try {
+            agent(provider, question, recent, context)
         } catch (e: CancellationException) { throw e
         } catch (e: AssistantFailure) {
             if (!e.kind.localFallback) throw e
-            local(question, recent, context, scope).copy(source = AssistantSource.LOCAL, notice = e.kind.explanation)
+            localTurn(question, recent, context, e.kind)
         } catch (_: IllegalArgumentException) { throw AssistantFailure(AssistantFailureKind.INVALID)
         } catch (_: IllegalStateException) { throw AssistantFailure(AssistantFailureKind.INVALID)
         } catch (_: org.json.JSONException) { throw AssistantFailure(AssistantFailureKind.INVALID) }
-        try { validate(answer, question, recent, context, scope) }
-        catch (_: RuntimeException) { throw AssistantFailure(AssistantFailureKind.INVALID) }
-        return if (answer.actions.any { it.mutates }) answer.copy(text = "Mình đề xuất các thao tác sau.") else answer
     }
 
-    internal fun decode(response: AssistantModelReply, question: String, history: List<AssistantChatMessage>, context: JSONObject, scope: MenuScope): AssistantReply {
-        require(response.calls.size <= 1)
-        if (response.calls.isEmpty()) return AssistantReply(requireNotNull(response.text).also { require(it.isNotBlank() && it.length <= 8000) }, emptyList())
-        val call = response.calls.single(); val args = call.arguments
-        return when (call.name) {
-            "propose_actions" -> {
-                require(args.keys().asSequence().all { it in setOf("reply", "actions") })
-                val text = args.strictText("reply", 8000, allowEmpty = true)
-                val actions = args.getJSONArray("actions"); require(actions.length() <= 8)
-                AssistantReply(text, (0 until actions.length()).map { AssistantGateway.parseAction(actions.getJSONObject(it)) })
+    private fun localTurn(question: String, history: List<AssistantChatMessage>, context: JSONObject, kind: AssistantFailureKind): AssistantReply {
+        val scope = rules.scope(question, context, rules.previousQuestion(history))
+        val reply = rules.clarification(question, history, context, scope)?.let { AssistantReply(it, emptyList()) }
+            ?: local(question, history, context, scope)
+        return reply.copy(source = AssistantSource.LOCAL, notice = kind.explanation)
+    }
+
+    private sealed interface Outcome {
+        data class Done(val reply: AssistantReply) : Outcome
+        data class Retry(val error: String, val advisory: Boolean = false) : Outcome
+    }
+
+    private suspend fun agent(provider: AssistantProvider, question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
+        val state = AssistantGateway.stateFrom(engine, context)
+        val today = MealPlanning.parseDay(context.getString("today"))
+        val scope = runCatching { rules.scope(question, context, rules.previousQuestion(history)) }.getOrDefault(MenuScope())
+        val payload = JSONObject().put("question", question).put("context", context)
+            .put("history", JSONArray(history.map { JSONObject().put("role", it.role).put("text", it.text) }))
+            .put("catalog", AgentTools.catalogIndex(engine))
+            // A hint only: the agent may plan several meals; it asks when the target is unclear.
+            .put("menu_scope", JSONObject().put("date", scope.day?.toString() ?: JSONObject.NULL)
+                .put("meal", scope.meal?.value ?: JSONObject.NULL).put("clarification", scope.clarification ?: JSONObject.NULL))
+        val session = provider.open(payload)
+        var results = emptyList<AssistantToolResult>()
+        var advised = false
+        repeat(MAX_MODEL_CALLS) {
+            val reply = session.send(results)
+            if (reply.calls.isEmpty()) {
+                val text = reply.text?.trim().orEmpty()
+                if (text.isEmpty() || text.length > 8000) throw AssistantFailure(AssistantFailureKind.INVALID)
+                return AssistantReply(text, emptyList())
             }
-            "suggest_meals" -> {
-                require(args.keys().asSequence().all { it in setOf("date", "meal", "pantry_items", "exclude_ingredients", "pantry_only") })
-                checkTarget(MealPlanning.parseDay(args.strictText("date")), requireNotNull(Meal.from(args.strictText("meal"))), context, scope)
-                val terms = args.stringList("pantry_items", 1, 30)
-                val excluded = if (args.has("exclude_ingredients")) args.stringList("exclude_ingredients", 0, 30) else emptyList()
-                val only = if (args.has("pantry_only")) args.get("pantry_only") as? Boolean ?: error("Expected boolean") else false
-                val messages = userMessages(question, history, context)
-                val grounded = rules.constraints(messages)
-                // Constraints from the user's words are authoritative over model omissions.
-                val pantry = rules.pantryNames(terms, messages)
-                if (excluded.any { rules.ingredientNames(listOf(it)).isEmpty() } || grounded.unknownExclusion)
-                    return AssistantReply("Mình chưa đối chiếu được nguyên liệu cần tránh với kho công thức. Bạn cho mình tên cụ thể nhé.", emptyList())
-                suggest(scope, PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only))
+            if (reply.calls.size > MAX_CALLS_PER_REPLY) throw AssistantFailure(AssistantFailureKind.INVALID)
+            val terminal = reply.calls.filter { it.name in AgentTools.terminal }
+            val outcome = if (terminal.isEmpty()) null else finish(terminal, question, history, context, state, today, advised)
+            if (outcome is Outcome.Done) return outcome.reply
+            val retry = outcome as Outcome.Retry?
+            advised = advised || retry?.advisory == true
+            // Every call needs a response: reads return data, terminal calls return the error to fix.
+            results = reply.calls.map { call ->
+                AssistantToolResult(call, if (call.name in AgentTools.terminal) JSONObject().put("error", retry?.error) else read(call, state, today))
             }
-            else -> throw AssistantFailure(AssistantFailureKind.INVALID)
         }
+        return AssistantReply(GAVE_UP, emptyList())
+    }
+
+    private fun read(call: AssistantToolCall, state: PlannerState, today: LocalDate): JSONObject = try {
+        reads.run(call.name, call.arguments, state, today)
+    } catch (e: RuntimeException) {
+        if (e is CancellationException) throw e
+        JSONObject().put("error", e.message ?: "Tham số không hợp lệ.")
+    }
+
+    private fun finish(
+        calls: List<AssistantToolCall>, question: String, history: List<AssistantChatMessage>, context: JSONObject,
+        state: PlannerState, today: LocalDate, advised: Boolean,
+    ): Outcome = try {
+        if (calls.any { it.name == "suggest_meals" }) {
+            if (calls.size != 1) Outcome.Retry("suggest_meals phải được gọi riêng, không kèm propose_actions hoặc plan_meals.")
+            else Outcome.Done(suggestFromTool(calls.single().arguments, question, history, context))
+        } else {
+            val texts = mutableListOf<String>()
+            val actions = mutableListOf<AssistantAction>()
+            for (call in calls) {
+                val args = call.arguments
+                args.optString("reply").takeIf { it.isNotBlank() }?.let { texts += it.trim().take(2000) }
+                if (call.name == "propose_actions") {
+                    val unknown = args.keys().asSequence().filter { it !in setOf("reply", "actions") }.toList()
+                    require(unknown.isEmpty()) { "propose_actions không nhận tham số ${unknown.joinToString()}." }
+                    val list = args.getJSONArray("actions")
+                    actions += (0 until list.length()).map { i ->
+                        try { AssistantGateway.parseAction(list.getJSONObject(i), state.date, state.meal) }
+                        catch (e: IllegalArgumentException) { throw IllegalArgumentException("Thao tác thứ ${i + 1}: ${e.message}") }
+                    }
+                } else actions += planMeals(args, question, history, state, today)
+            }
+            val proposal = commands.proposal(state, actions, today, clock())
+            val advice = advise(actions, question, history)
+            when {
+                advice != null && advised -> Outcome.Done(AssistantReply(UNSURE, emptyList()))
+                advice != null -> Outcome.Retry(advice, advisory = true)
+                actions.isNotEmpty() && proposal.actions.isEmpty() || actions.isEmpty() && calls.any { it.name == "plan_meals" } ->
+                    Outcome.Done(AssistantReply("Các món đã khớp với thực đơn đang dùng.", emptyList()))
+                actions.isEmpty() -> Outcome.Done(AssistantReply(texts.joinToString(" ").ifBlank { GAVE_UP }, emptyList()))
+                else -> Outcome.Done(AssistantReply(
+                    texts.joinToString(" ").ifBlank { if (proposal.needsConfirmation) "Mình đề xuất các thay đổi sau." else "Mình làm ngay cho bạn nhé." },
+                    actions, recipeIds = actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }))
+            }
+        }
+    } catch (e: MealPlanner.NoMealFits) {
+        Outcome.Done(AssistantReply("${e.message} Bạn muốn nới điều kiện nào không?", emptyList()))
+    } catch (e: IllegalArgumentException) {
+        Outcome.Retry(e.message ?: "Tham số không hợp lệ.")
+    } catch (e: org.json.JSONException) {
+        Outcome.Retry("Tham số không đúng cấu trúc: ${e.message}")
+    }
+
+    private fun planMeals(args: JSONObject, question: String, history: List<AssistantChatMessage>, state: PlannerState, today: LocalDate): List<AssistantAction> {
+        val allowed = setOf("from", "to", "meals", "avoid_ingredients", "prefer_ingredients", "max_minutes", "max_cost", "reply")
+        val unknown = args.keys().asSequence().filter { it !in allowed }.toList()
+        require(unknown.isEmpty()) { "plan_meals không nhận tham số ${unknown.joinToString()}." }
+        val from = requireNotNull(args.optDate("from")) { "plan_meals thiếu from." }
+        val to = requireNotNull(args.optDate("to")) { "plan_meals thiếu to." }
+        val last = today.plusDays(6)
+        require(from in today..last && to in from..last) { "from/to phải nằm trong $today..$last và from ≤ to." }
+        val meals = args.optStrings("meals").map { requireNotNull(Meal.from(it)) { "meals chỉ gồm lunch, dinner." } }.ifEmpty { Meal.entries }
+        val avoidTerms = args.optStrings("avoid_ingredients")
+        val unknownAvoid = avoidTerms.filter { rules.ingredientNames(listOf(it)).isEmpty() }
+        require(unknownAvoid.isEmpty()) { "Không có nguyên liệu ${unknownAvoid.joinToString()} trong kho; dùng tên nguyên liệu có trong công thức hoặc hỏi lại người dùng." }
+        // The user's own words are authoritative over model omissions.
+        val grounded = rules.constraints(userMessages(question, history, JSONObject()))
+        val constraints = PlanConstraints(
+            avoid = rules.ingredientNames(avoidTerms) + grounded.excluded,
+            prefer = rules.ingredientNames(args.optStrings("prefer_ingredients")) + grounded.pantry,
+            maxMinutes = args.optPositiveInt("max_minutes"), maxCost = args.optPositiveInt("max_cost")?.toLong(),
+        )
+        val targets = generateSequence(from) { it.plusDays(1) }.takeWhile { it <= to }.flatMap { day -> meals.map { day to it } }.toList()
+        return planner.plan(state, targets, constraints).flatMap { planned ->
+            commands.swapsTo(state.plans.getValue(PlannerEngine.key(planned.date, planned.meal)), planned.recipeIds, planned.date, planned.meal)
+        }
+    }
+
+    /** High-precision checks on the user's own words, sent back once as advice to the model. */
+    private fun advise(actions: List<AssistantAction>, question: String, history: List<AssistantChatMessage>): String? {
+        val swaps = actions.filter { it.type == AssistantActionType.swap_recipe }
+        if (swaps.isEmpty() || swaps.map { it.date to it.meal }.distinct().size != 1) return null
+        val request = "${rules.previousQuestion(history)} $question"
+        val text = MealPlanning.normalize(request)
+        fun slot(index: Int?) = RecipeKind.entries[requireNotNull(index)].label.lowercase()
+        val kept = rules.namedSlots(request, "giu(?: nguyen)?|(?:dung|khong|khoi) (?:doi|thay)")
+        swaps.firstOrNull { it.index in kept }?.let { return "Người dùng muốn giữ nguyên ${slot(it.index)}. Chỉ đổi vị trí họ yêu cầu." }
+        if (kept.isEmpty() && Regex("""\b(?:dung|khong|khoi) (?:doi|thay)\b""").containsMatchIn(text))
+            return "Người dùng nói không muốn đổi. Đừng đề xuất đổi món; hãy hỏi lại bằng văn bản."
+        val named = rules.requestedRecipes(request)
+        for ((index, id) in named) swaps.firstOrNull { it.index == index && it.recipeId != id }?.let {
+            return "Người dùng nêu rõ món ${engine.recipes[id]?.name} (recipe_id=$id) cho ${slot(index)}."
+        }
+        val wanted = rules.namedSlots(request, "(?<!dung )(?<!khong )(?<!khoi )(?:doi|thay)")
+        if (wanted.isNotEmpty()) swaps.firstOrNull { it.index !in wanted && named[it.index] == null }?.let {
+            return "Người dùng chỉ yêu cầu đổi ${wanted.joinToString { index -> slot(index) }}; không đổi ${slot(it.index)}."
+        }
+        return null
+    }
+
+    private fun suggestFromTool(args: JSONObject, question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
+        val unknown = args.keys().asSequence().filter { it !in setOf("date", "meal", "pantry_items", "exclude_ingredients", "pantry_only") }.toList()
+        require(unknown.isEmpty()) { "suggest_meals không nhận tham số ${unknown.joinToString()}." }
+        val day = MealPlanning.parseDay(args.strictText("date"))
+        val meal = requireNotNull(Meal.from(args.strictText("meal"))) { "meal phải là lunch hoặc dinner." }
+        checkTarget(day, meal, context)
+        val terms = args.stringList("pantry_items", 1, 30)
+        val excluded = if (args.has("exclude_ingredients")) args.stringList("exclude_ingredients", 0, 30) else emptyList()
+        val only = if (args.has("pantry_only")) args.get("pantry_only") as? Boolean ?: throw IllegalArgumentException("pantry_only phải là true/false.") else false
+        val messages = userMessages(question, history, context)
+        val grounded = rules.constraints(messages)
+        // Constraints from the user's words are authoritative over model omissions.
+        val pantry = rules.pantryNames(terms, messages)
+        if (excluded.any { rules.ingredientNames(listOf(it)).isEmpty() } || grounded.unknownExclusion)
+            return AssistantReply("Mình chưa đối chiếu được nguyên liệu cần tránh với kho công thức. Bạn cho mình tên cụ thể nhé.", emptyList())
+        return suggest(MenuScope(day, meal), PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only))
     }
 
     private fun userMessages(question: String, history: List<AssistantChatMessage>, context: JSONObject): List<String> {
@@ -115,7 +266,7 @@ class AssistantService(private val engine: PlannerEngine, private val provider: 
             // A local parser only proposes unambiguous positive requests.
             if (Regex("""\b(?:dung|khong|khoi) (?:doi|thay|muon)\b""").containsMatchIn(text))
                 return AssistantReply("Mình giữ nguyên thực đơn. Bạn muốn chỉnh món nào khác?", emptyList())
-            if (extraIntents.values.any { Regex("\\b(?:$it)\\b").containsMatchIn(text) })
+            if (localExtraIntents.any { Regex("\\b(?:$it)\\b").containsMatchIn(text) })
                 return AssistantReply("Yêu cầu này có thêm thao tác ngoài đổi món mà trợ lý trên máy chưa xử lý chắc chắn. Bạn hãy tách yêu cầu hoặc dùng các màn hình của ứng dụng.", emptyList())
             return AssistantReply("Mình đề xuất các thao tác sau.", named.map { (index, id) ->
                 AssistantAction(AssistantActionType.swap_recipe, requireNotNull(scope.day), requireNotNull(scope.meal), recipeId = id, index = index)
@@ -132,64 +283,18 @@ class AssistantService(private val engine: PlannerEngine, private val provider: 
             } else focused.steps.mapIndexed { i, step -> "${i + 1}. $step" }.joinToString("\n\n")
             return AssistantReply("${focused.name}\n\n$answer", emptyList(), recipeIds = listOf(focused.id))
         }
-        // Other mutations require the online interpreter or explicit app controls.
+        // Other mutations require the online agent or explicit app controls.
         if (Regex("""\b(?:nhac|hen gio|dong ho|khau phan|nguoi|danh dau|da mua|da xong|luu mon|mo)\b""").containsMatchIn(text))
             return AssistantReply("Trợ lý trên máy chưa xử lý chắc chắn thao tác này. Bạn có thể mở Thực đơn, Đi chợ, Vào bếp hoặc Gia đình để thao tác trực tiếp.", emptyList())
-        val plans = context.getJSONArray("meals")
-        val planMap = (0 until plans.length()).associate { i ->
-            val meal = plans.getJSONObject(i)
-            PlannerEngine.key(MealPlanning.parseDay(meal.getString("date")), requireNotNull(Meal.from(meal.getString("meal")))) to meal.stringList("recipes", 3, 3)
-        }
-        val state = PlannerState(date = MealPlanning.parseDay(context.getString("date")), meal = requireNotNull(Meal.from(context.getString("meal"))),
-            profile = FamilyProfile(people = context.getInt("people"), lunch = java.time.LocalTime.parse(context.getString("lunch")), dinner = java.time.LocalTime.parse(context.getString("dinner"))), plans = planMap)
-        val answer = engine.answer(question, state)
+        val answer = engine.answer(question, AssistantGateway.stateFrom(engine, context))
         return AssistantReply(answer.text, emptyList(), recipeIds = answer.recipes)
     }
 
-    internal fun validate(answer: AssistantReply, question: String, history: List<AssistantChatMessage>, context: JSONObject, scope: MenuScope) {
-        require(answer.actions.size <= 8 && answer.suggestions.size <= 2 && (answer.actions.isEmpty() || answer.suggestions.isEmpty()))
-        val swaps = answer.actions.filter { it.type == AssistantActionType.swap_recipe }
-        require(swaps.map { Triple(it.date, it.meal, it.index) }.distinct().size == swaps.size)
-        val request = "${rules.previousQuestion(history)} $question"
-        var wanted = rules.namedSlots(request, "(?<!dung )(?<!khong )(?<!khoi )(?:doi|thay)")
-        if (history.lastOrNull()?.text == MealPlanning.DISH_QUESTION) wanted = wanted.ifEmpty { rules.namedSlots("doi $question", "doi") }
-        val kept = rules.namedSlots(request, "giu(?: nguyen)?|(?:dung|khong|khoi) (?:doi|thay)")
-        val named = rules.requestedRecipes(request)
-        wanted = wanted.ifEmpty { named.keys }
-        if (wanted.isEmpty() && MealPlanning.dishReference.containsMatchIn(MealPlanning.normalize(request))) wanted = setOfNotNull(rules.referencedSlot(context, scope))
-        for (action in answer.actions) {
-            checkTarget(action.date, action.meal, context, scope)
-            if (action.recipeId != null) require(action.recipeId in engine.recipes)
-            if (action.type == AssistantActionType.swap_recipe) {
-                require(Regex("""\b(?:doi|thay|muon an|muon nau)\b""").containsMatchIn(MealPlanning.normalize(request)))
-                if (wanted.isEmpty()) require(!Regex("""\b(?:dung|khong|khoi) (?:doi|thay)\b""").containsMatchIn(MealPlanning.normalize(request)))
-                val index = requireNotNull(action.index); require(index in 0..2)
-                require(engine.recipes.getValue(requireNotNull(action.recipeId)).kind.ordinal == index)
-                require(index !in kept && (wanted.isEmpty() || index in wanted))
-                require(named[index] == null || named[index] == action.recipeId)
-            }
-            if (action.type == AssistantActionType.set_people) require(action.people in 1..12)
-            if (action.type == AssistantActionType.start_timer) require(action.minutes in 1..180 && !action.label.isNullOrBlank() && action.label.length <= 200)
-            extraIntents[action.type]?.let { require(Regex("\\b(?:$it)\\b").containsMatchIn(MealPlanning.normalize(request))) }
-        }
-        if (swaps.isNotEmpty()) require((named.keys - swaps.mapNotNull { it.index }.toSet()).isEmpty())
-        answer.suggestions.forEachIndexed { index, item ->
-            require(item.id == index + 1 && engine.validPlan(item.recipeIds))
-            checkTarget(item.date, item.meal, context, scope)
-            val keys = engine.ingredients(item.recipeIds.map(engine.recipes::getValue), context.getInt("people")).map { it.key }.toSet()
-            require(item.pantryKeys.isNotEmpty() && keys.containsAll(item.pantryKeys))
-        }
-    }
-
-    private fun checkTarget(day: java.time.LocalDate, meal: Meal, context: JSONObject, scope: MenuScope?) {
+    private fun checkTarget(day: LocalDate, meal: Meal, context: JSONObject) {
         val today = MealPlanning.parseDay(context.getString("today"))
-        require(day in today..today.plusDays(6))
+        require(day in today..today.plusDays(6)) { "Ngày $day nằm ngoài thực đơn bảy ngày." }
         val meals = context.getJSONArray("meals")
-        require((0 until meals.length()).any { meals.getJSONObject(it).let { entry -> entry.getString("date") == day.toString() && entry.getString("meal") == meal.value } })
-        if (scope != null) {
-            require(scope.clarification == null)
-            require(scope.day == null || scope.day == day); require(scope.meal == null || scope.meal == meal)
-        }
+        require((0 until meals.length()).any { meals.getJSONObject(it).let { entry -> entry.getString("date") == day.toString() && entry.getString("meal") == meal.value } }) { "Không tìm thấy bữa ăn." }
     }
 
     private fun compare(context: JSONObject): AssistantReply? {
@@ -203,25 +308,18 @@ class AssistantService(private val engine: PlannerEngine, private val provider: 
         return AssistantReply(text, emptyList(), source = AssistantSource.LOCAL)
     }
 
-    private fun catalog() = JSONArray(engine.recipes.values.map { recipe ->
-        JSONObject().put("id", recipe.id).put("name", recipe.name).put("kind", listOf("main", "soup", "veg")[recipe.kind.ordinal])
-            .put("minutes", recipe.minutes).put("cost", recipe.cost).put("steps", JSONArray(recipe.steps)).put("tip", recipe.tip)
-            .put("ingredients", JSONArray(recipe.ingredients.map { JSONObject().put("name", it.name).put("amount", it.amount).put("unit", it.unit).put("group", it.group) }))
-    })
-
-    private val extraIntents = mapOf(
-        AssistantActionType.set_people to "khau phan|so nguoi|(?:\\d+|mot|hai|ba|bon|nam|sau|bay|tam|chin|muoi) nguoi",
-        AssistantActionType.set_meal_time to "gio an|an luc|an vao", AssistantActionType.set_reminder to "nhac|bao thuc|thong bao",
-        AssistantActionType.start_timer to "hen gio|dong ho|dem nguoc", AssistantActionType.cancel_timer to "hen gio|dong ho|dem nguoc",
-        AssistantActionType.set_ingredient to "da mua|da co|danh dau|tich|nguyen lieu", AssistantActionType.set_task to "da xong|hoan thanh|danh dau|tich|buoc nau",
-        AssistantActionType.set_favorite to "luu|yeu thich",
+    /** Requests the local parser must not silently drop when it only understands the dish swap. */
+    private val localExtraIntents = listOf(
+        "khau phan|so nguoi|(?:\\d+|mot|hai|ba|bon|nam|sau|bay|tam|chin|muoi) nguoi",
+        "gio an|an luc|an vao", "nhac|bao thuc|thong bao", "hen gio|dong ho|dem nguoc",
+        "da mua|da co|danh dau|tich|nguyen lieu", "da xong|hoan thanh|buoc nau", "luu|yeu thich",
     )
 }
 
 internal fun JSONObject.strictText(key: String, limit: Int = 100, allowEmpty: Boolean = false): String =
-    (get(key) as? String ?: throw AssistantFailure(AssistantFailureKind.INVALID)).also { require((allowEmpty || it.isNotBlank()) && it.length <= limit) }
+    (get(key) as? String ?: throw IllegalArgumentException("$key phải là chuỗi.")).also { require((allowEmpty || it.isNotBlank()) && it.length <= limit) { "$key không hợp lệ." } }
 
 internal fun JSONObject.stringList(key: String, min: Int, max: Int): List<String> {
-    val list = getJSONArray(key); require(list.length() in min..max)
-    return (0 until list.length()).map { (list.get(it) as? String ?: throw AssistantFailure(AssistantFailureKind.INVALID)).also { item -> require(item.isNotBlank() && item.length <= 100) } }
+    val list = getJSONArray(key); require(list.length() in min..max) { "$key cần từ $min đến $max mục." }
+    return (0 until list.length()).map { (list.get(it) as? String ?: throw IllegalArgumentException("$key chỉ gồm chuỗi.")).also { item -> require(item.isNotBlank() && item.length <= 100) } }
 }

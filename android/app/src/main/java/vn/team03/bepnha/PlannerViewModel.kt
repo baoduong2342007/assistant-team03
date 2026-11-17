@@ -65,6 +65,12 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     internal var assistantTransport: suspend (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply = assistantService::ask
     private val commands = AssistantCommands(engine)
     private val updates = Channel<Pair<PlannerState, String?>>(Channel.UNLIMITED)
+    private val undo = AssistantUndo()
+    /** Reads [state], so it recomposes whenever the data the last change left behind is edited. */
+    val canUndoAssistant get() = undo.canUndo(state)
+    /** One pending Activity-side effect (share sheet, calendar, permission screen); see [consumeEffect]. */
+    var effect by mutableStateOf<PlannerEffect?>(null); private set
+    fun consumeEffect(shown: PlannerEffect) { if (effect == shown) effect = null }
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -201,6 +207,12 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun askAssistant(question: String = assistantQuestion) {
         if (question.isBlank() || assistantBusy || assistantProposal != null || !assistantVisible) return
         val prompt = question.trim().take(1000)
+        if (undoPhrase.matches(PlannerEngine.normalize(prompt).trimEnd('.', '?', '!'))) {
+            assistantHistory = assistantHistory + AssistantChatMessage("user", prompt)
+            assistantQuestion = ""
+            undoAssistant()
+            return
+        }
         val choice = mealChoice.matchEntire(PlannerEngine.normalize(prompt).trimEnd('.', '?', '!'))
         if (choice != null) {
             val option = choice.groupValues[1]
@@ -281,15 +293,17 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 assistantHistory = assistantHistory + AssistantChatMessage("assistant", replyText.take(8000),
                     (reply.recipeIds + proposal.actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }).distinct(),
                     id = responseId, source = reply.source, notice = reply.notice)
-                if (proposal.actions.any { it.mutates }) {
+                if (proposal.needsConfirmation) {
                     offeredMeals = null
                     revisingProposal = null
                     assistantProposal = proposal
                 } else {
-                    // The response is complete before navigation/actions can invalidate the turn.
+                    // READ and LOW actions run now (LOW can be undone). The response is complete
+                    // before navigation/actions can invalidate the turn.
                     activeTurn = null
                     assistantBusy = false
-                    executeAssistantActions(proposal.actions, turn.base)
+                    if (proposal.actions.any { it.mutates }) revisingProposal = null
+                    executeAssistantActions(proposal, confirmed = false)
                 }
             } catch (exception: CancellationException) {
                 throw exception
@@ -352,19 +366,62 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         assistantProposal = null
         try {
             require(state == proposal.base) { "Dữ liệu đã thay đổi. Hãy gửi lại câu hỏi để xem đề xuất mới." }
-            executeAssistantActions(proposal.actions, proposal.base)
+            executeAssistantActions(proposal, confirmed = true)
             if (proposal.canReviseMenu) lastMenuChanges = proposal.actions
         } catch (exception: Exception) {
             if (assistantQuestion.isBlank()) assistantQuestion = assistantHistory.lastOrNull { it.role == "user" }?.text.orEmpty()
             assistantError = exception.message ?: "Không thể thực hiện thao tác."
         }
     }
-    private fun executeAssistantActions(actions: List<AssistantAction>, base: PlannerState) {
+
+    /** Remove one meal's dish swaps from the open proposal (the user keeps that meal as it is). */
+    fun dropProposalMeal(date: LocalDate, meal: Meal) {
+        val proposal = assistantProposal ?: return
+        val remaining = proposal.actions.filterNot { it.type == AssistantActionType.swap_recipe && it.date == date && it.meal == meal }
+        if (remaining.isEmpty()) { cancelAssistantProposal(); return }
+        assistantProposal = commands.proposal(proposal.base, remaining, today, System.currentTimeMillis())
+    }
+
+    /** Dish swaps of the open proposal grouped by meal, in day order, for a short readable preview. */
+    fun proposalMeals(): List<ProposalMealUi> {
+        val proposal = assistantProposal ?: return emptyList()
+        return proposal.actions.filter { it.type == AssistantActionType.swap_recipe }
+            .groupBy { it.date to it.meal }.toSortedMap(compareBy({ it.first }, { it.second.ordinal }))
+            .map { (target, swaps) ->
+                ProposalMealUi(target.first, target.second, "${target.second.title} · ${PlannerEngine.fullDate(target.first)}",
+                    swaps.sortedBy { it.index }.map { commands.swapLine(proposal.base, it) })
+            }
+    }
+    /** Descriptions of the non-swap actions in the open proposal. */
+    fun proposalOther(): List<String> {
+        val proposal = assistantProposal ?: return emptyList()
+        return proposal.actions.zip(proposal.descriptions).filter { it.first.type != AssistantActionType.swap_recipe }.map { it.second }
+    }
+
+    fun undoAssistant() {
+        val change = undo.pop(state)
+        if (change == null) {
+            assistantHistory = assistantHistory + AssistantChatMessage("assistant",
+                "Không còn thay đổi nào của trợ lý để hoàn tác, hoặc dữ liệu đã được chỉnh tay sau đó.", source = AssistantSource.SYSTEM)
+            return
+        }
+        update(change.before, "Đã hoàn tác: ${change.label}")
+    }
+
+    private fun executeAssistantActions(proposal: AssistantProposal, confirmed: Boolean) {
+        val actions = proposal.actions
+        val base = proposal.base
         var next = base
         actions.forEach { next = commands.apply(next, it, today, System.currentTimeMillis()) }
-        if (actions.any { it.mutates }) {
-            update(next, "Đã lưu và áp dụng các thay đổi đã xác nhận." +
-                if ((!notifications || !exactAlarms) && actions.any { it.type in setOf(AssistantActionType.set_reminder, AssistantActionType.start_timer) }) " Hãy mở Nhắc nấu để kiểm tra quyền thông báo và nhắc đúng giờ." else "")
+        if (actions.any { it.mutates } && next != base) {
+            val label = actions.zip(proposal.descriptions).filter { it.first.mutates }
+                .joinToString("; ") { it.second.substringAfter('\n').trimEnd('.') }
+            val permissions = if ((!notifications || !exactAlarms) && actions.any { it.type in setOf(AssistantActionType.set_reminder, AssistantActionType.start_timer) })
+                " Hãy mở Nhắc nấu để kiểm tra quyền thông báo và nhắc đúng giờ." else ""
+            val outcome = if (confirmed) "Đã lưu và áp dụng các thay đổi đã xác nhận.$permissions Bạn có thể bấm Hoàn tác nếu muốn trả lại."
+                else "Đã làm: $label.$permissions Bấm Hoàn tác hoặc nói “hoàn tác” nếu muốn trả lại."
+            undo.push(AssistantChange(base, next, label))
+            update(next, outcome)
         }
         actions.forEach { action ->
             when (action.type) {
@@ -375,6 +432,17 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                     update(state.copy(date = action.date, meal = action.meal))
                     openRecipe(requireNotNull(action.recipeId))
                 }
+                AssistantActionType.select_meal -> if (action.date in days) update(state.copy(date = action.date, meal = action.meal))
+                AssistantActionType.open_sheet -> {
+                    update(state.copy(date = action.date, meal = action.meal))
+                    if (action.option == "reminder") openReminders() else openSwap(requireNotNull(action.index))
+                }
+                AssistantActionType.close_assistant -> closeAssistant()
+                AssistantActionType.share_shopping_list ->
+                    effect = PlannerEffect.Share(shoppingText(action.date, if (action.option == "day") null else action.meal))
+                AssistantActionType.add_to_calendar -> effect = PlannerEffect.Calendar(engine.timeline(state, action.date, action.meal))
+                AssistantActionType.request_permission ->
+                    effect = if (action.option == "exact_alarms") PlannerEffect.ExactAlarms else PlannerEffect.Notifications
                 else -> Unit
             }
         }
@@ -383,7 +451,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         assistantRecipeId != null -> listOf("Giải thích cách nấu món này", "Nguyên liệu món này gồm gì?")
         assistantOrigin == Screen.SHOPPING -> listOf("Còn thiếu nguyên liệu gì?", "Mở thực đơn bữa này")
         assistantOrigin == Screen.COOK -> listOf("Nấu món nào trước?", "Nhắc mình chuẩn bị bữa này")
-        assistantConfigured -> listOf("Tủ lạnh có thịt heo, trứng và rau muống. Tối mai nấu gì?", "Đổi món mặn", "Nấu món nào trước?")
+        assistantConfigured -> listOf("Lên thực đơn cả tuần, ăn nhẹ và nấu nhanh", "Tủ lạnh có thịt heo, trứng và rau muống. Tối mai nấu gì?", "Tối mai nấu canh chua cá nhé")
         else -> listOf("Đổi món mặn", "Món nấu nhanh", "Nấu món nào trước?")
     }
     fun dismissSheet() { sheet = null }
@@ -461,10 +529,20 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         if (screen != Screen.TODAY) { screen = Screen.TODAY; return true }
         return false
     }
-    fun shoppingText(): String = "${state.meal.title} ${PlannerEngine.shortDate(state.date)} — ${state.profile.people} người\n" +
-        engine.ingredients(menu, state.profile.people).joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
+    /** Shopping list for one meal, or for both meals of [date] when [meal] is null. */
+    fun shoppingText(date: LocalDate = state.date, meal: Meal? = state.meal): String {
+        val merged = linkedMapOf<String, Ingredient>()
+        (meal?.let(::listOf) ?: Meal.entries).forEach { m ->
+            engine.ingredients(engine.menu(state, date, m), state.profile.people).forEach { item ->
+                merged[item.key] = merged[item.key]?.let { it.copy(amount = it.amount + item.amount) } ?: item
+            }
+        }
+        return "${meal?.title ?: "Cả ngày"} ${PlannerEngine.shortDate(date)} — ${state.profile.people} người\n" +
+            merged.values.joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
+    }
 }
 
 private val mealChoice = Regex("""(?:minh )?(?:chon|lay|dung|ap dung)\s+mam\s+(?:so\s+)?(1|2|mot|hai|thu nhat|thu hai)(?:\s+(?:nhe|di))?""")
+private val undoPhrase = Regex("""(?:hoan tac|tra lai nhu cu|quay lai nhu cu|undo)(?:\s+(?:di|nhe|giup minh|giup toi|giup chau))?""")
 
 private fun Set<String>.toggle(value: String) = if (value in this) this - value else this + value

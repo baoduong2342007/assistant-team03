@@ -26,6 +26,8 @@ data class NativeActions(
     val calendar: (List<CookingTask>) -> Unit,
     val copy: (String) -> Unit,
     val pickTime: (LocalTime, (LocalTime) -> Unit) -> Unit,
+    /** Opens the system share sheet; the user picks the app and recipient. */
+    val share: (String) -> Unit = {},
 )
 
 /** Entirely native Android entry point. UI is rendered by Jetpack Compose. */
@@ -48,7 +50,7 @@ class MainActivity : ComponentActivity() {
         }, { initial, selected ->
             TimePickerDialog(this, { _, hour, minute -> selected(LocalTime.of(hour, minute)) },
                 initial.hour, initial.minute, true).show()
-        })
+        }, ::shareText)
         setContent { BepNhaTheme { BepNhaApp(planner, actions) } }
     }
 
@@ -83,6 +85,12 @@ class MainActivity : ComponentActivity() {
             .putExtra(CalendarContract.Events.DESCRIPTION, tasks.joinToString("\n") { "${PlannerEngine.time(it.at)} — ${it.title}" })
         try { startActivity(intent) }
         catch (exception: ActivityNotFoundException) { toast("Bạn cần cài ứng dụng lịch để thêm sự kiện.") }
+    }
+
+    private fun shareText(text: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        try { startActivity(Intent.createChooser(send, "Gửi danh sách đi chợ")) }
+        catch (exception: ActivityNotFoundException) { toast("Không có ứng dụng nào để chia sẻ.") }
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()

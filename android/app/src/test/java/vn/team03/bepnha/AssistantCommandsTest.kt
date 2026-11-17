@@ -33,7 +33,53 @@ class AssistantCommandsTest {
         commands.apply(state(), AssistantAction(AssistantActionType.swap_recipe, day, Meal.DINNER, recipeId = "veg", index = 0), day, 0)
     }
     @Test(expected = IllegalArgumentException::class) fun cannotTouchMealsOutsideWindow() {
-        commands.apply(state(), AssistantAction(AssistantActionType.cancel_timer, day.plusDays(7), Meal.DINNER), day, 0)
+        commands.apply(state(), AssistantAction(AssistantActionType.swap_recipe, day.plusDays(7), Meal.DINNER, recipeId = "tofu", index = 0), day, 0)
+    }
+
+    @Test fun globalActionsIgnoreTheMealWindow() {
+        val timer = state().copy(timer = CookingTimer(60000, "Canh", day, Meal.DINNER))
+        assertNull(commands.apply(timer, AssistantAction(AssistantActionType.cancel_timer, day.plusDays(30), Meal.DINNER), day, 0).timer)
+        assertEquals("Nhà bà Tư", commands.apply(state(), AssistantAction(AssistantActionType.set_family_name, day, Meal.DINNER, name = " Nhà bà Tư "), day, 0).profile.name)
+    }
+
+    @Test fun riskDecidesWhatNeedsConfirmation() {
+        val favorite = AssistantAction(AssistantActionType.set_favorite, day, Meal.DINNER, recipeId = "tofu", enabled = true)
+        val swap = AssistantAction(AssistantActionType.swap_recipe, day, Meal.DINNER, recipeId = "tofu", index = 0)
+        val open = AssistantAction(AssistantActionType.navigate, day, Meal.DINNER, screen = Screen.SHOPPING)
+        val timer = AssistantAction(AssistantActionType.start_timer, day, Meal.DINNER, minutes = 5, label = "Canh")
+        assertEquals(AssistantRisk.READ, open.risk); assertEquals(AssistantRisk.LOW, favorite.risk); assertEquals(AssistantRisk.HIGH, swap.risk)
+        assertFalse(commands.proposal(state(), listOf(favorite, open), day, 0).needsConfirmation)
+        assertTrue(commands.proposal(state(), listOf(favorite, swap), day, 0).needsConfirmation)
+        // Replacing a running timer cannot be undone safely.
+        assertFalse(commands.proposal(state(), listOf(timer), day, 0).needsConfirmation)
+        val running = state().copy(timer = CookingTimer(60_000, "Cơm", day, Meal.DINNER))
+        assertTrue(commands.proposal(running, listOf(timer), day, 0).needsConfirmation)
+    }
+
+    @Test fun newReadActionsValidateTheirOptions() {
+        fun fails(action: AssistantAction) = assertThrows(IllegalArgumentException::class.java) { commands.apply(state(), action, day, 0) }
+        fails(AssistantAction(AssistantActionType.open_sheet, day, Meal.DINNER, option = "settings"))
+        fails(AssistantAction(AssistantActionType.open_sheet, day, Meal.DINNER, option = "swap_options"))
+        fails(AssistantAction(AssistantActionType.request_permission, day, Meal.DINNER, option = "camera"))
+        fails(AssistantAction(AssistantActionType.share_shopping_list, day, Meal.DINNER, option = "week"))
+        fails(AssistantAction(AssistantActionType.set_family_name, day, Meal.DINNER, name = " "))
+        assertEquals(state(), commands.apply(state(), AssistantAction(AssistantActionType.open_sheet, day, Meal.DINNER, option = "swap_options", index = 1), day, 0))
+    }
+
+    @Test fun missingTargetDefaultsToSelectedMeal() {
+        val action = AssistantGateway.parseAction(org.json.JSONObject().put("type", "start_timer").put("minutes", 5.0).put("label", "Luộc rau"), day, Meal.LUNCH)
+        assertEquals(day, action.date); assertEquals(Meal.LUNCH, action.meal); assertEquals(5, action.minutes)
+        val share = AssistantGateway.parseAction(org.json.JSONObject().put("type", "share_shopping_list"), day, Meal.LUNCH)
+        assertEquals("meal", share.option)
+    }
+
+    @Test fun snapshotRoundTripsTheDataProposalsAreCheckedAgainst() {
+        val base = state().copy(favorites = setOf("tofu"), reminders = setOf(PlannerEngine.key(day, Meal.DINNER)),
+            checked = mapOf(PlannerEngine.key(day, Meal.DINNER) to setOf("Muối|g")))
+        val rebuilt = AssistantGateway.stateFrom(engine, AssistantGateway.snapshot(engine, base, day, Screen.TODAY, null))
+        assertEquals(base.plans.filterKeys { it.substringBefore('|') <= day.plusDays(6).toString() }, rebuilt.plans)
+        assertEquals(base.favorites, rebuilt.favorites); assertEquals(base.reminders, rebuilt.reminders)
+        assertEquals(base.checked, rebuilt.checked.filterValues { it.isNotEmpty() })
     }
 
     @Test fun editingOneDishKeepsOtherSuggestedChangesAndRemovesNoOp() {

@@ -42,6 +42,10 @@ data class AssistantUiState(
     val mealSuggestionMessageId: String? = null,
     val canEditProposal: Boolean = false,
     val revisionTarget: String? = null,
+    /** Dish swaps grouped by meal; when not empty they replace the swap lines of [proposal]. */
+    val proposalMeals: List<ProposalMealUi> = emptyList(),
+    val proposalOther: List<String> = emptyList(),
+    val canUndo: Boolean = false,
 )
 
 data class AssistantMealCard(
@@ -79,12 +83,15 @@ data class AssistantMealCard(
             mealSuggestions = meals, canEditProposal = vm.assistantProposal?.canReviseMenu == true,
             mealSuggestionMessageId = vm.assistantMealMessageId,
             revisionTarget = vm.assistantRevisionTarget,
+            proposalMeals = vm.proposalMeals(), proposalOther = vm.proposalOther(),
+            canUndo = vm.canUndoAssistant && vm.assistantProposal == null && !vm.assistantBusy,
         ),
         onQuestion = { vm.assistantQuestion = it }, onSend = vm::submitAssistant,
         onRetry = vm::retryAssistant, onOffline = vm::lookupFailedOffline,
         onRecipe = vm::openRecipe, onConfirm = vm::confirmAssistantProposal,
         onCancel = vm::cancelAssistantProposal, onCancelTimer = vm::cancelTimer,
         onChooseMeal = vm::chooseAssistantMeal, onEdit = vm::editAssistantProposal,
+        onDropMeal = { vm.dropProposalMeal(it.date, it.meal) }, onUndo = vm::undoAssistant,
     )
 }
 
@@ -95,6 +102,7 @@ data class AssistantMealCard(
     onRetry: () -> Unit = {}, onOffline: () -> Unit = {}, onRecipe: (String) -> Unit = {},
     onConfirm: () -> Unit = {}, onCancel: () -> Unit = {}, onCancelTimer: () -> Unit = {},
     onChooseMeal: (Int) -> Unit = {}, onEdit: () -> Unit = {},
+    onDropMeal: (ProposalMealUi) -> Unit = {}, onUndo: () -> Unit = {},
 ) {
     val scroll = rememberLazyListState()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
@@ -153,7 +161,7 @@ data class AssistantMealCard(
                     item("connection") {
                         Text(
                             if (ui.configured) "Khi dùng AI, câu hỏi và ngữ cảnh bữa ăn được gửi đến máy chủ. Hãy xem lại các gợi ý."
-                            else "Đang dùng trợ lý trên máy với 14 công thức có sẵn. Bạn có thể tra cứu, gợi ý mâm và đề xuất đổi món.",
+                            else "Đang dùng trợ lý trên máy với ${ui.recipeNames.size} công thức có sẵn. Bạn có thể tra cứu, gợi ý mâm và đề xuất đổi món.",
                             style = MaterialTheme.typography.bodySmall, color = KitchenMuted,
                         )
                     }
@@ -207,7 +215,14 @@ data class AssistantMealCard(
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text("Xem lại thay đổi", style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.semantics { heading() })
-                                ui.proposal.forEach { Text(it) }
+                                if (ui.proposalMeals.isEmpty()) ui.proposal.forEach { Text(it) } else {
+                                    ui.proposalOther.forEach { Text(it) }
+                                    ui.proposalMeals.forEach { group ->
+                                        ProposalMealGroup(group, removable = ui.proposalMeals.size > 1) { onDropMeal(group) }
+                                    }
+                                    Text("Nguyên liệu và lịch nấu của các bữa này sẽ cập nhật theo món mới.",
+                                        style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                                }
                                 Text("Chỉ áp dụng sau khi bạn xác nhận.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                                 KitchenButton(onClick = onConfirm,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) { Text("Xác nhận thay đổi") }
@@ -226,6 +241,12 @@ data class AssistantMealCard(
                     }
                 }
             }
+            if (ui.canUndo) {
+                KitchenOutlinedButton(onClick = onUndo,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 64.dp).testTag("assistant-undo")) {
+                    Text("Hoàn tác thay đổi vừa rồi")
+                }
+            }
             // Keep this control outside the scroll viewport so it cannot cover proposal buttons.
             if (newMessages && scroll.canScrollForward) {
                 KitchenTonalButton(onClick = { jumpToEnd++ },
@@ -234,6 +255,22 @@ data class AssistantMealCard(
             AssistantComposer(ui, compact, cramped = cramped,
                 inline = inlineComposer,
                 onQuestion = onQuestion, onSend = onSend, onProposal = { jumpToEnd++ })
+        }
+    }
+}
+
+@Composable private fun ProposalMealGroup(group: ProposalMealUi, removable: Boolean, onDrop: () -> Unit) {
+    Surface(color = androidx.compose.ui.graphics.Color.White, shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().testTag("assistant-proposal-${group.date}-${group.meal.value}")) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(group.title, style = MaterialTheme.typography.titleSmall, color = KitchenGreen,
+                modifier = Modifier.semantics { heading() })
+            group.lines.forEach { Text(it) }
+            if (removable) {
+                TextButton(onClick = onDrop, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Text("Giữ bữa này như cũ")
+                }
+            }
         }
     }
 }
