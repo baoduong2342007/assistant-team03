@@ -14,6 +14,8 @@ class PlannerEngine(val recipes: Map<String, Recipe>, val combinations: List<Lis
     companion object {
         val zone: ZoneId = ZoneId.of("Asia/Ho_Chi_Minh")
         val locale: Locale = Locale.forLanguageTag("vi-VN")
+        const val PANTRY_GROUP = "Gia vị & đồ khô"
+        const val SHOPPING_ITEMS = 6
         fun key(date: LocalDate, meal: Meal) = "$date|${meal.value}"
         fun today() = LocalDate.now(zone)
         fun time(at: Long): String = DateTimeFormatter.ofPattern("HH:mm").withZone(zone).format(Instant.ofEpochMilli(at))
@@ -58,7 +60,7 @@ class PlannerEngine(val recipes: Map<String, Recipe>, val combinations: List<Lis
             val amount = (merged[item.key]?.amount ?: 0.0) + item.amount * people / 4.0
             merged[item.key] = item.copy(amount = amount)
         }
-        val rice = Ingredient("Gạo", people * 90.0, "g", "Gia vị & đồ khô")
+        val rice = Ingredient("Gạo", people * 90.0, "g", PANTRY_GROUP)
         merged[rice.key] = rice
         return merged.values.toList()
     }
@@ -108,7 +110,34 @@ class PlannerEngine(val recipes: Map<String, Recipe>, val combinations: List<Lis
                     "${timer.label.take(200)}: kiểm tra độ chín của món ăn nhé.", timer.date, timer.meal, true)
             }
         }
+        if (state.shopping.enabled) {
+            val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+            repeat(7) { day ->
+                val date = today.plusDays(day.toLong())
+                val at = date.atTime(state.shopping.time).atZone(zone).toInstant().toEpochMilli()
+                val missing = missingForShopping(state, date)
+                if (inWindow(at) && missing.isNotEmpty()) {
+                    alarms += NativeAlarm("shopping:$date", at, "Nhắc đi chợ", shoppingBody(missing),
+                        date, Meal.LUNCH, kind = AlarmKind.SHOPPING)
+                }
+            }
+        }
         return alarms.sortedBy { it.id }
+    }
+
+    /** Unchecked fresh ingredients for the day's lunch and dinner; pantry staples are assumed to be at home. */
+    fun missingForShopping(state: PlannerState, date: LocalDate): List<String> = Meal.entries.flatMap { meal ->
+        val key = key(date, meal)
+        if (!validPlan(state.plans[key].orEmpty())) return@flatMap emptyList()
+        val checked = state.checked[key].orEmpty()
+        ingredients(menu(state, date, meal), state.profile.people)
+            .filter { it.group != PANTRY_GROUP && it.key !in checked }.map { it.name }
+    }.distinct()
+
+    fun shoppingBody(missing: List<String>): String {
+        val shown = missing.take(SHOPPING_ITEMS).joinToString()
+        val more = missing.size - SHOPPING_ITEMS
+        return "Hôm nay cần mua: $shown" + if (more > 0) " và $more thứ khác." else "."
     }
 
     fun answer(question: String, state: PlannerState): AssistantAnswer {

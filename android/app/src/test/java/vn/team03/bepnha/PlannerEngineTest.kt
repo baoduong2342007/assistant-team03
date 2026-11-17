@@ -112,4 +112,75 @@ class PlannerEngineTest {
         assertEquals(Instant.parse("2026-10-29T16:30:00Z").toEpochMilli(), start)
         assertEquals("23:30", PlannerEngine.time(start))
     }
+
+    private val shoppingRecords = listOf(
+        Recipe("fish", "Cá kho", RecipeKind.MAIN, "", 30, 50000, "", listOf(Ingredient("Cá basa", 400.0, "g", "Thịt & cá"),
+            Ingredient("Nước mắm", 2.0, "muỗng canh", "Gia vị & đồ khô")), listOf("Kho"), ""),
+        Recipe("pork", "Thịt rim", RecipeKind.MAIN, "", 30, 50000, "", listOf(Ingredient("Thịt nạc", 300.0, "g", "Thịt & cá"),
+            Ingredient("Hành tím", 2.0, "củ", "Rau củ")), listOf("Rim"), ""),
+        Recipe("soup", "Canh chua", RecipeKind.SOUP, "", 20, 30000, "", listOf(Ingredient("Cà chua", 2.0, "quả", "Rau củ"),
+            Ingredient("Dứa", 0.25, "quả", "Rau củ"), Ingredient("Hành tím", 1.0, "củ", "Rau củ")), listOf("Nấu"), ""),
+        Recipe("veg", "Rau muống xào", RecipeKind.VEG, "", 10, 15000, "", listOf(Ingredient("Rau muống", 1.0, "bó", "Rau củ"),
+            Ingredient("Tỏi", 3.0, "tép", "Rau củ")), listOf("Xào"), ""),
+    )
+    private val shoppingEngine = PlannerEngine(shoppingRecords.associateBy { it.id },
+        listOf(listOf("fish", "soup", "veg"), listOf("pork", "soup", "veg")))
+    private val morning = Instant.parse("2026-10-29T20:00:00Z").toEpochMilli() // 03:00 on 30/10 in Vietnam
+    private fun shoppingState() = shoppingEngine.ensureWeek(PlannerState(date = day), day)
+
+    @Test fun shoppingReminderListsMissingFreshIngredientsEveryMorning() {
+        val initial = shoppingState()
+        assertTrue(shoppingEngine.alarms(initial, morning).none { it.kind == AlarmKind.SHOPPING })
+        val enabled = initial.copy(shopping = ShoppingReminder(enabled = true))
+        val shopping = shoppingEngine.alarms(enabled, morning).filter { it.kind == AlarmKind.SHOPPING }
+        assertEquals((0L..6L).map { "shopping:${day.plusDays(it)}" }, shopping.map { it.id })
+        val first = shopping.first()
+        assertEquals(Instant.parse("2026-10-30T00:00:00Z").toEpochMilli(), first.at)
+        assertEquals("Nhắc đi chợ", first.title)
+        assertEquals(day, first.date)
+        val names = shoppingEngine.missingForShopping(enabled, day)
+        assertFalse("Pantry staples are not on the morning list", "Gạo" in names || "Nước mắm" in names)
+        assertEquals(1, names.count { it == "Hành tím" })
+        assertTrue(names.size > 6)
+        assertEquals("Hôm nay cần mua: ${names.take(6).joinToString()} và ${names.size - 6} thứ khác.", first.body)
+        assertTrue(first.body.startsWith("Hôm nay cần mua: Thịt nạc, Hành tím, Cà chua"))
+    }
+
+    @Test fun shoppingReminderSkipsADayWhenEverythingIsChecked() {
+        val initial = shoppingState().copy(shopping = ShoppingReminder(true, LocalTime.of(6, 30)))
+        val stocked = Meal.entries.associate { meal ->
+            val key = PlannerEngine.key(day, meal)
+            key to shoppingEngine.ingredients(shoppingEngine.menu(initial, day, meal), initial.profile.people).map { it.key }.toSet()
+        }
+        val ids = shoppingEngine.alarms(initial.copy(checked = stocked), morning).map { it.id }
+        assertFalse("shopping:$day" in ids)
+        assertTrue("shopping:${day.plusDays(1)}" in ids)
+        // Only lunch bought: dinner ingredients are still listed, lunch-only ones are gone.
+        val lunchKey = PlannerEngine.key(day, Meal.LUNCH)
+        val lunchOnly = initial.copy(checked = mapOf(lunchKey to stocked.getValue(lunchKey)))
+        val body = shoppingEngine.alarms(lunchOnly, morning).first { it.id == "shopping:$day" }.body
+        assertEquals("Hôm nay cần mua: ${shoppingEngine.missingForShopping(lunchOnly, day).joinToString()}.", body)
+        assertFalse(body, "Thịt nạc" in body)
+        assertTrue(body, "Cá basa" in body)
+    }
+
+    @Test fun shoppingReminderAfterItsTimeStartsTomorrow() {
+        val initial = shoppingState().copy(shopping = ShoppingReminder(true))
+        val afterSeven = Instant.parse("2026-10-30T01:00:00Z").toEpochMilli()
+        val ids = shoppingEngine.alarms(initial, afterSeven).filter { it.kind == AlarmKind.SHOPPING }.map { it.id }
+        assertEquals("shopping:${day.plusDays(1)}", ids.first())
+    }
+
+    @Test fun shoppingAlarmSurvivesTheRebootStore() {
+        val initial = shoppingState().copy(shopping = ShoppingReminder(true), reminders = setOf(PlannerEngine.key(day, Meal.DINNER)))
+        val alarms = shoppingEngine.alarms(initial, morning)
+        val parsed = ReminderStore.parse(PlannerStorage.alarmJson(alarms))
+        val restored = ReminderStore.parse(ReminderStore.serialize(parsed))
+        assertEquals(alarms.size, restored.size)
+        val spec = restored.getValue("shopping:$day")
+        assertTrue(spec.isShopping)
+        assertFalse(spec.timer)
+        assertTrue(spec.sameAs(parsed.getValue("shopping:$day")))
+        assertEquals(ReminderSpec.KIND_MEAL, restored.getValue("meal:${PlannerEngine.key(day, Meal.DINNER)}").kind)
+    }
 }
