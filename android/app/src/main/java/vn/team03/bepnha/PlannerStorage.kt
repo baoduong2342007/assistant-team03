@@ -55,11 +55,12 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
         val voice = root.optJSONObject("voice")?.let { item -> VoiceSettings(VoiceSettings.clean(item.optString("address_as", "bạn")),
             item.optBoolean("read_aloud", true), item.optDouble("rate", 0.85).toFloat().takeIf { it in 0.5f..1.5f } ?: 0.85f)
         } ?: VoiceSettings()
+        val diet = root.optJSONObject("diet")?.let { runCatching { dietFrom(it, engine) }.getOrNull() } ?: DietProfile()
         engine.ensureWeek(PlannerState(family, selected, Meal.from(root.optString("meal")) ?: Meal.DINNER, plans,
             root.optJSONObject("checked").stringLists().mapValues { it.value.toSet() },
             root.optJSONObject("done").stringLists().mapValues { it.value.toSet() },
             root.optJSONArray("favorites")?.strings()?.filter { it in engine.recipes }?.toSet().orEmpty(),
-            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer, shopping, voice), today)
+            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer, shopping, voice, diet), today)
     }.getOrElse { engine.ensureWeek(PlannerState(date = today), today) }
 
     fun save(state: PlannerState) {
@@ -72,6 +73,7 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             .put("shopping", JSONObject().put("enabled", state.shopping.enabled).put("time", state.shopping.time.toString()))
             .put("voice", JSONObject().put("address_as", state.voice.addressAs).put("read_aloud", state.voice.readAloud)
                 .put("rate", state.voice.rate.toDouble()))
+            .put("diet", dietJson(state.diet))
         state.timer?.let { timer -> root.put("timer", JSONObject().put("end", timer.end).put("label", timer.label)
             .put("date", timer.date.toString()).put("meal", timer.meal.value)) }
         // Called on the ViewModel's serial IO worker, so confirmed state survives process termination.
@@ -87,7 +89,25 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
     }
 }
 
-private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
+/** Shared by storage and the assistant snapshot. */
+internal fun dietJson(diet: DietProfile): JSONObject = JSONObject()
+    .put("tags", JSONArray(diet.tags.sorted())).put("allergens", JSONArray(diet.allergens.sorted()))
+    .put("avoid", JSONArray(diet.avoid.sorted()))
+    .put("max_minutes", diet.maxMinutes ?: JSONObject.NULL).put("max_cost", diet.maxCost ?: JSONObject.NULL)
+
+/** Defensive parse: unknown tags, allergens and ingredients are dropped, limits clamped. */
+internal fun dietFrom(json: JSONObject, engine: PlannerEngine): DietProfile {
+    val known = engine.recipes.values.flatMap { it.ingredients }.map { it.name }.toSet()
+    return DietProfile(
+        tags = json.optJSONArray("tags")?.strings()?.filter { it in Recipe.TAGS }?.toSet().orEmpty(),
+        allergens = json.optJSONArray("allergens")?.strings()?.filter { it in Recipe.ALLERGENS }?.toSet().orEmpty(),
+        avoid = json.optJSONArray("avoid")?.strings()?.filter { it in known }?.toSet().orEmpty(),
+        maxMinutes = if (json.isNull("max_minutes")) null else json.optInt("max_minutes").takeIf { it in 10..240 },
+        maxCost = if (json.isNull("max_cost")) null else json.optLong("max_cost").takeIf { it in 1_000..10_000_000 },
+    )
+}
+
+private fun JSONArray.objects() =(0 until length()).map { getJSONObject(it) }
 private fun JSONArray.strings() = (0 until length()).map { getString(it) }
 private fun JSONObject?.stringLists(): Map<String, List<String>> = this?.let { objectValue ->
     objectValue.keys().asSequence().mapNotNull { key ->

@@ -25,23 +25,33 @@ class MealPlanner(private val engine: PlannerEngine) {
     fun plan(state: PlannerState, targets: List<Pair<LocalDate, Meal>>, constraints: PlanConstraints): List<PlannedMeal> {
         require(targets.isNotEmpty()) { "Chưa có bữa nào để lên thực đơn." }
         val people = state.profile.people
+        // The family's diet profile always applies; a request may only tighten its limits.
+        val diet = state.diet
+        val maxMinutes = listOfNotNull(constraints.maxMinutes, diet.maxMinutes).minOrNull()
+        val maxCost = listOfNotNull(constraints.maxCost, diet.maxCost).minOrNull()
         val byKind = RecipeKind.entries.map { kind -> engine.recipes.values.filter { it.kind == kind }.sortedBy { it.id } }
-        val allowed = byKind.map { group -> group.filter { recipe -> recipe.ingredients.none { it.name in constraints.avoid } } }
+        val allowed = byKind.map { group -> group.filter { recipe -> diet.allows(recipe) && recipe.ingredients.none { it.name in constraints.avoid } } }
         RecipeKind.entries.forEachIndexed { index, kind ->
-            if (allowed[index].isEmpty()) throw NoMealFits("Không còn ${kind.label.lowercase()} nào sau khi tránh ${constraints.avoid.joinToString()}.")
+            if (allowed[index].isEmpty()) throw NoMealFits(buildString {
+                append("Không còn ${kind.label.lowercase()} nào phù hợp")
+                if (!diet.isEmpty) append(" hồ sơ ăn uống (${diet.describe()})")
+                if (constraints.avoid.isNotEmpty()) append(" khi tránh ${constraints.avoid.joinToString { it.lowercase(PlannerEngine.locale) }}")
+                append(".")
+            })
         }
         val trays = buildList {
             for (main in allowed[0]) for (soup in allowed[1]) for (veg in allowed[2]) {
                 val menu = listOf(main, soup, veg)
-                if (constraints.maxMinutes != null && engine.minutes(menu) > constraints.maxMinutes) continue
-                if (constraints.maxCost != null && engine.cost(menu, people) > constraints.maxCost) continue
+                if (maxMinutes != null && engine.minutes(menu) > maxMinutes) continue
+                if (maxCost != null && engine.cost(menu, people) > maxCost) continue
                 add(menu)
             }
         }
         if (trays.isEmpty()) throw NoMealFits(buildString {
             append("Không có mâm nào thỏa")
-            constraints.maxMinutes?.let { append(" thời gian nấu tối đa $it phút") }
-            constraints.maxCost?.let { append(" ngân sách ${PlannerEngine.money(it)} mỗi bữa") }
+            maxMinutes?.let { append(" thời gian nấu tối đa $it phút") }
+            maxCost?.let { append(" ngân sách ${PlannerEngine.money(it)} mỗi bữa") }
+            if (!diet.isEmpty) append(" cùng hồ sơ ăn uống (${diet.describe()})")
             append(".")
         })
         // Already-planned meals outside the targets still count for variety.

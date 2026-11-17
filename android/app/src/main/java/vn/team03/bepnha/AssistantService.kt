@@ -127,7 +127,7 @@ class AssistantService(
     ): Outcome = try {
         if (calls.any { it.name == "suggest_meals" }) {
             if (calls.size != 1) Outcome.Retry("suggest_meals phải được gọi riêng, không kèm propose_actions hoặc plan_meals.")
-            else Outcome.Done(suggestFromTool(calls.single().arguments, question, history, context))
+            else Outcome.Done(suggestFromTool(calls.single().arguments, question, history, context, state.diet))
         } else {
             val texts = mutableListOf<String>()
             val actions = mutableListOf<AssistantAction>()
@@ -145,15 +145,20 @@ class AssistantService(
                 } else actions += planMeals(args, question, history, state, today)
             }
             val proposal = commands.proposal(state, actions, today, clock())
-            val advice = advise(actions, question, history)
+            val (dietAdvice, dietNotes) = dietCheck(actions, question, history, state.diet)
+            val wording = advise(actions, question, history)
+            val advice = wording ?: dietAdvice
             when {
-                advice != null && advised -> Outcome.Done(AssistantReply(UNSURE, emptyList()))
+                advice != null && advised -> Outcome.Done(AssistantReply(
+                    if (wording != null) UNSURE else "Mình chưa tìm được món hợp hồ sơ ăn uống của gia đình (${state.diet.describe()}). Bạn muốn chọn món nào?",
+                    emptyList()))
                 advice != null -> Outcome.Retry(advice, advisory = true)
                 actions.isNotEmpty() && proposal.actions.isEmpty() || actions.isEmpty() && calls.any { it.name == "plan_meals" } ->
                     Outcome.Done(AssistantReply("Các món đã khớp với thực đơn đang dùng.", emptyList()))
                 actions.isEmpty() -> Outcome.Done(AssistantReply(texts.joinToString(" ").ifBlank { GAVE_UP }, emptyList()))
                 else -> Outcome.Done(AssistantReply(
-                    texts.joinToString(" ").ifBlank { if (proposal.needsConfirmation) "Mình đề xuất các thay đổi sau." else "Mình làm ngay cho bạn nhé." },
+                    (texts.joinToString(" ").ifBlank { if (proposal.needsConfirmation) "Mình đề xuất các thay đổi sau." else "Mình làm ngay cho bạn nhé." } +
+                        dietNotes.joinToString("") { " $it" }).trim(),
                     actions, recipeIds = actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }))
             }
         }
@@ -190,6 +195,24 @@ class AssistantService(
         }
     }
 
+    /**
+     * Dishes the model picked that break the family's diet profile are sent back once as advice.
+     * Dishes the user named explicitly are allowed, with a spoken warning in the reply.
+     */
+    private fun dietCheck(actions: List<AssistantAction>, question: String, history: List<AssistantChatMessage>, diet: DietProfile): Pair<String?, List<String>> {
+        if (diet.isEmpty) return null to emptyList()
+        val named = rules.requestedRecipes("${rules.previousQuestion(history)} $question").values.toSet()
+        val conflicts = actions.filter { it.type == AssistantActionType.swap_recipe }
+            .mapNotNull { action -> engine.recipes[action.recipeId]?.let { recipe -> recipe to diet.reasons(recipe) } }
+            .filter { it.second.isNotEmpty() }
+        val chosen = conflicts.filter { it.first.id !in named }
+        val advice = if (chosen.isEmpty()) null else "Hồ sơ ăn uống của gia đình: ${diet.describe()}. " +
+            chosen.joinToString(" ") { (recipe, why) -> "${recipe.name} không hợp (${why.joinToString()})." } +
+            " Hãy chọn món cùng nhóm phù hợp bằng search_recipes, hoặc hỏi lại người dùng."
+        val notes = conflicts.filter { it.first.id in named }.map { (recipe, why) -> "Lưu ý: ${recipe.name} ${why.joinToString()}, chưa hợp hồ sơ ăn uống của gia đình." }
+        return advice to notes
+    }
+
     /** High-precision checks on the user's own words, sent back once as advice to the model. */
     private fun advise(actions: List<AssistantAction>, question: String, history: List<AssistantChatMessage>): String? {
         val swaps = actions.filter { it.type == AssistantActionType.swap_recipe }
@@ -212,7 +235,7 @@ class AssistantService(
         return null
     }
 
-    private fun suggestFromTool(args: JSONObject, question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
+    private fun suggestFromTool(args: JSONObject, question: String, history: List<AssistantChatMessage>, context: JSONObject, diet: DietProfile): AssistantReply {
         val unknown = args.keys().asSequence().filter { it !in setOf("date", "meal", "pantry_items", "exclude_ingredients", "pantry_only") }.toList()
         require(unknown.isEmpty()) { "suggest_meals không nhận tham số ${unknown.joinToString()}." }
         val day = MealPlanning.parseDay(args.strictText("date"))
@@ -227,7 +250,7 @@ class AssistantService(
         val pantry = rules.pantryNames(terms, messages)
         if (excluded.any { rules.ingredientNames(listOf(it)).isEmpty() } || grounded.unknownExclusion)
             return AssistantReply("Mình chưa đối chiếu được nguyên liệu cần tránh với kho công thức. Bạn cho mình tên cụ thể nhé.", emptyList())
-        return suggest(MenuScope(day, meal), PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only))
+        return suggest(MenuScope(day, meal), PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only), diet)
     }
 
     private fun userMessages(question: String, history: List<AssistantChatMessage>, context: JSONObject): List<String> {
@@ -242,12 +265,13 @@ class AssistantService(
         return listOf(question) + listOfNotNull(prior) + history.filter { it.role == "user" }.takeLast(2).reversed().map { it.text }
     }
 
-    private fun suggest(scope: MenuScope, constraints: PantryConstraints): AssistantReply {
+    private fun suggest(scope: MenuScope, constraints: PantryConstraints, diet: DietProfile): AssistantReply {
         scope.clarification?.let { return AssistantReply(it, emptyList()) }
         if (constraints.unknownExclusion) return AssistantReply("Mình chưa nhận ra nguyên liệu cần tránh. Bạn cho mình tên cụ thể nhé.", emptyList())
         if (constraints.pantry.isEmpty()) return AssistantReply("Mình chưa nhận ra nguyên liệu nào trong kho công thức. Bạn cho mình tên nguyên liệu cụ thể nhé.", emptyList())
-        val ranked = rules.rankMeals(constraints.pantry, constraints.excluded)
-        if (ranked.isEmpty()) return AssistantReply("Mình chưa tìm được mâm có thể tận dụng nguyên liệu đã nêu và đáp ứng yêu cầu này.", emptyList())
+        val ranked = rules.rankMeals(constraints.pantry, constraints.excluded + diet.avoid, diet::allows)
+        if (ranked.isEmpty()) return AssistantReply("Mình chưa tìm được mâm có thể tận dụng nguyên liệu đã nêu và đáp ứng yêu cầu này" +
+            (if (diet.isEmpty) "." else " cùng hồ sơ ăn uống (${diet.describe()})."), emptyList())
         val options = ranked.filter { !constraints.only || it.missing.isEmpty() }.take(2)
         if (options.isEmpty()) return AssistantReply("Mâm phù hợp nhất vẫn cần thêm nguyên liệu như ${ranked.first().missing.take(3).joinToString()}. Bạn muốn xem lựa chọn có thể mua thêm không?", emptyList())
         return AssistantReply("Mình gợi ý mâm dưới đây theo nguyên liệu bạn có. Bạn có thể chọn mâm muốn áp dụng.", emptyList(),
@@ -275,7 +299,7 @@ class AssistantService(
         if (Regex("""\b(?:doi|thay)\b""").containsMatchIn(text))
             return AssistantReply("Bạn cho mình tên đầy đủ của món muốn thay vào nhé. Bạn cũng có thể chọn món trực tiếp trong Thực đơn.", emptyList())
         if (MealPlanning.menuRequest.containsMatchIn(text) || Regex("""\b(?:chi co|chi con|moi mua|tranh|khong dung|khong mua them)\b""").containsMatchIn(text))
-            return suggest(scope, rules.constraints(userMessages(question, history, context)))
+            return suggest(scope, rules.constraints(userMessages(question, history, context)), AssistantGateway.stateFrom(engine, context).diet)
         val focused = engine.recipes[context.optString("recipe_id")]
         if (focused != null && "mon nay" in text) {
             val answer = if ("nguyen lieu" in text) focused.ingredients.joinToString("\n") {

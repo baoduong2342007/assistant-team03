@@ -14,7 +14,10 @@ internal object AssistantTestCatalog {
                 "main" -> RecipeKind.MAIN; "soup" -> RecipeKind.SOUP; else -> RecipeKind.VEG
             }, item.getString("emoji"), item.getInt("minutes"), item.getLong("cost"), item.getString("note"),
                 (0 until ingredients.length()).map { j -> ingredients.getJSONObject(j).let { Ingredient(it.getString("name"), it.getDouble("amount"), it.getString("unit"), it.getString("group")) } },
-                item.getJSONArray("steps").let { steps -> (0 until steps.length()).map(steps::getString) }, item.getString("tip"))
+                item.getJSONArray("steps").let { steps -> (0 until steps.length()).map(steps::getString) }, item.getString("tip"),
+                item.optJSONArray("tags")?.let { list -> (0 until list.length()).map(list::getString).toSet() }.orEmpty(),
+                item.optJSONArray("allergens")?.let { list -> (0 until list.length()).map(list::getString).toSet() }.orEmpty(),
+                item.optString("sodium"))
         }.associateBy { it.id }
         val choices = root.getJSONArray("combinations")
         PlannerEngine(recipes, (0 until choices.length()).map { i -> val ids = choices.getJSONArray(i); (0 until ids.length()).map(ids::getString) })

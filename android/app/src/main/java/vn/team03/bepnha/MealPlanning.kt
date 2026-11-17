@@ -234,9 +234,9 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
         return PantryConstraints(pantry, excluded.orEmpty(), only ?: false, unknown)
     }
 
-    fun rankMeals(pantry: Set<String>, excluded: Set<String>): List<MealOption> {
+    fun rankMeals(pantry: Set<String>, excluded: Set<String>, allowed: (Recipe) -> Boolean = { true }): List<MealOption> {
         data class Ranked(val score: List<Int>, val option: MealOption)
-        val groups = RecipeKind.entries.map { kind -> recipes.values.filter { it.kind == kind } }
+        val groups = RecipeKind.entries.map { kind -> recipes.values.filter { it.kind == kind && allowed(it) } }
         val ranked = mutableListOf<Ranked>()
         for (main in groups[0]) for (soup in groups[1]) for (veg in groups[2]) {
             val menu = listOf(main, soup, veg)

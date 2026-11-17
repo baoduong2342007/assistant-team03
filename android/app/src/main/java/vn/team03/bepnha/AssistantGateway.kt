@@ -82,6 +82,7 @@ object AssistantGateway {
             .put("date", state.date.toString()).put("meal", state.meal.value).put("screen", screen.name).put("recipe_id", recipeId ?: JSONObject.NULL)
             .put("people", state.profile.people).put("lunch", state.profile.lunch.toString()).put("dinner", state.profile.dinner.toString())
             .put("address_as", state.voice.addressAs)
+            .put("diet", dietJson(state.diet).put("summary", state.diet.describe()))
             .put("meals", meals).put("favorites", JSONArray(state.favorites.toList()))
             .put("timer", state.timer?.let { JSONObject().put("label", it.label).put("end", it.end).put("date", it.date.toString()).put("meal", it.meal.value) } ?: JSONObject.NULL)
             .apply {
@@ -120,6 +121,7 @@ object AssistantGateway {
             profile = FamilyProfile(people = context.getInt("people"), lunch = LocalTime.parse(context.getString("lunch")), dinner = LocalTime.parse(context.getString("dinner"))),
             date = LocalDate.parse(context.getString("date")), meal = requireNotNull(Meal.from(context.getString("meal"))),
             plans = plans, checked = checked, done = done, favorites = favorites, reminders = reminders, timer = timer,
+            diet = context.optJSONObject("diet")?.let { dietFrom(it, engine) } ?: DietProfile(),
         )
     }
 
@@ -191,8 +193,12 @@ object AssistantGateway {
         AssistantActionType.add_to_calendar to emptySet(),
         AssistantActionType.request_permission to setOf("option"),
         AssistantActionType.set_family_name to setOf("name"),
+        AssistantActionType.set_diet_tag to setOf("key", "enabled"),
+        AssistantActionType.set_avoid to setOf("key", "enabled"),
+        AssistantActionType.set_meal_limits to setOf("minutes", "cost"),
     )
-    private val OPTIONAL_FIELDS = mapOf(AssistantActionType.open_sheet to setOf("index"), AssistantActionType.share_shopping_list to setOf("option"))
+    private val OPTIONAL_FIELDS = mapOf(AssistantActionType.open_sheet to setOf("index"), AssistantActionType.share_shopping_list to setOf("option"),
+        AssistantActionType.set_meal_limits to setOf("minutes", "cost"))
 
     /**
      * Parse one action. Global actions and actions without an explicit target use the
@@ -223,6 +229,6 @@ object AssistantGateway {
             if (o.has("enabled") && !o.isNull("enabled")) o.get("enabled") as? Boolean ?: throw IllegalArgumentException("enabled phải là true/false.") else null,
             number("minutes"), text("label"), text("key"),
             text("option") ?: if (type == AssistantActionType.share_shopping_list) "meal" else null,
-            text("name"))
+            text("name"), number("cost"))
     }
 }

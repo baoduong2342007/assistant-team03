@@ -38,6 +38,45 @@ data class FamilyProfile(
 ) { fun time(meal: Meal) = if (meal == Meal.LUNCH) lunch else dinner }
 /** Daily morning reminder listing what is still missing for that day's lunch and dinner. */
 data class ShoppingReminder(val enabled: Boolean = false, val time: LocalTime = LocalTime.of(7, 0))
+/**
+ * The family's lasting eating needs, applied to every suggestion and plan.
+ * [tags] must be carried by every dish; [allergens] and [avoid] (canonical ingredient names) must not appear.
+ */
+data class DietProfile(
+    val tags: Set<String> = emptySet(),
+    val allergens: Set<String> = emptySet(),
+    val avoid: Set<String> = emptySet(),
+    val maxMinutes: Int? = null,
+    /** VND per meal for the family's current number of people. */
+    val maxCost: Long? = null,
+) {
+    val isEmpty get() = tags.isEmpty() && allergens.isEmpty() && avoid.isEmpty() && maxMinutes == null && maxCost == null
+
+    fun allows(recipe: Recipe) = reasons(recipe).isEmpty()
+
+    /** Why [recipe] does not fit, in short Vietnamese phrases; empty when it fits. */
+    fun reasons(recipe: Recipe): List<String> = buildList {
+        (tags - recipe.tags).forEach { add("chưa phải món ${TAG_LABELS[it] ?: it}") }
+        (recipe.allergens intersect allergens).forEach { add("có ${ALLERGEN_LABELS[it] ?: it}") }
+        recipe.ingredients.map { it.name }.distinct().filter { it in avoid }.forEach { add("có ${it.lowercase(PlannerEngine.locale)}") }
+    }
+
+    /** "ít muối, mềm dễ nhai; tránh tôm, hành lá; tối đa 30 phút" */
+    fun describe(): String = listOfNotNull(
+        tags.mapNotNull(TAG_LABELS::get).joinToString().ifBlank { null },
+        (allergens.mapNotNull(ALLERGEN_LABELS::get) + avoid.map { it.lowercase(PlannerEngine.locale) }).joinToString().ifBlank { null }?.let { "tránh $it" },
+        maxMinutes?.let { "nấu tối đa $it phút" },
+        maxCost?.let { "tối đa ${PlannerEngine.money(it)} mỗi bữa" },
+    ).joinToString("; ")
+
+    companion object {
+        val TAG_LABELS = linkedMapOf("low_salt" to "ít muối", "low_sugar" to "ít đường", "soft" to "mềm, dễ nhai",
+            "low_fat" to "ít dầu mỡ", "vegetarian" to "ăn chay")
+        val ALLERGEN_LABELS = linkedMapOf("shrimp" to "tôm", "shellfish" to "hải sản có vỏ", "fish" to "cá", "egg" to "trứng",
+            "peanut" to "đậu phộng", "soy" to "đậu nành", "milk" to "sữa", "sesame" to "mè")
+    }
+}
+
 /** How the assistant talks: what it calls the user, and whether/how fast it reads replies aloud. */
 data class VoiceSettings(val addressAs: String = "bạn", val readAloud: Boolean = true, val rate: Float = 0.85f) {
     companion object {
@@ -57,6 +96,7 @@ data class PlannerState(
     val timer: CookingTimer? = null,
     val shopping: ShoppingReminder = ShoppingReminder(),
     val voice: VoiceSettings = VoiceSettings(),
+    val diet: DietProfile = DietProfile(),
 ) { val key: String get() = PlannerEngine.key(date, meal) }
 data class CookingTask(
     val key: String, val title: String, val detail: String, val at: Long,

@@ -41,9 +41,10 @@ object AgentTools {
         "enabled" to ToolParam("boolean", "Trạng thái đích"),
         "minutes" to ToolParam("integer", "Số phút từ 1 đến 180"),
         "label" to ToolParam("string", "Tên ngắn cho hẹn giờ"),
-        "key" to ToolParam("string", "Key chính xác của nguyên liệu hoặc bước nấu"),
+        "key" to ToolParam("string", "Key chính xác của nguyên liệu hoặc bước nấu; set_diet_tag: tag; set_avoid: tên nguyên liệu hoặc chất dị ứng (tôm, cá, trứng...)"),
         "option" to ToolParam("string", "open_sheet: swap_options|reminder; share_shopping_list: meal|day; request_permission: notifications|exact_alarms"),
         "name" to ToolParam("string", "Tên gia đình, tối đa 35 ký tự"),
+        "cost" to ToolParam("integer", "set_meal_limits: tiền chợ tối đa mỗi bữa (VND), 0 để bỏ giới hạn"),
     )
 
     val specs: List<ToolSpec> = listOf(
@@ -55,7 +56,9 @@ object AgentTools {
                 "kind" to ToolParam("enum", values = listOf("main", "soup", "veg")),
                 "include_ingredients" to nameList, "exclude_ingredients" to nameList,
                 "max_minutes" to ToolParam("integer"), "max_cost" to ToolParam("integer", "VND cho 4 người"),
-            ), optional = listOf("query", "kind", "include_ingredients", "exclude_ingredients", "max_minutes", "max_cost")),
+                "tags" to ToolParam("array", "Yêu cầu thêm: low_salt, low_sugar, soft, low_fat, vegetarian", items = ToolParam("enum", values = Recipe.TAGS.toList()), maxItems = 5),
+                "ignore_profile" to ToolParam("boolean", "true để xem cả món không hợp hồ sơ ăn uống (chỉ khi người dùng hỏi đích danh)"),
+            ), optional = listOf("query", "kind", "include_ingredients", "exclude_ingredients", "max_minutes", "max_cost", "tags", "ignore_profile")),
         ToolSpec("get_recipe", "Xem đầy đủ một công thức: nguyên liệu theo khẩu phần gia đình, các bước và mẹo.",
             mapOf("recipe_id" to ToolParam("string"))),
         ToolSpec("get_shopping_list", "Xem danh sách đi chợ của một bữa hoặc cả ngày, gồm key và trạng thái đã có.",
@@ -85,7 +88,7 @@ object AgentTools {
     /** Short catalog index sent each turn; details come from get_recipe. */
     fun catalogIndex(engine: PlannerEngine) = JSONArray(engine.recipes.values.map { recipe ->
         JSONObject().put("id", recipe.id).put("name", recipe.name).put("kind", kindName(recipe.kind))
-            .put("minutes", recipe.minutes).put("cost", recipe.cost)
+            .put("minutes", recipe.minutes).put("cost", recipe.cost).put("tags", JSONArray(recipe.tags.sorted()))
     })
 
     fun kindName(kind: RecipeKind) = listOf("main", "soup", "veg")[kind.ordinal]
@@ -112,22 +115,28 @@ class AgentReadTools(private val engine: PlannerEngine, private val rules: MealP
             val include = rules.ingredientNames(args.optStrings("include_ingredients"))
             val exclude = rules.ingredientNames(args.optStrings("exclude_ingredients"))
             val maxMinutes = args.optPositiveInt("max_minutes"); val maxCost = args.optPositiveInt("max_cost")
+            val tags = args.optStrings("tags").filter { it in Recipe.TAGS }.toSet()
+            val diet = if (args.optBoolean("ignore_profile")) DietProfile() else state.diet
             val found = engine.recipes.values.filter { recipe ->
                 val ingredients = recipe.ingredients.map { it.name }
                 (kind == null || AgentTools.kindName(recipe.kind) == kind) &&
                     (query == null || MealPlanning.normalize(recipe.name).contains(query) || ingredients.any { MealPlanning.normalize(it).contains(query) }) &&
                     include.all { it in ingredients } && exclude.none { it in ingredients } &&
-                    (maxMinutes == null || recipe.minutes <= maxMinutes) && (maxCost == null || recipe.cost <= maxCost)
+                    (maxMinutes == null || recipe.minutes <= maxMinutes) && (maxCost == null || recipe.cost <= maxCost) &&
+                    recipe.tags.containsAll(tags) && diet.allows(recipe)
             }.sortedBy { it.minutes }.take(12)
             JSONObject().put("recipes", JSONArray(found.map { recipe ->
                 JSONObject().put("id", recipe.id).put("name", recipe.name).put("kind", AgentTools.kindName(recipe.kind))
                     .put("minutes", recipe.minutes).put("cost", recipe.cost).put("ingredients", JSONArray(recipe.ingredients.map { it.name }))
-            })).put("note", if (found.isEmpty()) "Không có món nào khớp. Không được bịa món mới." else JSONObject.NULL)
+                    .put("tags", JSONArray(recipe.tags.sorted())).put("fits_profile", state.diet.allows(recipe))
+            })).put("note", if (found.isEmpty()) "Không có món nào khớp" + (if (!diet.isEmpty) " với hồ sơ ăn uống (${diet.describe()})" else "") + ". Không được bịa món mới." else JSONObject.NULL)
         }
         "get_recipe" -> {
             val recipe = engine.recipes[args.getString("recipe_id")] ?: throw IllegalArgumentException("Không có công thức ${args.getString("recipe_id")}.")
             JSONObject().put("id", recipe.id).put("name", recipe.name).put("kind", AgentTools.kindName(recipe.kind))
                 .put("minutes", recipe.minutes).put("cost_for_family", (recipe.cost * state.profile.people / 4.0).toLong())
+                .put("tags", JSONArray(recipe.tags.sorted())).put("allergens", JSONArray(recipe.allergens.sorted()))
+                .put("fits_profile", state.diet.allows(recipe)).put("profile_conflicts", JSONArray(state.diet.reasons(recipe)))
                 .put("ingredients", JSONArray(recipe.ingredients.map {
                     JSONObject().put("name", it.name).put("amount", it.amount * state.profile.people / 4.0).put("unit", it.unit)
                 })).put("steps", JSONArray(recipe.steps)).put("tip", recipe.tip)

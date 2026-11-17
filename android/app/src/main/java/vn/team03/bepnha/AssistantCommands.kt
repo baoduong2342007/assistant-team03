@@ -7,6 +7,7 @@ enum class AssistantActionType {
     navigate, open_recipe, swap_recipe, set_people, set_meal_time, set_reminder, start_timer, cancel_timer,
     set_ingredient, set_task, set_favorite,
     select_meal, open_sheet, close_assistant, share_shopping_list, add_to_calendar, request_permission, set_family_name,
+    set_diet_tag, set_avoid, set_meal_limits,
 }
 
 /**
@@ -20,11 +21,12 @@ data class AssistantAction(
     val screen: Screen? = null, val recipeId: String? = null, val index: Int? = null,
     val people: Int? = null, val time: LocalTime? = null, val enabled: Boolean? = null,
     val minutes: Int? = null, val label: String? = null, val key: String? = null,
-    val option: String? = null, val name: String? = null,
+    val option: String? = null, val name: String? = null, val cost: Int? = null,
 ) {
     val risk: AssistantRisk get() = when (type) {
         AssistantActionType.swap_recipe, AssistantActionType.set_people, AssistantActionType.set_meal_time,
-        AssistantActionType.set_family_name -> AssistantRisk.HIGH
+        AssistantActionType.set_family_name, AssistantActionType.set_diet_tag, AssistantActionType.set_avoid,
+        AssistantActionType.set_meal_limits -> AssistantRisk.HIGH
         AssistantActionType.set_ingredient, AssistantActionType.set_task, AssistantActionType.set_favorite,
         AssistantActionType.start_timer, AssistantActionType.cancel_timer, AssistantActionType.set_reminder -> AssistantRisk.LOW
         else -> AssistantRisk.READ
@@ -38,6 +40,7 @@ data class AssistantAction(
         val GLOBAL = setOf(
             AssistantActionType.set_people, AssistantActionType.set_family_name, AssistantActionType.set_favorite,
             AssistantActionType.cancel_timer, AssistantActionType.close_assistant, AssistantActionType.request_permission,
+            AssistantActionType.set_diet_tag, AssistantActionType.set_avoid, AssistantActionType.set_meal_limits,
         )
         const val MAX_ACTIONS = 48
         val SHEETS = setOf("swap_options", "reminder")
@@ -48,6 +51,21 @@ data class AssistantAction(
 
 /** Pure validation/reducer shared by preview and execution. Never toggles state. */
 class AssistantCommands(private val engine: PlannerEngine) {
+    private val rules by lazy { MealPlanning(engine.recipes) }
+
+    /** An allergen code ("tôm" → shrimp) or the canonical ingredient names a spoken term means. */
+    fun resolveAvoid(term: String): Pair<String?, Set<String>> {
+        val plain = MealPlanning.normalize(term)
+        DietProfile.ALLERGEN_LABELS.entries.firstOrNull { it.key == term || MealPlanning.normalize(it.value) == plain }?.let { return it.key to emptySet() }
+        // Exact names and aliases first; then a general word covers its kinds ("hành" → Hành lá, Hành tím).
+        val names = rules.ingredientNames(listOf(term)).ifEmpty {
+            engine.recipes.values.flatMap { it.ingredients }.map { it.name }.distinct()
+                .filter { plain.isNotEmpty() && MealPlanning.normalize(it).startsWith("$plain ") }.toSet()
+        }
+        require(names.isNotEmpty()) { "Không có nguyên liệu “$term” trong kho công thức; dùng tên nguyên liệu có trong công thức." }
+        return null to names
+    }
+
     /** Replacing a running timer cannot be undone safely, so it needs confirmation. */
     fun risk(state: PlannerState, action: AssistantAction, now: Long): AssistantRisk =
         if (action.type == AssistantActionType.start_timer && state.timer?.end?.let { it > now } == true) AssistantRisk.HIGH
@@ -140,6 +158,25 @@ class AssistantCommands(private val engine: PlannerEngine) {
                 val people = requireNotNull(action.people) { "Thiếu số người." }; require(people in 1..12) { "Số người phải từ 1 đến 12." }
                 state.copy(profile = state.profile.copy(people = people), checked = if (people == state.profile.people) state.checked else emptyMap())
             }
+            AssistantActionType.set_diet_tag -> {
+                val tag = requireNotNull(action.key) { "Thiếu key (tag)." }
+                require(tag in Recipe.TAGS) { "Tag phải là một trong ${Recipe.TAGS.joinToString()}." }
+                state.copy(diet = state.diet.copy(tags = flag(state.diet.tags, tag)))
+            }
+            AssistantActionType.set_avoid -> {
+                val (allergen, names) = resolveAvoid(requireNotNull(action.key) { "Thiếu key (nguyên liệu cần tránh)." })
+                state.copy(diet = if (allergen != null) state.diet.copy(allergens = flag(state.diet.allergens, allergen))
+                    else state.diet.copy(avoid = names.fold(state.diet.avoid) { set, name -> flag(set, name) }))
+            }
+            AssistantActionType.set_meal_limits -> {
+                require(action.minutes != null || action.cost != null) { "set_meal_limits cần minutes hoặc cost (0 để bỏ giới hạn)." }
+                action.minutes?.let { require(it == 0 || it in 10..240) { "minutes phải là 0 hoặc từ 10 đến 240." } }
+                action.cost?.let { require(it == 0 || it in 1_000..10_000_000) { "cost phải là 0 hoặc từ 1.000 đến 10.000.000." } }
+                state.copy(diet = state.diet.copy(
+                    maxMinutes = action.minutes?.let { it.takeIf { m -> m > 0 } } ?: state.diet.maxMinutes.takeIf { action.minutes == null },
+                    maxCost = action.cost?.let { it.toLong().takeIf { c -> c > 0 } } ?: state.diet.maxCost.takeIf { action.cost == null },
+                ))
+            }
             AssistantActionType.set_family_name -> {
                 val name = requireNotNull(action.name) { "Thiếu tên gia đình." }.trim()
                 require(name.isNotEmpty() && name.length <= 35) { "Tên gia đình cần từ 1 đến 35 ký tự." }
@@ -193,6 +230,12 @@ class AssistantCommands(private val engine: PlannerEngine) {
             AssistantActionType.swap_recipe -> "${swapLine(state, a)}. Nguyên liệu và lịch nấu sẽ cập nhật."
             AssistantActionType.set_people -> "Đổi khẩu phần từ ${state.profile.people} thành ${a.people} người cho mọi bữa. Dấu đã có trong danh sách đi chợ sẽ được xóa."
             AssistantActionType.set_family_name -> "Đổi tên gia đình thành “${a.name?.trim()}”"
+            AssistantActionType.set_diet_tag -> "${if (a.enabled == true) "Luôn chọn món" else "Thôi yêu cầu món"} ${DietProfile.TAG_LABELS[a.key] ?: a.key} cho mọi bữa"
+            AssistantActionType.set_avoid -> "${if (a.enabled == true) "Luôn tránh" else "Thôi tránh"} ${a.key?.trim()} trong mọi món"
+            AssistantActionType.set_meal_limits -> listOfNotNull(
+                a.minutes?.let { if (it == 0) "Bỏ giới hạn thời gian nấu" else "Mỗi bữa nấu tối đa $it phút" },
+                a.cost?.let { if (it == 0) "Bỏ giới hạn tiền chợ" else "Mỗi bữa tối đa ${PlannerEngine.money(it.toLong())}" },
+            ).joinToString("; ")
             AssistantActionType.set_meal_time -> "Đổi giờ ăn ${a.meal.title.lowercase()} từ ${state.profile.time(a.meal)} thành ${a.time} cho mọi ngày."
             AssistantActionType.set_reminder -> "$flag nhắc chuẩn bị bữa ăn."
             AssistantActionType.start_timer -> "Hẹn ${a.minutes} phút: ${a.label}." + if (state.timer != null) " Thay đồng hồ đang có: ${state.timer.label}." else ""

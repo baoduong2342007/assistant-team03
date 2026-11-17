@@ -143,6 +143,19 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         if (assistantVisible && state.voice.readAloud && text.isNotBlank()) voiceController?.speak(AssistantVoice.spoken(text))
     }
 
+    fun saveDiet(diet: DietProfile) {
+        val known = engine.recipes.values.flatMap { it.ingredients }.map { it.name }.toSet()
+        update(state.copy(diet = diet.copy(tags = diet.tags intersect Recipe.TAGS, allergens = diet.allergens intersect Recipe.ALLERGENS,
+            avoid = diet.avoid intersect known)))
+        message = "Đã lưu hồ sơ ăn uống. Gợi ý và thực đơn mới sẽ theo hồ sơ này."
+    }
+    /** A typed term as an allergen code ("tôm" → shrimp) or canonical ingredient names; null when unknown. */
+    fun resolveDietTerm(term: String): Pair<String?, Set<String>>? = runCatching { commands.resolveAvoid(term.trim()) }.getOrNull()
+    /** How many planned meals this week contain a dish that does not fit [diet]. */
+    fun mealsOutsideDiet(diet: DietProfile = state.diet): Int = days.sumOf { day ->
+        Meal.entries.count { meal -> engine.menu(state, day, meal).any { !diet.allows(it) } }
+    }
+
     fun saveVoiceSettings(addressAs: String, readAloud: Boolean, rate: Float) {
         val settings = VoiceSettings(VoiceSettings.clean(addressAs), readAloud, rate.coerceIn(VoiceController.MIN_RATE, VoiceController.MAX_RATE))
         update(state.copy(voice = settings))
