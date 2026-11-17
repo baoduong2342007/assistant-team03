@@ -33,6 +33,15 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
             "Đậu hũ" to listOf("đậu phụ", "tàu hũ"), "Thơm" to listOf("dứa", "khóm"),
             "Dưa leo" to listOf("dưa chuột"), "Bí đỏ" to listOf("bí ngô"),
             "Cải xanh" to listOf("cải bẹ xanh"), "Bông cải xanh" to listOf("súp lơ xanh"),
+            // Short words such as "bò", "giá" or "nấm" are left out: they collide with "bỏ", "gia đình" and "năm".
+            "Thịt nạc" to listOf("thịt heo", "thịt lợn", "nạc vai", "thịt nạc vai"),
+            "Sườn non" to listOf("thịt heo", "thịt lợn", "sườn", "sườn heo", "sườn lợn"),
+            "Cá thu" to listOf("cá"), "Cá lóc" to listOf("cá", "cá quả"),
+            "Cá diêu hồng" to listOf("cá", "cá điêu hồng", "cá rô phi đỏ"),
+            "Rau mồng tơi" to listOf("mồng tơi", "mùng tơi", "rau mùng tơi"), "Bí xanh" to listOf("bí đao"),
+            "Khổ qua" to listOf("mướp đắng"), "Cải thìa" to listOf("cải chíp"), "Củ cải trắng" to listOf("củ cải"),
+            "Bông cải trắng" to listOf("súp lơ trắng"), "Đậu que" to listOf("đậu cô ve"),
+            "Giá đỗ" to listOf("giá đậu"), "Rau lang" to listOf("rau khoai lang", "ngọn khoai lang"),
         )
         fun isComparison(question: String): Boolean {
             val text = normalize(question)

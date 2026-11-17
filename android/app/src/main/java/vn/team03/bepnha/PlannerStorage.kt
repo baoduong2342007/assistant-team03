@@ -7,21 +7,28 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 class RecipeRepository(context: Context) {
-    val engine: PlannerEngine
-    init {
-        val root = JSONObject(context.assets.open("recipes.json").bufferedReader().use { it.readText() })
-        val recipes = root.getJSONArray("recipes").objects().associate { item ->
-            val id = item.getString("id")
-            id to Recipe(id, item.getString("name"), when (item.getString("kind")) {
-                "main" -> RecipeKind.MAIN; "soup" -> RecipeKind.SOUP; else -> RecipeKind.VEG
-            }, item.getString("emoji"), item.getInt("minutes"), item.getLong("cost"), item.getString("note"),
-                item.getJSONArray("ingredients").objects().map { ingredient ->
-                    Ingredient(ingredient.getString("name"), ingredient.getDouble("amount"),
-                        ingredient.getString("unit"), ingredient.getString("group"))
-                }, item.getJSONArray("steps").strings(), item.getString("tip"))
+    val engine: PlannerEngine = parse(context.assets.open("recipes.json").bufferedReader().use { it.readText() })
+
+    companion object {
+        /** Pure parser so JVM tests read the shipped catalog exactly as the app does. */
+        fun parse(json: String): PlannerEngine {
+            val root = JSONObject(json)
+            val recipes = root.getJSONArray("recipes").objects().associate { item ->
+                val id = item.getString("id")
+                id to Recipe(id, item.getString("name"), when (item.getString("kind")) {
+                    "main" -> RecipeKind.MAIN; "soup" -> RecipeKind.SOUP; else -> RecipeKind.VEG
+                }, item.getString("emoji"), item.getInt("minutes"), item.getLong("cost"), item.getString("note"),
+                    item.getJSONArray("ingredients").objects().map { ingredient ->
+                        Ingredient(ingredient.getString("name"), ingredient.getDouble("amount"),
+                            ingredient.getString("unit"), ingredient.getString("group"))
+                    }, item.getJSONArray("steps").strings(), item.getString("tip"),
+                    item.optJSONArray("tags")?.strings()?.toSet().orEmpty(),
+                    item.optJSONArray("allergens")?.strings()?.toSet().orEmpty(),
+                    item.optString("sodium", ""))
+            }
+            val choices = root.getJSONArray("combinations")
+            return PlannerEngine(recipes, (0 until choices.length()).map { choices.getJSONArray(it).strings() })
         }
-        val choices = root.getJSONArray("combinations")
-        engine = PlannerEngine(recipes, (0 until choices.length()).map { choices.getJSONArray(it).strings() })
     }
 }
 

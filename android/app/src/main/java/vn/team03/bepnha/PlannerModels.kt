@@ -19,7 +19,19 @@ data class Recipe(
     val id: String, val name: String, val kind: RecipeKind, val emoji: String,
     val minutes: Int, val cost: Long, val note: String,
     val ingredients: List<Ingredient>, val steps: List<String>, val tip: String,
-)
+    /** Diet tags from [TAGS]; empty when the catalog does not say. */
+    val tags: Set<String> = emptySet(),
+    /** Allergens from [ALLERGENS], derived from the listed ingredients (fish sauce is not counted as fish). */
+    val allergens: Set<String> = emptySet(),
+    /** Estimated sodium per serving: "low", "mid", "high", or "" when unknown. */
+    val sodium: String = "",
+) {
+    companion object {
+        val TAGS = setOf("low_salt", "low_sugar", "soft", "low_fat", "vegetarian")
+        val ALLERGENS = setOf("shrimp", "shellfish", "fish", "egg", "peanut", "soy", "milk", "sesame")
+        val SODIUM = setOf("low", "mid", "high")
+    }
+}
 data class FamilyProfile(
     val name: String = "Nhà mình", val people: Int = 4,
     val lunch: LocalTime = LocalTime.of(11, 30), val dinner: LocalTime = LocalTime.of(18, 30),
