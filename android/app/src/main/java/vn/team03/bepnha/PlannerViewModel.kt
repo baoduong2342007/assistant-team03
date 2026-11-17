@@ -492,6 +492,11 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             else -> "Đã đặt nhắc vào bếp lúc ${PlannerEngine.time(tasks.first().at)}."
         }
     }
+    fun saveShoppingReminder(enabled: Boolean, time: LocalTime) {
+        update(state.copy(shopping = ShoppingReminder(enabled, time)))
+        message = if (!enabled) "Đã tắt nhắc đi chợ." else if (!notifications) "Đã lưu. Hãy cho phép thông báo để nhận nhắc đi chợ."
+            else "Mỗi sáng lúc $time sẽ nhắc những đồ còn thiếu."
+    }
     fun startTimer(minutes: Int, label: String, replace: Boolean = false) {
         require(minutes in 1..180)
         if (!replace && state.timer?.end?.let { it > System.currentTimeMillis() } == true) {
@@ -521,7 +526,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         val meal = Meal.from(intent.getStringExtra("meal").orEmpty()) ?: return
         if (date in days) update(state.copy(date = date, meal = meal))
         if (assistantVisible) finishAssistant(restoreRecipe = false)
-        sheet = null; screen = Screen.COOK
+        sheet = null; screen = if (intent.getStringExtra("screen") == "shopping") Screen.SHOPPING else Screen.COOK
     }
     fun back(): Boolean {
         if (sheet != null) { sheet = null; return true }

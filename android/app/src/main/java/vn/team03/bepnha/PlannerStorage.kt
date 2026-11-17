@@ -49,11 +49,14 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             CookingTimer(item.getLong("end"), item.getString("label").take(200), LocalDate.parse(item.getString("date")),
                 Meal.from(item.getString("meal")) ?: Meal.DINNER)
         }.getOrNull() }
+        val shopping = root.optJSONObject("shopping")?.let { item -> ShoppingReminder(item.optBoolean("enabled", false),
+            runCatching { LocalTime.parse(item.optString("time", "07:00")) }.getOrDefault(LocalTime.of(7, 0)))
+        } ?: ShoppingReminder()
         engine.ensureWeek(PlannerState(family, selected, Meal.from(root.optString("meal")) ?: Meal.DINNER, plans,
             root.optJSONObject("checked").stringLists().mapValues { it.value.toSet() },
             root.optJSONObject("done").stringLists().mapValues { it.value.toSet() },
             root.optJSONArray("favorites")?.strings()?.filter { it in engine.recipes }?.toSet().orEmpty(),
-            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer), today)
+            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timer, shopping), today)
     }.getOrElse { engine.ensureWeek(PlannerState(date = today), today) }
 
     fun save(state: PlannerState) {
@@ -63,6 +66,7 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             .put("date", state.date.toString()).put("meal", state.meal.value)
             .put("plans", jsonLists(state.plans)).put("checked", jsonLists(state.checked)).put("done", jsonLists(state.done))
             .put("favorites", JSONArray(state.favorites.toList())).put("reminders", JSONArray(state.reminders.toList()))
+            .put("shopping", JSONObject().put("enabled", state.shopping.enabled).put("time", state.shopping.time.toString()))
         state.timer?.let { timer -> root.put("timer", JSONObject().put("end", timer.end).put("label", timer.label)
             .put("date", timer.date.toString()).put("meal", timer.meal.value)) }
         // Called on the ViewModel's serial IO worker, so confirmed state survives process termination.
@@ -73,7 +77,7 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
         fun alarmJson(alarms: List<NativeAlarm>): String = JSONArray().apply {
             alarms.forEach { alarm -> put(JSONObject().put("id", alarm.id).put("at", alarm.at)
                 .put("title", alarm.title).put("body", alarm.body).put("date", alarm.date.toString())
-                .put("meal", alarm.meal.value).put("timer", alarm.timer)) }
+                .put("meal", alarm.meal.value).put("timer", alarm.timer).put("kind", alarm.kind.value)) }
         }.toString()
     }
 }

@@ -36,6 +36,8 @@ data class FamilyProfile(
     val name: String = "Nhà mình", val people: Int = 4,
     val lunch: LocalTime = LocalTime.of(11, 30), val dinner: LocalTime = LocalTime.of(18, 30),
 ) { fun time(meal: Meal) = if (meal == Meal.LUNCH) lunch else dinner }
+/** Daily morning reminder listing what is still missing for that day's lunch and dinner. */
+data class ShoppingReminder(val enabled: Boolean = false, val time: LocalTime = LocalTime.of(7, 0))
 data class CookingTimer(val end: Long, val label: String, val date: LocalDate, val meal: Meal)
 data class PlannerState(
     val profile: FamilyProfile = FamilyProfile(),
@@ -46,6 +48,7 @@ data class PlannerState(
     val favorites: Set<String> = emptySet(),
     val reminders: Set<String> = emptySet(),
     val timer: CookingTimer? = null,
+    val shopping: ShoppingReminder = ShoppingReminder(),
 ) { val key: String get() = PlannerEngine.key(date, meal) }
 data class CookingTask(
     val key: String, val title: String, val detail: String, val at: Long,
@@ -54,7 +57,10 @@ data class CookingTask(
 data class NativeAlarm(
     val id: String, val at: Long, val title: String, val body: String,
     val date: LocalDate, val meal: Meal, val timer: Boolean = false,
+    val kind: AlarmKind = if (timer) AlarmKind.TIMER else AlarmKind.MEAL,
 )
+/** Mirrors the kinds accepted by ReminderSpec.java. */
+enum class AlarmKind(val value: String) { MEAL("meal"), TIMER("timer"), SHOPPING("shopping") }
 sealed interface PlannerSheet {
     data class RecipeDetail(val id: String) : PlannerSheet
     data class Swap(val index: Int) : PlannerSheet

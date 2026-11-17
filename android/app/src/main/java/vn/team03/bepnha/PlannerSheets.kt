@@ -181,6 +181,7 @@ import java.time.LocalTime
             KitchenButton(onClick = { focus.clearFocus(); vm.saveFamily(name, people, lunch, dinner) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Lưu thông tin gia đình") }
         } }
+        item { ShoppingReminderCard(vm, actions) }
         item { PermissionInfo(vm, actions) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -192,6 +193,31 @@ import java.time.LocalTime
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Xem món đã lưu") }
             }
         }
+    }
+}
+
+@Composable private fun ShoppingReminderCard(vm: PlannerViewModel, actions: NativeActions) {
+    val saved = vm.state.shopping
+    var enabled by rememberSaveable(saved) { mutableStateOf(saved.enabled) }
+    var timeText by rememberSaveable(saved) { mutableStateOf(saved.time.toString()) }
+    val time = LocalTime.parse(timeText)
+    KitchenCard {
+        Text("Nhắc đi chợ", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = { enabled = it }).testTag("shopping-enabled"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Nhắc đi chợ mỗi sáng", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Switch(checked = enabled, onCheckedChange = null)
+        }
+        Text("Thông báo liệt kê đồ còn thiếu cho bữa trưa và bữa tối hôm đó. Đã mua đủ thì không nhắc.",
+            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+        TimeField("Giờ nhắc đi chợ", time, Modifier.fillMaxWidth().testTag("shopping-time")) {
+            actions.pickTime(time) { timeText = it.toString() }
+        }
+        KitchenButton(onClick = {
+            vm.saveShoppingReminder(enabled, time)
+            if (enabled && !vm.notifications) actions.notifications()
+        }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shopping-save")) { Text("Lưu nhắc đi chợ") }
     }
 }
 

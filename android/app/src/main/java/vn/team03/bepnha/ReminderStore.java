@@ -20,6 +20,7 @@ import java.util.Map;
 
 final class ReminderStore {
     static final String CHANNEL = "bep_nha_cooking";
+    static final String SHOPPING_CHANNEL = "bep_nha_shopping";
     private static final String PREFS = "bep_nha_native";
     private static final String ALARMS = "alarms";
 
@@ -31,6 +32,10 @@ final class ReminderStore {
                 context.getString(R.string.reminder_channel), NotificationManager.IMPORTANCE_HIGH);
         channel.setDescription(context.getString(R.string.reminder_channel_description));
         manager.createNotificationChannel(channel);
+        NotificationChannel shopping = new NotificationChannel(SHOPPING_CHANNEL,
+                context.getString(R.string.shopping_channel), NotificationManager.IMPORTANCE_DEFAULT);
+        shopping.setDescription(context.getString(R.string.shopping_channel_description));
+        manager.createNotificationChannel(shopping);
     }
 
     static boolean canNotify(Context context) {
@@ -84,7 +89,8 @@ final class ReminderStore {
         catch (JSONException | IllegalArgumentException exception) { return new LinkedHashMap<>(); }
     }
 
-    private static Map<String, ReminderSpec> parse(String payload) throws JSONException {
+    /** Package-private for JVM tests: reboot recovery reads exactly what {@link #serialize} wrote. */
+    static Map<String, ReminderSpec> parse(String payload) throws JSONException {
         if (payload == null || payload.length() > 40_000) throw new JSONException("Alarm payload too large");
         JSONArray array = new JSONArray(payload);
         if (array.length() > 32) throw new JSONException("Too many alarms");
@@ -94,25 +100,30 @@ final class ReminderStore {
             if (!(item.get("at") instanceof Number)) throw new JSONException("Time must be numeric");
             ReminderSpec spec = new ReminderSpec(item.getString("id"), item.getLong("at"),
                     item.getString("title"), item.getString("body"), item.getString("date"),
-                    item.getString("meal"), item.optBoolean("timer", false));
+                    item.getString("meal"), item.optString("kind",
+                            item.optBoolean("timer", false) ? ReminderSpec.KIND_TIMER : ReminderSpec.KIND_MEAL));
             if (result.put(spec.id, spec) != null) throw new JSONException("Duplicate alarm ID");
         }
         return result;
     }
 
-    // Receivers may lose their process immediately after return; alarm state must already be durable.
-    @SuppressLint("ApplySharedPref")
-    private static void write(Context context, Map<String, ReminderSpec> specs) {
+    static String serialize(Map<String, ReminderSpec> specs) {
         JSONArray array = new JSONArray();
         for (ReminderSpec spec : specs.values()) {
             JSONObject item = new JSONObject();
             try {
                 item.put("id", spec.id).put("at", spec.at).put("title", spec.title).put("body", spec.body)
-                        .put("date", spec.date).put("meal", spec.meal).put("timer", spec.timer);
+                        .put("date", spec.date).put("meal", spec.meal).put("timer", spec.timer).put("kind", spec.kind);
                 array.put(item);
             } catch (JSONException exception) { throw new IllegalStateException(exception); }
         }
-        preferences(context).edit().putString(ALARMS, array.toString()).commit();
+        return array.toString();
+    }
+
+    // Receivers may lose their process immediately after return; alarm state must already be durable.
+    @SuppressLint("ApplySharedPref")
+    private static void write(Context context, Map<String, ReminderSpec> specs) {
+        preferences(context).edit().putString(ALARMS, serialize(specs)).commit();
     }
 
     private static PendingIntent alarmIntent(Context context, ReminderSpec spec) {
