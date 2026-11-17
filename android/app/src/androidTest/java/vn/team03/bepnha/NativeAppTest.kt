@@ -90,6 +90,33 @@ class NativeAppTest {
         compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOn().performClick().assertIsOff()
     }
 
+    @Test fun fridgeSuggestsAMealAndChatChangesTomorrowsDinner() {
+        compose.onNodeWithTag("tab-ask").performClick()
+        compose.onNodeWithTag("fridge-Trứng").performClick()
+        compose.onNodeWithTag("fridge-list").performScrollToNode(hasTestTag("tray-0"))
+        compose.onNodeWithTag("tray-0").assertIsDisplayed()
+        capture("native-fridge.png")
+        compose.onNodeWithTag("ask-chat").performClick()
+        compose.onNodeWithTag("chat-input").performTextInput("Ngày mai tôi muốn ăn đậu hũ")
+        compose.onNodeWithTag("chat-send").performClick()
+        compose.onNodeWithTag("chat-list").performScrollToNode(hasTestTag("apply-change-0"))
+        compose.onNodeWithTag("apply-change-0").performClick()
+        compose.onNodeWithTag("tab-today").performClick()
+        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag("recipe-tofu"))
+        compose.onNodeWithTag("recipe-tofu").assertIsDisplayed()
+    }
+
+    @Test fun shoppingCanCoverLunchAndDinnerTogether() {
+        compose.onNodeWithTag("tab-shopping").performClick()
+        val list = compose.onNodeWithTag("shopping-list")
+        list.performScrollToNode(hasTestTag("ingredient-Gạo"))
+        compose.onNodeWithTag("ingredient-Gạo").assertTextContains("360 g", substring = true)
+        list.performScrollToNode(hasTestTag("shop-lunch"))
+        compose.onNodeWithTag("shop-lunch").performClick()
+        list.performScrollToNode(hasTestTag("ingredient-Gạo"))
+        compose.onNodeWithTag("ingredient-Gạo").assertTextContains("720 g", substring = true)
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

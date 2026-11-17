@@ -150,8 +150,7 @@ import java.time.LocalTime
             if (enabled && !vm.notifications) actions.notifications()
         }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Lưu lịch nhắc") }
         OutlinedButton(onClick = {
-            val profile = if (vm.state.meal == Meal.LUNCH) vm.state.profile.copy(lunch = time) else vm.state.profile.copy(dinner = time)
-            actions.calendar(vm.engine.timeline(vm.state.copy(profile = profile)))
+            actions.calendar(vm.engine.timeline(vm.state.copy(profile = vm.state.profile.with(vm.state.meal, time))))
         }, modifier = Modifier.fillMaxWidth()) { Text("Thêm vào lịch điện thoại") }
     }
 }
@@ -160,6 +159,7 @@ import java.time.LocalTime
     val original = vm.state.profile
     var name by remember(original) { mutableStateOf(original.name) }
     var people by remember(original) { mutableIntStateOf(original.people) }
+    var breakfast by remember(original) { mutableStateOf(original.breakfast) }
     var lunch by remember(original) { mutableStateOf(original.lunch) }
     var dinner by remember(original) { mutableStateOf(original.dinner) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -182,17 +182,18 @@ import java.time.LocalTime
                 OutlinedButton(onClick = { if (people < 12) people++ }, enabled = people < 12,
                     modifier = Modifier.heightIn(min = 52.dp).semantics { contentDescription = "Tăng số người" }) { Text("+", fontSize = 24.sp) }
             }
+            TimeField("Giờ ăn sáng", breakfast, Modifier.fillMaxWidth()) { actions.pickTime(breakfast) { breakfast = it } }
             KitchenActions(
                 first = { modifier -> TimeField("Giờ ăn trưa", lunch, modifier) { actions.pickTime(lunch) { lunch = it } } },
                 second = { modifier -> TimeField("Giờ ăn tối", dinner, modifier) { actions.pickTime(dinner) { dinner = it } } },
             )
-            Button(onClick = { vm.saveFamily(name, people, lunch, dinner) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Lưu thông tin gia đình") }
+            Button(onClick = { vm.saveFamily(name, people, breakfast, lunch, dinner) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Lưu thông tin gia đình") }
         } }
         item { PermissionInfo(vm, actions) }
         item { KitchenCard {
             Text("Dữ liệu của nhà mình", style = MaterialTheme.typography.titleMedium)
             Text("Thực đơn và công thức được lưu trên thiết bị, dùng được offline. Chưa có đồng bộ giữa các máy.", color = KitchenMuted)
-            Text("Trợ lý hiện tra cứu 14 công thức có sẵn, chưa kết nối AI tạo sinh. Chi phí và thời gian nấu là ước tính.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
+            Text("Hỏi Bếp Nhà gợi ý từ ${vm.engine.recipes.size} công thức có sẵn bằng quy tắc trên máy, chưa kết nối AI tạo sinh. Chi phí và thời gian nấu là ước tính.", style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
             OutlinedButton(onClick = { vm.navigate(Screen.FAVORITES) }, modifier = Modifier.fillMaxWidth()) { Text("Xem món đã lưu") }
         } }
     }
@@ -201,54 +202,5 @@ import java.time.LocalTime
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
         OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(time.toString(), fontSize = 20.sp) }
-    }
-}
-
-@Composable fun AssistantSheet(vm: PlannerViewModel) {
-    var question by remember { mutableStateOf("") }
-    var history by remember { mutableStateOf(emptyList<Pair<String, AssistantAnswer>>()) }
-    val scroll = rememberLazyListState()
-    fun ask(text: String) {
-        if (text.isBlank()) return
-        history = history + (text to vm.engine.answer(text, vm.state)); question = ""
-    }
-    LaunchedEffect(history.size) { if (history.isNotEmpty()) scroll.animateScrollToItem(history.size) }
-    Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).imePadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SheetTitle("Hỏi Bếp Nhà", vm)
-        Text("Gợi ý từ 14 công thức có sẵn.", color = KitchenMuted, style = MaterialTheme.typography.bodyMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = { ask("Món nấu nhanh") }, label = { Text("Món nhanh") })
-            AssistChip(onClick = { ask("Tiết kiệm hơn") }, label = { Text("Tiết kiệm") })
-            AssistChip(onClick = { ask("Nấu món nào trước?") }, label = { Text("Lịch nấu") })
-        }
-        LazyColumn(Modifier.weight(1f), state = scroll, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item { Surface(color = KitchenSoft, shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    KitchenIcon(KitchenGlyph.SPARKLE)
-                    Text("Bạn có thể hỏi tên món, cách nấu hoặc thứ tự vào bếp theo thực đơn đã chọn.")
-                }
-            } }
-            items(history) { (prompt, answer) ->
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(color = KitchenGreen, shape = RoundedCornerShape(18.dp), modifier = Modifier.align(Alignment.End)) {
-                        Text(prompt, Modifier.padding(16.dp), fontWeight = FontWeight.Medium, color = Color.White)
-                    }
-                    Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(answer.text)
-                            answer.recipes.forEach { id ->
-                                TextButton(onClick = { vm.openRecipe(id) }) { Text("Xem ${vm.engine.recipes.getValue(id).name.lowercase()}") }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = question, onValueChange = { question = it.take(300) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
-                placeholder = { Text("Bạn muốn nấu gì?") }, maxLines = 3,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { ask(question) }))
-            FilledIconButton(onClick = { ask(question) }, enabled = question.isNotBlank(), modifier = Modifier.size(52.dp)) { Icon(Icons.AutoMirrored.Outlined.Send, "Gửi câu hỏi") }
-        }
     }
 }

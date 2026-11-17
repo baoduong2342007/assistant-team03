@@ -2,6 +2,24 @@
 
 Bản 0.3.0-native là ứng dụng Android native. Các màn hình, điều hướng, ô nhập, hộp thoại và danh sách được dựng bằng Jetpack Compose; không dùng WebView, HTML hoặc JavaScript để hiển thị ứng dụng.
 
+## Cập nhật UI/UX theo góp ý người dùng (chưa phát hành APK)
+
+Thay đổi trên nhánh này đi theo ghi chú góp ý "Bếp nhà note":
+
+| Góp ý | Đã làm |
+| --- | --- |
+| Hôm nay nên thấy thực đơn cả tuần | Dải ngày ở **Hôm nay** thành thẻ 7 ngày, mỗi thẻ hiện emoji các món và tên món chính của bữa đang chọn; chạm để chuyển ngày. |
+| Thực đơn: thêm bữa sáng | Thêm **Bữa sáng** (một món) với 6 công thức: bánh mì ốp la, cháo thịt bằm, mì trứng rau cải, phở gà, xôi đậu xanh, cơm chiên trứng. Có giờ ăn sáng, nhắc nấu và lịch nấu riêng. |
+| Đi chợ: chọn bữa trưa, bữa tối, cả ngày | **Đi chợ** có chip chọn nhiều bữa (Sáng/Trưa/Tối) và **Cả ngày**; nguyên liệu trùng được cộng dồn, gạo tính theo số mâm cơm, có tổng chi phí ước tính. |
+| Hỏi Bếp Nhà: nhập tủ lạnh có gì → gợi ý mâm cơm (tính năng chính) | Tab mới **Hỏi bếp** › **Tủ lạnh**: chọn/gõ/nói nguyên liệu, gợi ý ngay 3 mâm đủ mặn + canh + rau (hoặc món sáng), ghi rõ món nào dùng nguyên liệu nào và cần mua thêm gì; một chạm để đưa mâm vào thực đơn. Thẻ "Tủ lạnh còn gì?" đặt ngay trên màn hình Hôm nay. |
+| Thu âm speech-to-text | Nút micro ở ô tủ lạnh và ô trò chuyện, dùng trình nhận giọng nói của Android (`RecognizerIntent`, tiếng Việt). Ứng dụng không xin quyền micro hay Internet; nếu máy không có dịch vụ nhận giọng nói sẽ báo để gõ thay. |
+| Chatbot đổi thực đơn, hiểu "hôm nay / ngày mai / ngày mai nữa" | **Trò chuyện** hiểu hôm nay, ngày mai, ngày mai nữa/ngày kia, thứ trong tuần và bữa sáng/trưa/tối. Ví dụ "ngày mai tôi muốn ăn cá" đưa ra nút đổi món cho bữa tối ngày mai; "tủ lạnh có trứng và rau muống" trả về mâm cơm; "ngày mai ăn gì" đọc thực đơn. |
+| Hẹn giờ để làm việc khác, hẹn 2 món trở lên | Chạy tối đa 4 đồng hồ cùng lúc, mỗi đồng hồ một thông báo riêng. Thanh đồng hồ phía dưới hiện tất cả; tab **Hẹn giờ** có nút hẹn cho từng món và hẹn nhanh 3–30 phút; chat hiểu "hẹn 10 phút luộc rau". |
+
+Trợ lý vẫn chạy bằng quy tắc trên máy với công thức có sẵn, chưa dùng AI tạo sinh hay nguồn dữ liệu món ăn bên ngoài. Dữ liệu cũ được đọc tiếp: bản 0.3 lưu một đồng hồ `timer`, bản này đọc được và chuyển sang danh sách `timers`; dấu tích đi chợ chuyển sang lưu theo ngày nên các dấu tích cũ theo từng bữa không hiện lại.
+
+**Đã kiểm tra:** `./gradlew testDebugUnitTest assembleDebug lintDebug compileDebugAndroidTestKotlin` thành công với JDK 17; **18 unit test** đều qua (thêm test cho bữa sáng, đi chợ nhiều bữa, gợi ý từ tủ lạnh, đọc ngày/bữa trong câu chat, đổi món qua chat và hai đồng hồ cùng lúc); Android Lint **0 lỗi, 13 cảnh báo** cùng loại như bản 0.3. **Chưa kiểm tra:** instrumentation test (`connectedDebugAndroidTest`, gồm 2 test giao diện mới cho tủ lạnh/chat và đi chợ trưa + tối) chưa chạy vì chưa có máy ảo; chưa chụp ảnh màn hình mới; nhận giọng nói chưa thử trên thiết bị thật.
+
 ## Giao diện 0.3
 
 - Tông xanh rừng, nền kem và điểm nhấn đất nung; chữ tiêu đề serif, ảnh mâm cơm và ảnh đại diện ba món có sẵn trong ảnh gốc.
@@ -16,7 +34,7 @@ Chép `releases/BepNha-0.3.0-native-debug.apk` sang điện thoại Android 8.0 
 
 APK 0.3 đã được xác minh chữ ký nhưng dùng chứng chỉ debug khác APK 0.2 được lưu trong dự án, nên không cài đè trực tiếp được lên bản đó. Cài mới trên thiết bị chưa có bản cũ, hoặc chủ động sao lưu thông tin cần giữ trước khi gỡ bản cũ; gỡ ứng dụng sẽ xóa dữ liệu cục bộ. Mã nguồn UI vẫn có thể build với khóa ký cũ nếu người giữ khóa còn lưu khóa đó.
 
-APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. 14 công thức cùng ảnh minh họa có sẵn trong gói, dùng được offline. Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
+APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. Bản 0.3 có 14 công thức cùng ảnh minh họa có sẵn trong gói, dùng được offline. Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
 
 ## Những màn hình đã có
 
@@ -51,7 +69,8 @@ Thêm sự kiện vào lịch bằng màn hình soạn sự kiện của ứng d
 | `PlannerEngine.kt`, `PlannerModels.kt` | Thực đơn, đổi món, định lượng, timeline và lịch nhắc thuần Kotlin |
 | `PlannerStorage.kt` | Đọc công thức và lưu trạng thái bằng SharedPreferences trên luồng IO tuần tự |
 | `ReminderStore.java`, `ReminderReceiver.java` | Đặt/hủy/khôi phục lịch và hiện thông báo Android |
-| `src/main/assets/recipes.json` | Dữ liệu 14 công thức được đóng gói trong APK |
+| `AskScreen.kt` | Tab Hỏi bếp: tủ lạnh → mâm cơm, trò chuyện đổi thực đơn, hẹn nhiều đồng hồ |
+| `src/main/assets/recipes.json` | Dữ liệu 20 công thức (14 món cơm + 6 món sáng) được đóng gói trong APK |
 | `src/main/res/drawable-nodpi/family_meal.webp` | Ảnh minh họa được đóng gói như tài nguyên Android |
 
 Các tệp Kotlin/Java ở `app/src/main/java/vn/team03/bepnha/`. Build Android không dùng hoặc sao chép mã trong `ui/`.
@@ -82,7 +101,7 @@ Kiểm thử giao diện cần máy ảo riêng vì bộ kiểm thử xóa dữ 
 
 ## Giới hạn
 
-Giờ nấu và giá là ước tính, cần kiểm tra độ chín thực tế. Dữ liệu lưu trên thiết bị, chưa có tài khoản hoặc đồng bộ. Chỉ có một đồng hồ đếm ngược tại một thời điểm; nhắc từng bữa hoạt động độc lập.
+Giờ nấu và giá là ước tính, cần kiểm tra độ chín thực tế. Dữ liệu lưu trên thiết bị, chưa có tài khoản hoặc đồng bộ. Có thể chạy tối đa 4 đồng hồ đếm ngược cùng lúc; nhắc từng bữa hoạt động độc lập.
 
 Thông báo cần quyền của người dùng; quyền Alarms & reminders hỗ trợ nhắc đúng giờ trên Android tương ứng. Tiết kiệm pin hoặc hạn chế ứng dụng của nhà sản xuất vẫn có thể ảnh hưởng. Dừng bắt buộc ứng dụng ngăn nhắc cho đến khi mở lại.
 

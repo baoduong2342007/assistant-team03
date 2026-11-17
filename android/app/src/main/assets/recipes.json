@@ -653,6 +653,315 @@
         "Trộn rau củ với nước trộn ngay trước khi ăn. Để riêng trong ngăn mát nếu chưa dùng ngay."
       ],
       "tip": "Chỉ trộn sát giờ ăn để dưa leo giữ được độ giòn."
+    },
+    {
+      "id": "bread",
+      "name": "Bánh mì ốp la",
+      "emoji": "🥖",
+      "minutes": 10,
+      "cost": 40000,
+      "note": "Nhanh, no lâu, hợp sáng đi học đi làm",
+      "ingredients": [
+        {
+          "name": "Bánh mì",
+          "amount": 4,
+          "unit": "ổ",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 4,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Dưa leo",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa dưa leo, cắt lát. Hâm nóng bánh mì trong chảo hoặc lò nướng.",
+        "Làm nóng dầu, đập từng quả trứng vào chảo, chiên lửa vừa đến khi lòng trắng chín.",
+        "Xẻ bánh mì, cho trứng và dưa leo vào, rưới chút nước tương."
+      ],
+      "tip": "Đậy nắp chảo khoảng 1 phút nếu muốn lòng đỏ chín hơn.",
+      "kind": "breakfast",
+      "label": "Món sáng"
+    },
+    {
+      "id": "porridge",
+      "name": "Cháo thịt bằm",
+      "emoji": "🍚",
+      "minutes": 30,
+      "cost": 30000,
+      "note": "Mềm, ấm bụng, dễ ăn cho cả nhà",
+      "ingredients": [
+        {
+          "name": "Gạo",
+          "amount": 150,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 10,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Vo gạo, rang sơ cho thơm rồi cho vào nồi với khoảng 1,5 lít nước.",
+        "Nấu sôi rồi hạ lửa nhỏ, khuấy thỉnh thoảng khoảng 20 phút đến khi gạo nở bung.",
+        "Ướp thịt bằm với chút nước mắm, cho vào nồi, khuấy tơi và nấu thêm 5 phút.",
+        "Nêm lại, thêm gừng thái sợi, hành lá và tiêu rồi tắt bếp."
+      ],
+      "tip": "Ngâm gạo từ tối hôm trước giúp cháo nhừ nhanh hơn vào buổi sáng.",
+      "kind": "breakfast",
+      "label": "Món sáng"
+    },
+    {
+      "id": "noodles",
+      "name": "Mì trứng rau cải",
+      "emoji": "🍜",
+      "minutes": 15,
+      "cost": 30000,
+      "note": "Có rau, có trứng, nấu một nồi là xong",
+      "ingredients": [
+        {
+          "name": "Mì trứng",
+          "amount": 4,
+          "unit": "vắt",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 4,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cải xanh",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa cải, cắt khúc. Đun sôi khoảng 1,2 lít nước.",
+        "Cho mì vào luộc 3 phút, thêm cải và đập trứng vào nồi.",
+        "Nêm nước mắm, rắc hành lá, tắt bếp khi trứng vừa chín."
+      ],
+      "tip": "Không khuấy mạnh sau khi cho trứng để trứng giữ nguyên quả.",
+      "kind": "breakfast",
+      "label": "Món sáng"
+    },
+    {
+      "id": "phoga",
+      "name": "Phở gà",
+      "emoji": "🍲",
+      "minutes": 40,
+      "cost": 80000,
+      "note": "Nước dùng thanh, hợp sáng cuối tuần",
+      "ingredients": [
+        {
+          "name": "Bánh phở",
+          "amount": 600,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Thịt gà",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 20,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 3,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nướng sơ gừng và hành tím cho thơm. Rửa gà sạch.",
+        "Cho gà, gừng, hành vào nồi với 2 lít nước, đun sôi rồi hạ lửa, hớt bọt và nấu 25 phút.",
+        "Vớt gà ra xé sợi. Nêm nước dùng với nước mắm.",
+        "Trụng bánh phở, xếp gà và hành lá lên rồi chan nước dùng."
+      ],
+      "tip": "Ninh nước dùng từ tối hôm trước, sáng chỉ cần đun nóng và trụng phở.",
+      "kind": "breakfast",
+      "label": "Món sáng"
+    },
+    {
+      "id": "xoi",
+      "name": "Xôi đậu xanh",
+      "emoji": "🍙",
+      "minutes": 40,
+      "cost": 35000,
+      "note": "Dẻo thơm, mang theo tiện",
+      "ingredients": [
+        {
+          "name": "Gạo nếp",
+          "amount": 400,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đậu xanh",
+          "amount": 150,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Ngâm gạo nếp và đậu xanh ít nhất 4 tiếng, tốt nhất từ tối hôm trước.",
+        "Trộn nếp với đậu xanh và muối, hấp khoảng 30 phút đến khi chín dẻo.",
+        "Phi hành tím với dầu đến vàng, rưới lên xôi khi ăn."
+      ],
+      "tip": "Rưới chút nước muối loãng lên xôi giữa chừng để hạt nếp chín đều.",
+      "kind": "breakfast",
+      "label": "Món sáng"
+    },
+    {
+      "id": "friedrice",
+      "name": "Cơm chiên trứng",
+      "emoji": "🍳",
+      "minutes": 15,
+      "cost": 30000,
+      "note": "Tận dụng cơm nguội còn lại",
+      "ingredients": [
+        {
+          "name": "Gạo",
+          "amount": 300,
+          "unit": "g",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cà rốt cắt hạt lựu, hành lá cắt nhỏ. Bóp tơi cơm nguội.",
+        "Phi thơm dầu, xào cà rốt 2 phút rồi cho cơm vào đảo đều trên lửa lớn.",
+        "Đẩy cơm sang một bên, đánh trứng vào chảo, đảo cho trứng bám đều hạt cơm.",
+        "Nêm nước mắm, thêm hành lá rồi tắt bếp."
+      ],
+      "tip": "Cơm nguội để tủ lạnh qua đêm sẽ khô hạt, chiên tơi và không bết.",
+      "kind": "breakfast",
+      "label": "Món sáng"
     }
   ],
   "combinations": [
@@ -691,5 +1000,13 @@
       "cabbage",
       "cucumber"
     ]
+  ],
+  "breakfasts": [
+    "bread",
+    "porridge",
+    "noodles",
+    "phoga",
+    "xoi",
+    "friedrice"
   ]
 }

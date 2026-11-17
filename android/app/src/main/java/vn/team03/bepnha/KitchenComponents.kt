@@ -20,6 +20,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +32,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE }
+enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE }
 val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo must be provided by MainActivity") }
 
 /** Small native line illustrations; no icon-font or network dependency. */
@@ -52,6 +56,15 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                 }
                 KitchenGlyph.SPARKLE -> {
                     path { moveTo(10f, 3f); lineTo(12f, 9f); lineTo(18f, 11f); lineTo(12f, 13f); lineTo(10f, 19f); lineTo(8f, 13f); lineTo(2f, 11f); lineTo(8f, 9f); close(); moveTo(20f, 1f); lineTo(20f, 6f); moveTo(17.5f, 3.5f); lineTo(22.5f, 3.5f) }
+                }
+                KitchenGlyph.MIC -> {
+                    path { moveTo(9f, 7f); cubicTo(9f, 3f, 15f, 3f, 15f, 7f); lineTo(15f, 11f); cubicTo(15f, 15f, 9f, 15f, 9f, 11f); close() }
+                    path { moveTo(5.5f, 11f); cubicTo(5.5f, 19.5f, 18.5f, 19.5f, 18.5f, 11f); moveTo(12f, 17.5f); lineTo(12f, 21f); moveTo(8.5f, 21f); lineTo(15.5f, 21f) }
+                }
+                KitchenGlyph.FRIDGE -> {
+                    path { moveTo(8f, 2f); lineTo(16f, 2f); cubicTo(17.2f, 2f, 18f, 2.8f, 18f, 4f); lineTo(18f, 20f); cubicTo(18f, 21.2f, 17.2f, 22f, 16f, 22f)
+                        lineTo(8f, 22f); cubicTo(6.8f, 22f, 6f, 21.2f, 6f, 20f); lineTo(6f, 4f); cubicTo(6f, 2.8f, 6.8f, 2f, 8f, 2f); close() }
+                    path { moveTo(6f, 10f); lineTo(18f, 10f); moveTo(9f, 5f); lineTo(9f, 7.5f); moveTo(9f, 13f); lineTo(9f, 16.5f) }
                 }
             }
         }
@@ -100,11 +113,38 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     }
 }
 
+/** Segmented control: one row of equally wide, accessible tabs. */
+@Composable fun KitchenSegmented(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    tag: (Int) -> String? = { null },
+) {
+    Surface(modifier = modifier, color = KitchenSurface, shape = MaterialTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(1.dp, KitchenLine)) {
+        Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            options.forEachIndexed { index, label ->
+                val active = index == selected
+                Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(MaterialTheme.shapes.small)
+                    .background(if (active) KitchenPeach else Color.Transparent)
+                    .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
+                    .let { base -> tag(index)?.let { base.testTag(it) } ?: base }
+                    .padding(horizontal = 6.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+                    Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1,
+                        color = if (active) KitchenTerracotta else KitchenMuted)
+                }
+            }
+        }
+    }
+}
+
 @Composable fun RecipeKindLabel(kind: RecipeKind) {
     val (background, color) = when (kind) {
         RecipeKind.MAIN -> KitchenPeach to KitchenTerracotta
         RecipeKind.SOUP -> Color(0xFFF7EBD0) to Color(0xFF77521F)
         RecipeKind.VEG -> KitchenSoft to KitchenGreen
+        RecipeKind.BREAKFAST -> Color(0xFFFFEFCC) to Color(0xFF7A4B0E)
     }
     Surface(color = background, contentColor = color, shape = MaterialTheme.shapes.extraSmall) {
         Text(kind.label, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium)
@@ -116,6 +156,7 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
         RecipeKind.MAIN -> KitchenPeach
         RecipeKind.SOUP -> Color(0xFFF3EFD9)
         RecipeKind.VEG -> KitchenSoft
+        RecipeKind.BREAKFAST -> Color(0xFFFFF3DC)
     }
     Box(Modifier.size(size).clip(MaterialTheme.shapes.medium).background(background), contentAlignment = Alignment.Center) {
         // The three dishes actually pictured in the bundled photograph share one decoded bitmap.

@@ -19,7 +19,9 @@ class NativeStorageTest {
         val storage = PlannerStorage(context, engine)
         val initial = engine.ensureWeek(PlannerState(date = PlannerEngine.today()), PlannerEngine.today())
         val saved = engine.swap(initial, 0, "tofu").copy(profile = FamilyProfile("Nhà thử nghiệm", 6, dinner = LocalTime.of(19, 0)),
-            checked = mapOf(initial.key to setOf("Gạo|g")), favorites = setOf("tofu"))
+            checked = mapOf(PlannerEngine.shopKey(initial.date) to setOf("Gạo|g")), favorites = setOf("tofu"),
+            timers = listOf(CookingTimer(3, System.currentTimeMillis() + 600_000L, "Nấu canh", initial.date, Meal.DINNER)),
+            shopMeals = setOf(Meal.LUNCH, Meal.DINNER))
         storage.save(saved)
         val loaded = storage.load(PlannerEngine.today())
         assertEquals(saved, loaded)

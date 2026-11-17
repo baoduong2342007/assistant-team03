@@ -1,10 +1,11 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package vn.team03.bepnha
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,6 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
@@ -52,9 +54,9 @@ import kotlinx.coroutines.isActive
     val owner = LocalLifecycleOwner.current
     val fontScale = LocalDensity.current.fontScale
     val screenState = rememberSaveableStateHolder()
-    LaunchedEffect(owner, vm, vm.state.timer?.end) {
+    LaunchedEffect(owner, vm, vm.state.timers.size) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) { vm.visibleTick(); delay(if (vm.state.timer != null) 1000L else 30_000L) }
+            while (isActive) { vm.visibleTick(); delay(if (vm.state.timers.isNotEmpty()) 1000L else 30_000L) }
         }
     }
     LaunchedEffect(vm.message) {
@@ -87,29 +89,19 @@ import kotlinx.coroutines.isActive
         },
         bottomBar = {
             Column {
-                vm.state.timer?.let { timer ->
-                    val seconds = ((timer.end - vm.now + 999) / 1000).coerceAtLeast(0)
-                    Surface(color = KitchenGreen, contentColor = Color.White) {
-                        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(timer.label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                                Text("%02d:%02d".format(seconds / 60, seconds % 60), fontSize = 24.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.testTag("timer-countdown"))
-                            }
-                            IconButton(onClick = vm::cancelTimer) { Icon(Icons.Outlined.Close, "Dừng hẹn giờ") }
-                        }
-                    }
-                }
+                TimerBar(vm)
                 HorizontalDivider(color = KitchenLine)
                 NavigationBar(containerColor = KitchenSurface, tonalElevation = 0.dp) {
-                    listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK).forEach { screen ->
+                    listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK).forEach { screen ->
                         NavigationBarItem(selected = vm.screen == screen, onClick = { vm.navigate(screen) },
                             modifier = Modifier.testTag("tab-${screen.name.lowercase()}"),
                             icon = { when (screen) {
                                 Screen.TODAY -> Icon(Icons.Outlined.Home, null)
                                 Screen.PLAN -> Icon(Icons.Outlined.DateRange, null)
                                 Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null)
+                                Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE, tint = if (vm.screen == screen) KitchenTerracotta else KitchenMuted)
                                 else -> KitchenIcon(KitchenGlyph.BOWL, tint = if (vm.screen == screen) KitchenTerracotta else KitchenMuted)
-                            } }, label = { Text(screen.title, style = MaterialTheme.typography.labelMedium) },
+                            } }, label = { Text(screen.title, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(selectedIconColor = KitchenTerracotta, selectedTextColor = KitchenTerracotta,
                                 unselectedIconColor = KitchenMuted, unselectedTextColor = KitchenMuted, indicatorColor = KitchenPeach))
                     }
@@ -117,7 +109,7 @@ import kotlinx.coroutines.isActive
             }
         }, snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.widthIn(max = 680.dp).fillMaxSize()) {
                 screenState.SaveableStateProvider(vm.screen.name) {
                     when (vm.screen) {
@@ -125,6 +117,7 @@ import kotlinx.coroutines.isActive
                         Screen.PLAN -> WeekScreen(vm)
                         Screen.SHOPPING -> ShoppingScreen(vm, actions)
                         Screen.COOK -> CookScreen(vm, actions)
+                        Screen.ASK -> AskScreen(vm, actions)
                         Screen.FAMILY -> FamilyScreen(vm, actions)
                         Screen.FAVORITES -> FavoritesScreen(vm)
                     }
@@ -139,19 +132,8 @@ import kotlinx.coroutines.isActive
                 is PlannerSheet.RecipeDetail -> RecipeSheet(vm, sheet.id, actions)
                 is PlannerSheet.Swap -> SwapSheet(vm, sheet.index)
                 PlannerSheet.Reminder -> ReminderSheet(vm, actions)
-                PlannerSheet.Assistant -> AssistantSheet(vm)
             }
         }
-    }
-    vm.pendingTimer?.let { pending ->
-        AlertDialog(onDismissRequest = vm::dismissTimerReplacement,
-            title = { Text("Đang có một hẹn giờ") },
-            text = { Text("Bạn muốn thay đồng hồ đang chạy bằng hẹn ${pending.first} phút cho ${pending.second.lowercase()}?") },
-            confirmButton = { TextButton(onClick = {
-                vm.startTimer(pending.first, pending.second, replace = true)
-                if (!vm.notifications) actions.notifications()
-            }) { Text("Thay hẹn giờ") } },
-            dismissButton = { TextButton(onClick = vm::dismissTimerReplacement) { Text("Giữ đồng hồ cũ") } })
     }
 }
 
@@ -182,20 +164,8 @@ import kotlinx.coroutines.isActive
 }
 
 @Composable private fun MealTabs(vm: PlannerViewModel, modifier: Modifier) {
-    Surface(modifier = modifier, color = KitchenSurface, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, KitchenLine)) {
-        Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Meal.entries.forEach { meal ->
-                val active = vm.state.meal == meal
-                Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(MaterialTheme.shapes.small)
-                    .background(if (active) KitchenPeach else Color.Transparent)
-                    .selectable(selected = active, role = Role.Tab, onClick = { vm.selectMeal(meal) })
-                    .padding(horizontal = 8.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(meal.title, style = MaterialTheme.typography.labelLarge,
-                        color = if (active) KitchenTerracotta else KitchenMuted)
-                }
-            }
-        }
-    }
+    KitchenSegmented(Meal.entries.map { it.title }, vm.state.meal.ordinal, { vm.selectMeal(Meal.entries[it]) }, modifier,
+        tag = { "meal-${Meal.entries[it].value}" })
 }
 
 @Composable private fun PeopleCount(vm: PlannerViewModel) {
@@ -204,8 +174,10 @@ import kotlinx.coroutines.isActive
         Text("${vm.state.profile.people} người", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
     }
 }
-@Composable fun DateStrip(vm: PlannerViewModel) {
+/** Picks the day and doubles as the week's menu at a glance for the selected meal. */
+@Composable fun WeekStrip(vm: PlannerViewModel) {
     val scroll = rememberLazyListState()
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.5f)
     LaunchedEffect(vm.state.date, vm.days) {
         val index = vm.days.indexOf(vm.state.date)
         val layout = scroll.layoutInfo
@@ -215,39 +187,31 @@ import kotlinx.coroutines.isActive
         }
         if (index >= 0 && !fullyVisible) scroll.animateScrollToItem(index)
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val spacing = 2.dp
-        val dayWidth = with(LocalDensity.current) {
-            val available = constraints.maxWidth - 2 * 20.dp.roundToPx() - spacing.roundToPx() * (vm.days.size - 1)
-            maxOf(48.dp, (available / vm.days.size).toDp())
-        }
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().selectableGroup(),
-            state = scroll,
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            contentPadding = PaddingValues(horizontal = 20.dp),
-        ) {
-            items(vm.days, key = { it.toString() }) { day ->
-                val selected = day == vm.state.date
-                val weekday = when {
-                    day == vm.today -> "Nay"
-                    day.dayOfWeek.value == 7 -> "CN"
-                    else -> "T${day.dayOfWeek.value + 1}"
-                }
-                Column(
-                    modifier = Modifier.width(dayWidth).heightIn(min = 58.dp).clip(MaterialTheme.shapes.small)
-                        .background(if (selected) KitchenTerracotta else KitchenSurface)
-                        .selectable(selected = selected, role = Role.Tab, onClick = { vm.selectDate(day) })
-                        .testTag("date-$day").semantics { contentDescription = PlannerEngine.fullDate(day) }
-                        .padding(vertical = 7.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(weekday, style = MaterialTheme.typography.labelMedium,
-                        color = if (selected) KitchenGold else KitchenMuted)
-                    Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge,
-                        color = if (selected) Color.White else KitchenInk)
-                }
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+        state = scroll,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+    ) {
+        items(vm.days, key = { it.toString() }) { day ->
+            val selected = day == vm.state.date
+            val dishes = vm.engine.menu(vm.state, day)
+            val label = if (day == vm.today) "Hôm nay" else "${PlannerEngine.weekdayShort(day)} · ${PlannerEngine.shortDate(day)}"
+            Column(
+                modifier = Modifier.width((116 * fontScale).dp).clip(MaterialTheme.shapes.medium)
+                    .background(if (selected) KitchenGreen else KitchenSurface)
+                    .border(1.dp, if (selected) KitchenGreen else KitchenLine, MaterialTheme.shapes.medium)
+                    .selectable(selected = selected, role = Role.Tab, onClick = { vm.selectDate(day) })
+                    .testTag("date-$day")
+                    .semantics { contentDescription = "${PlannerEngine.fullDate(day)}: ${dishes.joinToString { it.name }}" }
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                    color = if (selected) KitchenGold else KitchenMuted)
+                Text(dishes.joinToString(" ") { it.emoji }, fontSize = 18.sp, lineHeight = 26.sp, maxLines = 1, softWrap = false)
+                Text(dishes.first().name, style = MaterialTheme.typography.labelLarge, minLines = 2, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis, color = if (selected) Color.White else KitchenInk)
             }
         }
     }
@@ -265,18 +229,25 @@ import kotlinx.coroutines.isActive
                 SectionHeading("Nhà mình ăn gì?")
             }
         }
-        item(key = "dates") { DateStrip(vm) }
         item(key = "meal") { Box(Modifier.padding(horizontal = 20.dp)) { MealSelector(vm) } }
+        item(key = "dates") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.padding(horizontal = 20.dp)) {
+                    KitchenSection("Thực đơn cả tuần", "Chi tiết") { vm.navigate(Screen.PLAN) }
+                }
+                WeekStrip(vm)
+            }
+        }
         item(key = "overview") { MealOverview(vm, Modifier.padding(horizontal = 20.dp)) }
+        item(key = "fridge") { Box(Modifier.padding(horizontal = 20.dp)) { FridgePromo(vm) } }
         item(key = "menu-heading") {
             Box(Modifier.padding(horizontal = 20.dp)) {
-                KitchenSection("Các món trong bữa", "Xem cả tuần") { vm.navigate(Screen.PLAN) }
+                KitchenSection(if (vm.state.meal.tray) "Các món trong bữa" else "Món cho bữa sáng")
             }
         }
         items(vm.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
             Box(Modifier.padding(horizontal = 20.dp)) { RecipeCard(vm, recipe, index) }
         }
-        item(key = "assistant") { Box(Modifier.padding(horizontal = 20.dp)) { AssistantCard(vm) } }
     }
 }
 
@@ -285,7 +256,7 @@ import kotlinx.coroutines.isActive
     val duration = "${vm.engine.minutes(vm.menu)} phút"
     Surface(modifier.fillMaxWidth(), color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
         Column {
-            Image(
+            if (vm.state.meal.tray) Image(
                 LocalMealPhoto.current,
                 "Ảnh minh họa mâm cơm Việt với thịt kho, canh và rau",
                 contentScale = ContentScale.Crop,
@@ -308,7 +279,7 @@ import kotlinx.coroutines.isActive
                         }
                     }
                 }
-                Text("Chưa tính gạo và gia vị có sẵn.", style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
+                Text(if (vm.state.meal.tray) "Chưa tính gạo và gia vị có sẵn." else "Chưa tính gia vị có sẵn.", style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
             }
         }
     }
@@ -372,21 +343,34 @@ import kotlinx.coroutines.isActive
     }
 }
 
-@Composable fun AssistantCard(vm: PlannerViewModel) {
+/** Entry to the key feature: tell Bếp Nhà what is in the fridge and get a full meal. */
+@Composable fun FridgePromo(vm: PlannerViewModel) {
     Surface(
-        onClick = vm::openAssistant,
-        modifier = Modifier.fillMaxWidth(),
+        onClick = { vm.openAsk(AskTab.FRIDGE) },
+        modifier = Modifier.fillMaxWidth().testTag("fridge-promo"),
         color = KitchenPeach,
-        contentColor = KitchenTerracotta,
+        contentColor = KitchenInk,
         shape = MaterialTheme.shapes.large,
     ) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            KitchenIcon(KitchenGlyph.SPARKLE, tint = KitchenTerracotta)
-            Column(Modifier.weight(1f)) {
-                Text("Hỏi Bếp Nhà", style = MaterialTheme.typography.titleMedium)
-                Text("Tìm món nhanh, món tiết kiệm hoặc cách nấu", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).background(KitchenTerracotta, MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
+                    KitchenIcon(KitchenGlyph.FRIDGE, tint = Color.White)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Tủ lạnh còn gì?", style = MaterialTheme.typography.titleMedium)
+                    Text("Chọn nguyên liệu có sẵn, Bếp Nhà gợi ý cả mâm cơm trưa hoặc tối.",
+                        style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                }
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(20.dp), tint = KitchenTerracotta)
             }
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(20.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Thịt heo", "Trứng", "Cá", "Đậu hũ", "Rau").forEach { item ->
+                    SuggestionChip(onClick = { vm.openFridgeWith(item) }, label = { Text(item) },
+                        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = KitchenSurface, labelColor = KitchenTerracotta),
+                        border = BorderStroke(1.dp, KitchenTerracotta.copy(alpha = 0.25f)))
+                }
+            }
         }
     }
 }
@@ -445,13 +429,15 @@ import kotlinx.coroutines.isActive
 }
 
 @Composable fun ShoppingScreen(vm: PlannerViewModel, actions: NativeActions) {
-    val ingredients = vm.engine.ingredients(vm.menu, vm.state.profile.people)
-    val checked = vm.state.checked[vm.state.key].orEmpty()
+    val ingredients = vm.engine.ingredients(vm.shoppingMenu, vm.state.profile.people)
+    val checked = vm.checkedIngredients
+    val meals = vm.state.shoppingMeals
     val count = ingredients.count { it.key in checked }
     LazyColumn(Modifier.fillMaxSize().testTag("shopping-list"), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            SectionHeading("Danh sách đi chợ", "${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)} · ${vm.state.profile.people} người")
+            SectionHeading("Danh sách đi chợ", "${PlannerEngine.fullDate(vm.state.date)} · ${vm.state.profile.people} người")
         }
+        item { ShoppingMealPicker(vm) }
         item {
             Surface(color = KitchenSoft, contentColor = KitchenGreen, shape = MaterialTheme.shapes.extraLarge) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -461,6 +447,9 @@ import kotlinx.coroutines.isActive
                         }
                         Column(Modifier.weight(1f)) {
                             Text("Đã chuẩn bị $count/${ingredients.size}", style = MaterialTheme.typography.titleLarge)
+                            Text("${if (meals.size == Meal.entries.size) "Cả ngày" else meals.sorted().joinToString(" + ") { it.short }} · " +
+                                "ước tính ${PlannerEngine.money(vm.engine.cost(vm.shoppingMenu, vm.state.profile.people)).replace(' ', '\u00A0')}",
+                                style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                             Text("Tích cả nguyên liệu đã có ở nhà.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                         }
                     }
@@ -521,6 +510,30 @@ import kotlinx.coroutines.isActive
     }
 }
 
+/** Buy for one meal, lunch + dinner together, or the whole day in one trip. */
+@Composable private fun ShoppingMealPicker(vm: PlannerViewModel) {
+    val meals = vm.state.shoppingMeals
+    val wholeDay = meals.size == Meal.entries.size
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Mua cho bữa nào?", style = MaterialTheme.typography.titleMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val colors = FilterChipDefaults.filterChipColors(selectedContainerColor = KitchenPeach,
+                selectedLabelColor = KitchenTerracotta, selectedLeadingIconColor = KitchenTerracotta, containerColor = KitchenSurface)
+            Meal.entries.forEach { meal ->
+                val selected = meal in meals
+                FilterChip(selected = selected, onClick = { vm.toggleShopMeal(meal) }, label = { Text(meal.title) },
+                    leadingIcon = if (selected) { { Icon(Icons.Outlined.Check, null, Modifier.size(18.dp)) } } else null,
+                    colors = colors, modifier = Modifier.testTag("shop-${meal.value}"))
+            }
+            FilterChip(selected = wholeDay, onClick = vm::shopWholeDay, label = { Text("Cả ngày") },
+                leadingIcon = if (wholeDay) { { Icon(Icons.Outlined.Check, null, Modifier.size(18.dp)) } } else null,
+                colors = colors, modifier = Modifier.testTag("shop-day"))
+        }
+        Text("Chọn nhiều bữa để mua một lần, nguyên liệu trùng sẽ được cộng dồn.",
+            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+    }
+}
+
 @Composable fun CookScreen(vm: PlannerViewModel, actions: NativeActions) {
     val tasks = vm.tasks
     val done = vm.state.done[vm.state.key].orEmpty()
@@ -536,7 +549,7 @@ import kotlinx.coroutines.isActive
                         Text("Bắt đầu lúc ${PlannerEngine.time(tasks.first().at)}", style = MaterialTheme.typography.labelLarge, color = KitchenGold)
                     }
                     Text("Dọn cơm lúc ${vm.state.profile.time(vm.state.meal)}", style = MaterialTheme.typography.headlineSmall)
-                    Text("Khoảng ${vm.engine.minutes(vm.menu)} phút với 2 vùng nấu", style = MaterialTheme.typography.bodyMedium, color = KitchenOnGreen)
+                    Text("Khoảng ${vm.engine.minutes(vm.menu)} phút với ${if (vm.state.meal.tray) "2 vùng nấu" else "1 vùng nấu"}", style = MaterialTheme.typography.bodyMedium, color = KitchenOnGreen)
                     LinearProgressIndicator(
                         progress = { completed.toFloat() / tasks.size },
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
@@ -641,5 +654,32 @@ import kotlinx.coroutines.isActive
             Button(onClick = { vm.navigate(Screen.TODAY) }) { Text("Xem thực đơn") }
         } }
         items(favorites, key = { it.id }) { recipe -> RecipeCard(vm, recipe) }
+    }
+}
+
+/** Every running timer stays visible, so two dishes can be watched while doing something else. */
+@Composable fun TimerBar(vm: PlannerViewModel) {
+    val timers = vm.state.timers.sortedBy { it.end }
+    if (timers.isEmpty()) return
+    Surface(color = KitchenGreen, contentColor = Color.White) {
+        if (timers.size == 1) TimerChip(vm, timers[0], Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), first = true)
+        else LazyRow(Modifier.fillMaxWidth().testTag("timer-bar"), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            itemsIndexed(timers, key = { _, timer -> timer.id }) { index, timer ->
+                TimerChip(vm, timer, Modifier.width(184.dp).clip(MaterialTheme.shapes.small).background(Color.White.copy(alpha = 0.1f)), index == 0)
+            }
+        }
+    }
+}
+
+@Composable private fun TimerChip(vm: PlannerViewModel, timer: CookingTimer, modifier: Modifier, first: Boolean) {
+    val seconds = ((timer.end - vm.now + 999) / 1000).coerceAtLeast(0)
+    Row(modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(timer.label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = KitchenOnGreen)
+            Text("%02d:%02d".format(seconds / 60, seconds % 60), fontSize = 22.sp, fontWeight = FontWeight.SemiBold,
+                modifier = if (first) Modifier.testTag("timer-countdown") else Modifier)
+        }
+        IconButton(onClick = { vm.cancelTimer(timer.id) }) { Icon(Icons.Outlined.Close, "Dừng hẹn giờ ${timer.label}") }
     }
 }
