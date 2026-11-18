@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +27,30 @@ class NativeStorageTest {
         val loaded = storage.load(PlannerEngine.today())
         assertEquals(saved, loaded)
         context.getSharedPreferences("bep_nha_planner_v2", 0).edit().clear().commit()
+    }
+
+    @Test fun loadingTheLegacyTimerAlsoAddsBreakfastWithoutChangingDinner() {
+        val engine = RecipeRepository(context).engine
+        val today = PlannerEngine.today()
+        val dinner = PlannerEngine.key(today, Meal.DINNER)
+        val preferences = context.getSharedPreferences("bep_nha_planner_v2", 0)
+        val now = System.currentTimeMillis()
+        try {
+            val legacy = JSONObject()
+                .put("date", today.toString())
+                .put("meal", "dinner")
+                .put("plans", JSONObject().put(dinner, org.json.JSONArray(listOf("tofu", "soup", "greens"))))
+                .put("timer", JSONObject().put("end", now + 300_000).put("label", "Canh")
+                    .put("date", today.toString()).put("meal", "dinner"))
+            assertTrue(preferences.edit().putString("state", legacy.toString()).commit())
+            val state = PlannerStorage(context, engine).load(today)
+            assertEquals("tofu", engine.menu(state, today, Meal.DINNER).first().id)
+            assertEquals(RecipeKind.BREAKFAST, engine.menu(state, today, Meal.BREAKFAST).single().kind)
+            assertEquals("Canh", state.timers.single().label)
+            assertEquals(Meal.DINNER, state.timers.single().meal)
+        } finally {
+            preferences.edit().clear().commit()
+        }
     }
 
     @Test fun disablingAReminderRemovesTheAndroidPendingIntent() {

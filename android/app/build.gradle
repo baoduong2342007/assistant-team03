@@ -4,6 +4,10 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
+// A checkout without team configuration must still build and work locally.
+def firebaseConfigured = file('google-services.json').exists()
+if (firebaseConfigured) apply plugin: 'com.google.gms.google-services'
+
 android {
     namespace 'vn.team03.bepnha'
     compileSdk 36
@@ -14,19 +18,32 @@ android {
         versionCode 3
         versionName '0.3.0-native'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigured.toString()
+        def assistantModel = providers.gradleProperty('assistantModel').getOrElse('gemini-3.5-flash-lite')
+        if (!(assistantModel ==~ /gemini-[A-Za-z0-9.-]+/)) throw new GradleException('Invalid assistantModel')
+        buildConfigField 'String', 'ASSISTANT_MODEL', '"' + assistantModel + '"'
+        def assistantTimeout = providers.gradleProperty('assistantTimeoutMs').getOrElse('25000')
+        if (!(assistantTimeout ==~ /[1-9][0-9]{3,5}/)) throw new GradleException('Invalid assistantTimeoutMs')
+        buildConfigField 'long', 'ASSISTANT_TIMEOUT_MS', assistantTimeout + 'L'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = '17' }
-    buildFeatures { compose true }
+    buildFeatures { compose true; buildConfig true }
+    sourceSets { test.resources.srcDir 'src/main/assets' }
     buildTypes {
         release { minifyEnabled false }
     }
 }
 
 dependencies {
+    implementation platform('com.google.firebase:firebase-bom:35.2.0')
+    implementation 'com.google.firebase:firebase-ai'
+    implementation 'com.google.firebase:firebase-appcheck'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1'
+    debugImplementation 'com.google.firebase:firebase-appcheck-debug'
     def composeBom = platform('androidx.compose:compose-bom:2025.08.00')
     implementation composeBom
     implementation 'androidx.activity:activity-compose:1.11.0'
@@ -39,9 +56,12 @@ dependencies {
     implementation 'androidx.compose.ui:ui-tooling-preview'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
     androidTestImplementation composeBom
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
-    androidTestImplementation 'androidx.test:runner:1.6.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    // Compose's transitive Espresso predates the public InputManager API on Android 17.
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }

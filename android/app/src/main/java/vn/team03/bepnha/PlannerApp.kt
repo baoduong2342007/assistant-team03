@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,16 +29,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,8 +54,8 @@ import kotlinx.coroutines.isActive
 @Composable fun BepNhaApp(vm: PlannerViewModel, actions: NativeActions) {
     val snackbar = remember { SnackbarHostState() }
     val owner = LocalLifecycleOwner.current
-    val fontScale = LocalDensity.current.fontScale
-    val screenState = rememberSaveableStateHolder()
+    val screenStates = rememberSaveableStateHolder()
+    val imeOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     LaunchedEffect(owner, vm, vm.state.timers.size) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) { vm.visibleTick(); delay(if (vm.state.timers.isNotEmpty()) 1000L else 30_000L) }
@@ -62,66 +64,41 @@ import kotlinx.coroutines.isActive
     LaunchedEffect(vm.message) {
         vm.message?.let { message -> snackbar.showSnackbar(message); vm.clearMessage(message) }
     }
-    BackHandler(enabled = vm.sheet == null && vm.screen != Screen.TODAY) { vm.back() }
-    Scaffold(
-        modifier = Modifier.testTag("native-root"), containerColor = KitchenPaper,
-        topBar = {
-            TopAppBar(title = {
-                if (vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES)) Text(vm.screen.title, style = MaterialTheme.typography.titleLarge)
-                else KitchenBrand()
-            }, navigationIcon = {
-                if (vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES)) IconButton(onClick = { vm.navigate(Screen.TODAY) }) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Trở về Hôm nay")
-                }
-            }, actions = {
-                IconButton(onClick = vm::openReminders) {
-                    BadgedBox(badge = { if (vm.reminderEnabled) Badge(containerColor = KitchenTerracotta) }) {
-                        Icon(Icons.Outlined.Notifications, "Cài đặt nhắc nấu", tint = KitchenGreen)
-                    }
-                }
-                IconButton(onClick = { vm.navigate(Screen.FAMILY) }) {
-                    Box(Modifier.size(38.dp).background(KitchenPeach, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Person, "Thông tin gia đình", tint = KitchenTerracotta, modifier = Modifier.size(23.dp))
-                    }
-                }
-            }, expandedHeight = (64 * fontScale.coerceIn(1f, 1.8f)).dp,
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = KitchenPaper))
-        },
-        bottomBar = {
-            Column {
-                TimerBar(vm)
-                HorizontalDivider(color = KitchenLine)
-                NavigationBar(containerColor = KitchenSurface, tonalElevation = 0.dp) {
-                    listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK).forEach { screen ->
-                        NavigationBarItem(selected = vm.screen == screen, onClick = { vm.navigate(screen) },
-                            modifier = Modifier.testTag("tab-${screen.name.lowercase()}"),
-                            icon = { when (screen) {
-                                Screen.TODAY -> Icon(Icons.Outlined.Home, null)
-                                Screen.PLAN -> Icon(Icons.Outlined.DateRange, null)
-                                Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null)
-                                Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE, tint = if (vm.screen == screen) KitchenTerracotta else KitchenMuted)
-                                else -> KitchenIcon(KitchenGlyph.BOWL, tint = if (vm.screen == screen) KitchenTerracotta else KitchenMuted)
-                            } }, label = { Text(screen.title, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
-                            colors = NavigationBarItemDefaults.colors(selectedIconColor = KitchenTerracotta, selectedTextColor = KitchenTerracotta,
-                                unselectedIconColor = KitchenMuted, unselectedTextColor = KitchenMuted, indicatorColor = KitchenPeach))
-                    }
-                }
-            }
-        }, snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(), contentAlignment = Alignment.TopCenter) {
-            Box(Modifier.widthIn(max = 680.dp).fillMaxSize()) {
-                screenState.SaveableStateProvider(vm.screen.name) {
-                    when (vm.screen) {
-                        Screen.TODAY -> TodayScreen(vm)
-                        Screen.PLAN -> WeekScreen(vm)
-                        Screen.SHOPPING -> ShoppingScreen(vm, actions)
-                        Screen.COOK -> CookScreen(vm, actions)
-                        Screen.ASK -> AskScreen(vm, actions)
-                        Screen.FAMILY -> FamilyScreen(vm, actions)
-                        Screen.FAVORITES -> FavoritesScreen(vm)
-                    }
-                }
+    LaunchedEffect(vm.effect) {
+        val effect = vm.effect ?: return@LaunchedEffect
+        vm.consumeEffect(effect)
+        when (effect) {
+            is PlannerEffect.Share -> actions.share(effect.text)
+            is PlannerEffect.Calendar -> actions.calendar(effect.tasks)
+            PlannerEffect.Notifications -> actions.notifications()
+            PlannerEffect.ExactAlarms -> actions.exactAlarms()
+        }
+    }
+    val cooking = vm.cookAlong != null
+    val timer = if (vm.assistantVisible || cooking) null else vm.timerUi()
+    BackHandler(enabled = vm.sheet == null && (cooking || vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
+    KitchenFrame(
+        title = if (cooking) "Nấu cùng tôi" else if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
+        selected = vm.screen,
+        assistant = vm.assistantVisible || cooking,
+        showBack = cooking || vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
+        hideNavigation = imeOpen,
+        timer = timer,
+        extraTimers = if (!vm.assistantVisible && !cooking && vm.state.timers.size > 1) ({ TimerBar(vm) }) else null,
+        onBack = { vm.back() }, onTab = vm::navigate, onAssistant = vm::openAssistant,
+        onFamily = { vm.navigate(Screen.FAMILY) }, onReminder = vm::openReminders,
+        onFavorites = { vm.navigate(Screen.FAVORITES) }, onCancelTimer = { timer?.let { vm.cancelTimer(it.id) } },
+        snackbarHost = { SnackbarHost(snackbar) },
+    ) {
+        screenStates.SaveableStateProvider(if (cooking) "cook-along" else if (vm.assistantVisible) "assistant" else vm.screen.name) {
+            if (cooking) CookAlongScreen(vm) else if (vm.assistantVisible) AssistantScreen(vm) else when (vm.screen) {
+                Screen.TODAY -> TodayScreen(vm)
+                Screen.PLAN -> WeekScreen(vm)
+                Screen.SHOPPING -> ShoppingScreen(vm, actions)
+                Screen.COOK -> CookScreen(vm, actions)
+                Screen.ASK -> AskScreen(vm, actions)
+                Screen.FAMILY -> FamilyScreen(vm, actions)
+                Screen.FAVORITES -> FavoritesScreen(vm)
             }
         }
     }
@@ -137,12 +114,68 @@ import kotlinx.coroutines.isActive
     }
 }
 
+/** The same scaffold is used by device screens and full-screen design previews. */
+@Composable fun KitchenFrame(
+    title: String, selected: Screen = Screen.TODAY, assistant: Boolean = false,
+    showBack: Boolean = false, hideNavigation: Boolean = false, timer: KitchenTimerUi? = null,
+    onBack: () -> Unit = {}, onTab: (Screen) -> Unit = {}, onAssistant: () -> Unit = {},
+    onFamily: () -> Unit = {}, onReminder: () -> Unit = {}, onFavorites: () -> Unit = {},
+    onCancelTimer: () -> Unit = {}, extraTimers: (@Composable () -> Unit)? = null, snackbarHost: @Composable () -> Unit = {},
+    content: @Composable () -> Unit,
+) {
+    var menu by rememberSaveable { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compactKeyboard = assistant && maxHeight < 480.dp && WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    Scaffold(modifier = Modifier.testTag("native-root"), containerColor = KitchenPaper,
+        topBar = {
+            if (!compactKeyboard) Surface(color = KitchenPaper) {
+                Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    if (showBack) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Quay lại") }
+                    Text(title, style = MaterialTheme.typography.titleLarge,
+                        fontFamily = if (title == "Bếp Nhà") androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.SansSerif,
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { heading() }, color = KitchenGreen)
+                    if (!assistant) Box {
+                        TextButton(onClick = { menu = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text("Gia đình") }, onClick = { menu = false; onFamily() },
+                                modifier = Modifier.heightIn(min = 56.dp).semantics { contentDescription = "Thông tin gia đình" })
+                            DropdownMenuItem(text = { Text("Nhắc nấu") }, onClick = { menu = false; onReminder() },
+                                modifier = Modifier.heightIn(min = 56.dp))
+                            DropdownMenuItem(text = { Text("Món đã lưu") }, onClick = { menu = false; onFavorites() },
+                                modifier = Modifier.heightIn(min = 56.dp))
+                        }
+                    }
+                }
+            }
+        },
+        bottomBar = {
+            if (!assistant && !hideNavigation) {
+                Surface(color = Color.White) {
+                    Column(Modifier.navigationBarsPadding()) {
+                        if (extraTimers != null) extraTimers() else timer?.let { KitchenTimerSummary(it, onCancelTimer) }
+                        KitchenTonalButton(onClick = onAssistant,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                .heightIn(min = 56.dp).testTag("ask-assistant")) { Text("Hỏi Bếp Nhà") }
+                        KitchenNavigation(selected, onTab)
+                    }
+                }
+            }
+        },
+        snackbarHost = snackbarHost,
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) { content() }
+    }
+    }
+}
+
 @Composable fun KitchenCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     OutlinedCard(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, border = BorderStroke(1.dp, KitchenLine),
         colors = CardDefaults.outlinedCardColors(containerColor = KitchenSurface)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
     }
 }
+
 @Composable fun SectionHeading(title: String, subtitle: String? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
@@ -559,6 +592,10 @@ import kotlinx.coroutines.isActive
                         drawStopIndicator = {},
                     )
                     Text("Đã xong $completed/${tasks.size} việc", style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
+                    KitchenTonalButton(onClick = { vm.startCookAlong() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start-cook-along")) {
+                        Text("Nấu cùng tôi: đọc to từng bước")
+                    }
                     KitchenActions(
                         first = { modifier ->
                             OutlinedButton(

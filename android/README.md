@@ -2,75 +2,42 @@
 
 Bản 0.3.0-native là ứng dụng Android native. Các màn hình, điều hướng, ô nhập, hộp thoại và danh sách được dựng bằng Jetpack Compose; không dùng WebView, HTML hoặc JavaScript để hiển thị ứng dụng.
 
-## Cập nhật UI/UX theo góp ý người dùng (chưa phát hành APK)
-
-Thay đổi trên nhánh này đi theo ghi chú góp ý "Bếp nhà note":
-
-| Góp ý | Đã làm |
-| --- | --- |
-| Hôm nay nên thấy thực đơn cả tuần | Dải ngày ở **Hôm nay** thành thẻ 7 ngày, mỗi thẻ hiện emoji các món và tên món chính của bữa đang chọn; chạm để chuyển ngày. |
-| Thực đơn: thêm bữa sáng | Thêm **Bữa sáng** (một món) với 6 công thức: bánh mì ốp la, cháo thịt bằm, mì trứng rau cải, phở gà, xôi đậu xanh, cơm chiên trứng. Có giờ ăn sáng, nhắc nấu và lịch nấu riêng. |
-| Đi chợ: chọn bữa trưa, bữa tối, cả ngày | **Đi chợ** có chip chọn nhiều bữa (Sáng/Trưa/Tối) và **Cả ngày**; nguyên liệu trùng được cộng dồn, gạo tính theo số mâm cơm, có tổng chi phí ước tính. |
-| Hỏi Bếp Nhà: nhập tủ lạnh có gì → gợi ý mâm cơm (tính năng chính) | Tab mới **Hỏi bếp** › **Tủ lạnh**: chọn/gõ/nói nguyên liệu, gợi ý ngay 3 mâm đủ mặn + canh + rau (hoặc món sáng), ghi rõ món nào dùng nguyên liệu nào và cần mua thêm gì; một chạm để đưa mâm vào thực đơn. Thẻ "Tủ lạnh còn gì?" đặt ngay trên màn hình Hôm nay. |
-| Thu âm speech-to-text | Nút micro ở ô tủ lạnh và ô trò chuyện, dùng trình nhận giọng nói của Android (`RecognizerIntent`, tiếng Việt). Ứng dụng không xin quyền micro hay Internet; nếu máy không có dịch vụ nhận giọng nói sẽ báo để gõ thay. |
-| Chatbot đổi thực đơn, hiểu "hôm nay / ngày mai / ngày mai nữa" | **Trò chuyện** hiểu hôm nay, ngày mai, ngày mai nữa/ngày kia, thứ trong tuần và bữa sáng/trưa/tối. Ví dụ "ngày mai tôi muốn ăn cá" đưa ra nút đổi món cho bữa tối ngày mai; "tủ lạnh có trứng và rau muống" trả về mâm cơm; "ngày mai ăn gì" đọc thực đơn. |
-| Hẹn giờ để làm việc khác, hẹn 2 món trở lên | Chạy tối đa 4 đồng hồ cùng lúc, mỗi đồng hồ một thông báo riêng. Thanh đồng hồ phía dưới hiện tất cả; tab **Hẹn giờ** có nút hẹn cho từng món và hẹn nhanh 3–30 phút; chat hiểu "hẹn 10 phút luộc rau". |
-
-Trợ lý vẫn chạy bằng quy tắc trên máy với công thức có sẵn, chưa dùng AI tạo sinh hay nguồn dữ liệu món ăn bên ngoài. Dữ liệu cũ được đọc tiếp: bản 0.3 lưu một đồng hồ `timer`, bản này đọc được và chuyển sang danh sách `timers`; dấu tích đi chợ chuyển sang lưu theo ngày nên các dấu tích cũ theo từng bữa không hiện lại.
-
-**Đã kiểm tra:** `./gradlew testDebugUnitTest assembleDebug lintDebug compileDebugAndroidTestKotlin` thành công với JDK 17; **18 unit test** đều qua (thêm test cho bữa sáng, đi chợ nhiều bữa, gợi ý từ tủ lạnh, đọc ngày/bữa trong câu chat, đổi món qua chat và hai đồng hồ cùng lúc); Android Lint **0 lỗi, 13 cảnh báo** cùng loại như bản 0.3. **Chưa kiểm tra:** instrumentation test (`connectedDebugAndroidTest`, gồm 2 test giao diện mới cho tủ lạnh/chat và đi chợ trưa + tối) chưa chạy vì chưa có máy ảo; chưa chụp ảnh màn hình mới; nhận giọng nói chưa thử trên thiết bị thật.
-
-## Giao diện 0.3
-
-- Tông xanh rừng, nền kem và điểm nhấn đất nung; chữ tiêu đề serif, ảnh mâm cơm và ảnh đại diện ba món có sẵn trong ảnh gốc.
-- Màn hình Hôm nay có lịch chọn ngày, lựa chọn bữa rõ ràng và thẻ món với nút công thức, đổi món và lưu yêu thích.
-- Đi chợ có thanh tiến độ và mỗi nguyên liệu là một checkbox duy nhất cho cả hàng; lịch nấu có tiến độ, mốc giờ và trạng thái hoàn thành.
-- Giữ vị trí cuộn khi chuyển tab; tự sắp xếp lựa chọn bữa theo chiều dọc trên màn hình hẹp hoặc chữ lớn. Nội dung giới hạn rộng 680dp trên màn hình lớn.
-- Dùng chung một bitmap cho ảnh đầu trang và ảnh món; ghi nhớ thực đơn/lịch nấu bằng `derivedStateOf`. Khi ứng dụng đang hiển thị, chỉ cập nhật đồng hồ mỗi giây nếu có hẹn giờ; khi không có hẹn giờ, kiểm tra ngày mới mỗi 30 giây. Android AlarmManager vẫn phụ trách nhắc khi ứng dụng đóng.
-
 ## Cài bản thử
 
-Chép `releases/BepNha-0.3.0-native-debug.apk` sang điện thoại Android 8.0 trở lên rồi mở tệp để cài. Đây là APK debug, chưa phát hành lên Google Play. Khi Android hỏi, cấp quyền thông báo để nhận nhắc nấu; trong **Nhắc nấu** có nút mở quyền **Nhắc đúng giờ**.
+Build bản UI điện thoại mới rồi chép `app/build/outputs/apk/debug/app-debug.apk` sang điện thoại Android 8.0 trở lên để cài. APK trong `releases/` là bản cũ, không chứa các thay đổi UI mới. Đây là APK debug, chưa phát hành lên Google Play. Khi Android hỏi, cấp quyền thông báo để nhận nhắc nấu; trong **Nhắc nấu** có nút mở quyền **Nhắc đúng giờ**.
 
-APK 0.3 đã được xác minh chữ ký nhưng dùng chứng chỉ debug khác APK 0.2 được lưu trong dự án, nên không cài đè trực tiếp được lên bản đó. Cài mới trên thiết bị chưa có bản cũ, hoặc chủ động sao lưu thông tin cần giữ trước khi gỡ bản cũ; gỡ ứng dụng sẽ xóa dữ liệu cục bộ. Mã nguồn UI vẫn có thể build với khóa ký cũ nếu người giữ khóa còn lưu khóa đó.
-
-APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. Bản 0.3 có 14 công thức cùng ảnh minh họa có sẵn trong gói, dùng được offline. Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
+APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. 66 công thức cùng ảnh minh họa có sẵn trong gói, dùng được offline. Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
 
 ## Những màn hình đã có
 
-- **Hôm nay:** chọn ngày/bữa, xem ba món, chi phí và thời gian ước tính; đổi riêng từng món, lưu món yêu thích.
-- **Thực đơn:** kế hoạch bảy ngày, mỗi bữa có món mặn, canh và rau. Lựa chọn đã lưu được giữ khi sang ngày mới.
+- **Hôm nay:** chọn ngày/bữa, xem thực đơn tuần, chi phí và thời gian ước tính; đổi riêng từng món, lưu món yêu thích.
+- **Thực đơn:** kế hoạch bảy ngày, bữa sáng có một món, bữa trưa và tối có món mặn, canh và rau. Lựa chọn đã lưu được giữ khi sang ngày mới.
 - **Công thức:** nguyên liệu theo số người, các bước bằng chữ và mẹo nấu; mở bằng bottom sheet native.
-- **Đi chợ:** gộp nguyên liệu cùng tên và đơn vị, tích đồ đã có và sao chép danh sách qua clipboard Android.
-- **Vào bếp:** timeline tính ngược từ giờ ăn, canh/rau dùng lần lượt một vùng bếp; tích công việc, mở công thức và đặt đồng hồ. Đồng hồ giữ đúng bữa gốc khi bạn xem ngày khác.
+- **Đi chợ:** chọn một bữa, nhiều bữa hoặc cả ngày, gộp nguyên liệu và đánh dấu những thứ đã có. Có thể sao chép hoặc chia sẻ danh sách.
+- **Vào bếp:** timeline tính ngược từ giờ ăn, canh/rau dùng lần lượt một vùng bếp; tích công việc, mở công thức, dùng **Nấu cùng tôi** để nghe từng bước, và đặt tối đa bốn đồng hồ. Đồng hồ giữ đúng bữa gốc khi bạn xem ngày khác.
 - **Gia đình:** tên, số người từ 1–12 và giờ ăn bằng đồng hồ chọn giờ Android; đổi khẩu phần cập nhật định lượng.
-- **Hỏi Bếp Nhà:** ô nhập native để tra món, xem lịch nấu, tìm món nhanh hoặc tiết kiệm trong công thức có sẵn. Chưa có AI tạo sinh.
-- **Nhắc nấu:** lưu lịch bằng AlarmManager, gửi thông báo Android, chạm thông báo mở đúng bữa ăn; cập nhật/hủy lịch khi thay đổi thực đơn, giờ ăn hoặc đồng hồ.
+- **Hỏi bếp:** tab **Tủ lạnh** gợi ý món từ nguyên liệu nhập bằng tay hoặc giọng nói. **Trò chuyện** mở cùng trợ lý với nút **Hỏi Bếp Nhà**. Trợ lý tra công thức, gợi ý mâm theo nguyên liệu, chọn mâm, chỉnh riêng món và xác nhận thay đổi. Gemini chạy qua Firebase AI Logic/Spark; mất mạng hoặc hết quota chuyển sang xử lý Kotlin trên máy. Xem [hướng dẫn Firebase](../docs/firebase-spark-demo.md).
+- **Nhắc nấu:** lưu lịch bằng AlarmManager, gửi thông báo Android, chạm thông báo mở đúng bữa ăn; cập nhật/hủy lịch khi thay đổi thực đơn, giờ ăn hoặc đồng hồ. Nhắc đi chợ được cài trong **Gia đình**.
 
-Thêm sự kiện vào lịch bằng màn hình soạn sự kiện của ứng dụng lịch. Người dùng xác nhận lưu; Bếp Nhà không yêu cầu quyền đọc hoặc ghi lịch. Ứng dụng không khai báo quyền Internet.
+Thêm sự kiện vào lịch bằng màn hình soạn sự kiện của ứng dụng lịch. Người dùng xác nhận lưu; Bếp Nhà không yêu cầu quyền đọc hoặc ghi lịch. Ứng dụng dùng quyền Internet để gọi trợ lý; thực đơn và tra cứu offline vẫn dùng được khi mất mạng.
 
 ## Giao diện chạy trên máy ảo
 
-Ảnh chụp trực tiếp bản 0.3 trên Android 15/API 35:
+![Màn Hôm nay trên điện thoại](docs/phone-ui/native-home.png)
 
-![Màn hình Hôm nay](docs/native-home.png)
-
-![Danh sách đi chợ Android native](docs/native-shopping.png)
-
-![Lịch nấu Android native](docs/native-cook.png)
+Ảnh mới từ máy ảo và các trường hợp chữ lớn nằm trong [docs/phone-ui](docs/phone-ui). Xem [thiết kế điện thoại, kiểm thử và bàn giao backend](docs/phone-ui-handoff.md).
 
 ## Cấu trúc native
 
 | Tệp | Vai trò |
 | --- | --- |
 | `MainActivity.kt` | Điểm vào Compose, quyền, lịch hệ thống, clipboard và đồng hồ chọn giờ |
-| `PlannerApp.kt`, `PlannerSheets.kt`, `PlannerTheme.kt`, `KitchenComponents.kt` | Giao diện, thành phần dùng chung và điều hướng Android native |
+| `PlannerApp.kt`, `PlannerSheets.kt`, `PlannerTheme.kt` | Giao diện và điều hướng Android native |
 | `PlannerViewModel.kt` | Trạng thái UI, thao tác người dùng, đồng hồ và xử lý thông báo |
 | `PlannerEngine.kt`, `PlannerModels.kt` | Thực đơn, đổi món, định lượng, timeline và lịch nhắc thuần Kotlin |
 | `PlannerStorage.kt` | Đọc công thức và lưu trạng thái bằng SharedPreferences trên luồng IO tuần tự |
 | `ReminderStore.java`, `ReminderReceiver.java` | Đặt/hủy/khôi phục lịch và hiện thông báo Android |
-| `AskScreen.kt` | Tab Hỏi bếp: tủ lạnh → mâm cơm, trò chuyện đổi thực đơn, hẹn nhiều đồng hồ |
-| `src/main/assets/recipes.json` | Dữ liệu 20 công thức (14 món cơm + 6 món sáng) được đóng gói trong APK |
+| `src/main/assets/recipes.json` | Dữ liệu 66 công thức được đóng gói trong APK |
 | `src/main/res/drawable-nodpi/family_meal.webp` | Ảnh minh họa được đóng gói như tài nguyên Android |
 
 Các tệp Kotlin/Java ở `app/src/main/java/vn/team03/bepnha/`. Build Android không dùng hoặc sao chép mã trong `ui/`.
@@ -93,20 +60,33 @@ Kiểm thử giao diện cần máy ảo riêng vì bộ kiểm thử xóa dữ 
 
 ## Xác minh
 
-Đã build bản 0.3, chạy **12 unit test** và **8 kiểm thử instrumentation trên máy ảo Android 15/API 35 ARM64**, tất cả đều qua. Kiểm thử gồm: xác nhận có AndroidComposeView và không có WebView trong cây màn hình; đổi món; công thức chữ; danh sách đi chợ; khẩu phần sáu người; lưu/đọc dữ liệu; hủy PendingIntent khi tắt nhắc; khôi phục vị trí cuộn khi chuyển tab; và bật/tắt checkbox nguyên liệu qua cả hàng mà vẫn giữ trạng thái khi chuyển tab. Unit test kiểm tra timeline hai vùng bếp, định lượng, giữ thực đơn qua ngày mới, nhắc quá hạn và đồng hồ giữ bữa gốc.
+Đợt Firebase Spark: **46 JVM tests và 30 instrumentation tests đạt**, năm ca Firebase thật tách riêng và không chạy trong suite thường. Lint: 0 lỗi, 6 cảnh báo. Xem [kết quả nghiệm thu mới](../docs/firebase-spark-verification.md). Phần thống kê dưới đây là lịch sử đợt UI trước.
 
-Ảnh chụp native được lấy từ ứng dụng đang chạy trên máy ảo bằng ADB, không phải ảnh mockup. Android Lint có **0 lỗi, 13 cảnh báo** về phiên bản công cụ/thư viện, biểu tượng monochrome và cách dùng KTX. Đã kiểm tra trực tiếp đồng hồ đang giảm sau khi bật hẹn giờ. Chưa kiểm tra trên điện thoại thật, các chế độ ngủ/tiết kiệm pin, reboot thực tế hoặc giao thông báo đúng giờ trên từng hãng máy.
+Đợt cập nhật UI điện thoại: **18 unit test** và **26 kiểm thử instrumentation trên máy ảo Android API 37** đạt. Bao gồm các luồng native cũ, tương phản chữ, chữ 200%, vùng nhập khi thiếu chiều cao, giữ bản nháp qua xoay máy, gửi lại không trùng, loại phản hồi cũ, xác nhận một lần và giữ vị trí khi đang đọc hội thoại. Xem phạm vi và giới hạn trong [bàn giao UI điện thoại](docs/phone-ui-handoff.md).
 
-Đã kiểm tra trực quan bố cục ở chiều rộng khoảng 393dp và 320dp, bao gồm cỡ chữ 130%. [Ảnh thẻ món ăn với chữ lớn](docs/native-large-font.png). Đây là kiểm tra trên máy ảo, chưa phải đánh giá khả năng tiếp cận đầy đủ trên thiết bị thật.
+Ảnh chụp native được tạo trực tiếp bằng Android instrumentation, không phải ảnh mockup. Android Lint không có lỗi chặn. Chưa kiểm tra trên điện thoại thật, các chế độ ngủ/tiết kiệm pin, reboot thực tế hoặc giao thông báo đúng giờ trên từng hãng máy.
 
 ## Giới hạn
 
-Giờ nấu và giá là ước tính, cần kiểm tra độ chín thực tế. Dữ liệu lưu trên thiết bị, chưa có tài khoản hoặc đồng bộ. Có thể chạy tối đa 4 đồng hồ đếm ngược cùng lúc; nhắc từng bữa hoạt động độc lập.
+Giờ nấu và giá là ước tính, cần kiểm tra độ chín thực tế. Dữ liệu lưu trên thiết bị, chưa có tài khoản hoặc đồng bộ. Có tối đa bốn đồng hồ đếm ngược. Nhắc từng bữa hoạt động độc lập.
 
 Thông báo cần quyền của người dùng; quyền Alarms & reminders hỗ trợ nhắc đúng giờ trên Android tương ứng. Tiết kiệm pin hoặc hạn chế ứng dụng của nhà sản xuất vẫn có thể ảnh hưởng. Dừng bắt buộc ứng dụng ngăn nhắc cho đến khi mở lại.
 
 ## AI use và tài liệu
 
-Codex viết phần Kotlin/Compose native, logic thực đơn, persistence, unit test, instrumentation test và tài liệu; Codex thực hiện build và chạy các kiểm tra nêu trên. Trong bản 0.3, Codex chỉnh UI, các thành phần dùng chung, giữ trạng thái cuộn, cache dữ liệu hiển thị, nhịp cập nhật đồng hồ, thêm hai kiểm thử instrumentation và cập nhật tài liệu/ảnh chụp. Phần nhắc Android bằng Java được giữ lại từ bản thử trước. Ảnh mâm cơm được tái sử dụng từ ảnh imagegen của dự án, có prompt và công bố trong `../ui/bep-nha/README.md`. Chưa có bằng chứng review thủ công của thành viên nhóm.
+Codex viết phần Kotlin/Compose native, logic thực đơn, persistence, unit test, instrumentation test và tài liệu; Codex thực hiện build và chạy các kiểm tra nêu trên. Phần nhắc Android bằng Java được giữ lại từ bản thử trước. Ảnh mâm cơm được tái sử dụng từ ảnh imagegen của dự án, có prompt và công bố trong [nguồn ảnh minh họa](docs/image-provenance.md). Chưa có bằng chứng review thủ công của thành viên nhóm.
 
 Tham khảo: [Jetpack Compose](https://developer.android.com/develop/ui/compose), [Compose Compiler Gradle plugin](https://developer.android.com/develop/ui/compose/setup-compose-dependencies-and-compiler), [quyền thông báo](https://developer.android.com/develop/ui/views/notifications/notification-permission), [AlarmManager](https://developer.android.com/develop/background-work/services/alarms).
+
+## Trợ lý Gemini
+
+Xem [cấu hình Firebase Spark, App Check và kiểm thử](../docs/firebase-spark-demo.md). Nút **Hỏi Bếp Nhà** nằm ngay trên thanh điều hướng. Menu **Thêm** mở Gia đình, Nhắc nấu và Món đã lưu. Màn chat giữ ngữ cảnh bữa/ngày/số người phía trên, hội thoại ở giữa và ô nhập ở dưới. Gợi ý điền vào ô nhập để người dùng chỉnh trước khi gửi. Đổi thực đơn, hồ sơ ăn uống, khẩu phần và giờ ăn cần xác nhận. Các thao tác rủi ro thấp có thể áp dụng ngay và có Hoàn tác.
+
+### Kết nối Firebase vào chat
+
+- Tải `app/google-services.json` bằng Firebase CLI theo hướng dẫn. File được bỏ qua trong Git. Không nhúng Gemini key vào APK.
+- `AssistantService` nhận câu hỏi, tối đa 20 tin lịch sử và snapshot; `FirebaseAssistantProvider` gọi SDK Firebase. `MealPlanning` kiểm tra ngày/bữa, nguyên liệu và tự xếp mâm; `AssistantCommands` kiểm tra và thực thi sau xác nhận.
+- Mỗi lượt tối đa bốn lần gọi AI, tối đa sáu tool call trong một phản hồi, 48 thao tác trong một đề xuất và hai phương án mâm.
+- Khi thiếu cấu hình, dùng trợ lý cục bộ với nhãn nguồn và lý do. Màn nhập key và backend URL không còn dùng.
+- Chỉ debug build bật App Check Debug Provider. Mỗi thiết bị demo cần đăng ký; release build dùng cục bộ cho đến khi có phương án chứng thực phát hành.
+- Hội thoại giữ trong phiên qua xoay màn hình và xem công thức. Bản nháp Chat dùng SavedStateHandle; lưu 30 tin nhắn gần nhất trên máy và cho phép xóa lịch sử. Đề xuất chưa thực hiện không được phục hồi sau khi thoát tiến trình.

@@ -1,6 +1,9 @@
 .gradle/
+.kotlin/
 .idea/
 local.properties
+app/google-services.json
+firebase-debug*.log
 **/build/
 *.iml
 *.jks

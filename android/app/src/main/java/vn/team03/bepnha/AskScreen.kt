@@ -45,7 +45,7 @@ private val fridgeStaples = listOf("Thịt heo", "Thịt gà", "Cá", "Tôm", "T
         Box(Modifier.weight(1f)) {
             when (vm.askTab) {
                 AskTab.FRIDGE -> FridgePanel(vm, actions)
-                AskTab.CHAT -> ChatPanel(vm, actions)
+                AskTab.CHAT -> Unit
                 AskTab.TIMER -> TimerPanel(vm, actions)
             }
         }
@@ -88,7 +88,7 @@ private val fridgeStaples = listOf("Thịt heo", "Thịt gà", "Cá", "Tôm", "T
                         if (vm.fridgeDraft.isNotBlank()) FilledIconButton(onClick = { vm.addFridgeText(vm.fridgeDraft) }, modifier = Modifier.size(52.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(containerColor = KitchenGold, contentColor = KitchenGreen)) {
                             Icon(Icons.Outlined.Add, "Thêm nguyên liệu")
-                        } else MicButton("Nói nguyên liệu trong tủ lạnh") { actions.listen(AskTab.FRIDGE) }
+                        } else MicButton("Nói nguyên liệu trong tủ lạnh") { actions.listen() }
                     }
                     val custom = vm.fridgeItems.filter { item -> fridgeStaples.none { it.equals(item, ignoreCase = true) } }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -187,78 +187,6 @@ private val fridgeStaples = listOf("Thịt heo", "Thịt gà", "Cá", "Tôm", "T
 
 private val chatExamples = listOf("Ngày mai tôi muốn ăn cá", "Tủ lạnh có trứng và cà chua", "Hẹn 10 phút luộc rau",
     "Sáng mai ăn phở gà", "Tối nay nấu món nào trước?", "Món tiết kiệm")
-
-@Composable private fun ChatPanel(vm: PlannerViewModel, actions: NativeActions) {
-    val scroll = rememberLazyListState()
-    LaunchedEffect(vm.chat.size) { if (vm.chat.isNotEmpty()) scroll.animateScrollToItem(vm.chat.size) }
-    Column(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.weight(1f).testTag("chat-list"), state = scroll,
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item(key = "intro") {
-                Surface(color = KitchenSoft, shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        KitchenIcon(KitchenGlyph.SPARKLE)
-                        Text("Nói với Bếp Nhà như nói với người nhà: muốn ăn gì, ngày nào, tủ lạnh còn gì, hay cần hẹn giờ. " +
-                            "Bếp Nhà hiểu “hôm nay”, “ngày mai”, “ngày mai nữa” và thứ trong tuần.", style = MaterialTheme.typography.bodyMedium)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            chatExamples.forEach { example ->
-                                SuggestionChip(onClick = { vm.ask(example) }, label = { Text(example) },
-                                    colors = SuggestionChipDefaults.suggestionChipColors(containerColor = KitchenSurface, labelColor = KitchenGreen))
-                            }
-                        }
-                    }
-                }
-            }
-            items(vm.chat.withIndex().toList(), key = { it.index }) { (index, entry) -> ChatTurn(vm, entry, index) }
-        }
-        HorizontalDivider(color = KitchenLine)
-        Row(Modifier.fillMaxWidth().background(KitchenSurface).padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = vm.chatDraft, onValueChange = { vm.chatDraft = it.take(300) },
-                modifier = Modifier.weight(1f).testTag("chat-input"), shape = RoundedCornerShape(20.dp),
-                placeholder = { Text("Ví dụ: tối mai muốn ăn canh chua") }, maxLines = 3,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { vm.ask(vm.chatDraft) }))
-            if (vm.chatDraft.isBlank()) MicButton("Nói với Bếp Nhà") { actions.listen(AskTab.CHAT) }
-            else FilledIconButton(onClick = { vm.ask(vm.chatDraft) }, modifier = Modifier.size(52.dp).testTag("chat-send")) {
-                Icon(Icons.AutoMirrored.Outlined.Send, "Gửi câu hỏi")
-            }
-        }
-    }
-}
-
-@Composable private fun ChatTurn(vm: PlannerViewModel, entry: ChatEntry, index: Int) {
-    val answer = entry.answer
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Surface(color = KitchenGreen, shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp), modifier = Modifier.align(Alignment.End).widthIn(max = 300.dp)) {
-            Text(entry.question, Modifier.padding(horizontal = 16.dp, vertical = 12.dp), fontWeight = FontWeight.Medium, color = Color.White)
-        }
-        Surface(color = KitchenSurface, shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp), border = BorderStroke(1.dp, KitchenLine),
-            modifier = Modifier.testTag("answer-$index")) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(answer.text)
-                answer.changes.forEachIndexed { option, change ->
-                    val recipe = vm.engine.recipes.getValue(change.recipeId)
-                    val planned = vm.isPlanned(change.date, change.meal, listOf(change.recipeId))
-                    val label = if (planned) "Đã có ${recipe.name.lowercase(PlannerEngine.locale)}" else "Chọn ${recipe.name.lowercase(PlannerEngine.locale)}"
-                    if (option == 0) Button(onClick = { vm.applyChange(change) }, enabled = !planned,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("apply-change-$index")) { Text(label) }
-                    else OutlinedButton(onClick = { vm.applyChange(change) }, enabled = !planned,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(label) }
-                }
-                answer.recipes.forEach { id ->
-                    TextButton(onClick = { vm.openRecipe(id) }) { Text("Xem ${vm.engine.recipes.getValue(id).name.lowercase(PlannerEngine.locale)}") }
-                }
-            }
-        }
-        val date = answer.date
-        val meal = answer.meal
-        if (answer.trays.isNotEmpty() && date != null && meal != null) {
-            answer.trays.forEachIndexed { trayIndex, tray -> TrayCard(vm, tray, trayIndex, date, meal, tray.matched) }
-        }
-    }
-}
-
-// ---- Hẹn giờ ---------------------------------------------------------------------------------
 
 @Composable private fun TimerPanel(vm: PlannerViewModel, actions: NativeActions) {
     val running = vm.state.timers.sortedBy { it.end }

@@ -31,7 +31,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextAlign
 enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE }
 val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo must be provided by MainActivity") }
 
@@ -94,20 +101,22 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     }
 }
 
+
+/** Reflow actions instead of squeezing text into half-width buttons at large font sizes. */
 @Composable fun KitchenActions(
     first: @Composable (Modifier) -> Unit,
     second: @Composable (Modifier) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth < 248.dp || LocalDensity.current.fontScale > 1.25f) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                first(Modifier.fillMaxWidth())
-                second(Modifier.fillMaxWidth())
+        if (maxWidth < 320.dp || LocalDensity.current.fontScale > 1.3f) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                first(Modifier.fillMaxWidth().heightIn(min = 56.dp))
+                second(Modifier.fillMaxWidth().heightIn(min = 56.dp))
             }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                first(Modifier.weight(1f))
-                second(Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                first(Modifier.weight(1f).heightIn(min = 56.dp))
+                second(Modifier.weight(1f).heightIn(min = 56.dp))
             }
         }
     }
@@ -133,6 +142,62 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                     .padding(horizontal = 6.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                     Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1,
                         color = if (active) KitchenTerracotta else KitchenMuted)
+                }
+            }
+        }
+    }
+}
+
+@Composable fun KitchenAmount(name: String, amount: String, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (maxWidth < 280.dp || LocalDensity.current.fontScale > 1.3f) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(name)
+                Text(amount, style = MaterialTheme.typography.bodySmall, color = KitchenGreen)
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(name, Modifier.weight(1f))
+                Text(amount, style = MaterialTheme.typography.bodySmall, color = KitchenGreen)
+            }
+        }
+    }
+}
+
+/** Stable, equally sized tabs. Labels determine height; no text scaling override. */
+@Composable fun KitchenNavigation(selected: Screen, onSelect: (Screen) -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column {
+            HorizontalDivider(color = KitchenLine)
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup()) {
+                listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK).forEach { screen ->
+                    Column(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .selectable(selected == screen, role = Role.Tab, onClick = { onSelect(screen) })
+                            .testTag("tab-${screen.name.lowercase()}")
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Surface(
+                            color = if (selected == screen) KitchenSoft else MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Box(Modifier.size(width = 56.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+                                when (screen) {
+                                    Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = KitchenGreen)
+                                    Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = KitchenGreen)
+                                    Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = KitchenGreen)
+                                    Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE)
+                                    else -> Icon(Icons.Outlined.PlayArrow, null, tint = KitchenGreen)
+                                }
+                            }
+                        }
+                        Text(screen.title, textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (selected == screen) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected == screen) KitchenGreen else KitchenMuted)
+                    }
                 }
             }
         }
@@ -174,4 +239,22 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
             }
         } else Text(recipe.emoji, fontSize = (size.value * 0.46f).sp)
     }
+}
+
+data class KitchenTimerUi(val label: String, val remaining: String, val id: Long = 0L)
+
+@Composable fun KitchenTimer(timer: KitchenTimerUi, onCancel: () -> Unit) {
+    Surface(color = KitchenSoft, contentColor = KitchenInk) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(timer.label, style = MaterialTheme.typography.bodySmall)
+            Text(timer.remaining, Modifier.testTag("timer-countdown"),
+                style = MaterialTheme.typography.headlineSmall, color = KitchenGreen)
+            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Dừng hẹn giờ") }
+        }
+    }
+}
+
+fun PlannerViewModel.timerUi(): KitchenTimerUi? = state.timers.minByOrNull { it.end }?.let {
+    val seconds = ((it.end - now + 999) / 1000).coerceAtLeast(0)
+    KitchenTimerUi(it.label, "%02d:%02d".format(seconds / 60, seconds % 60), it.id)
 }

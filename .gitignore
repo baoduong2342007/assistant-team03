@@ -16,6 +16,7 @@ ENV/
 # Local settings & Secrets
 .env
 .env.*
+firebase-debug*.log
 !.env.example
 .vscode/
 .DS_Store

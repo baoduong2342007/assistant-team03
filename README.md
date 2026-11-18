@@ -4,7 +4,7 @@ A starter repository for the CSC10014 Smart Virtual Assistant project.
 
 ## Bếp Nhà Android
 
-A native Kotlin/Jetpack Compose Android app is available in [android/](android/README.md), with native meal planning, text recipes, shopping lists, cooking timelines and Android reminders. It runs independently of the web frontend and does not use WebView. Open that folder in Android Studio, or build with:
+A native Kotlin/Jetpack Compose Android app is available in [android/](android/README.md), with native meal planning, text recipes, shopping lists, cooking timelines and Android reminders. It uses Jetpack Compose for the interface and does not use WebView. Open that folder in Android Studio, or build with:
 
 ```bash
 cd android
@@ -13,16 +13,7 @@ cd android
 
 The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. See the Android README for installation, notification permissions and verification limits.
 
-## Bếp Nhà mobile web
-
-A working Vietnamese meal-planning web prototype is available in [ui/bep-nha](ui/bep-nha/README.md), with weekly menus, dish swaps, text recipes, shopping lists and cooking reminders. It runs independently from the Python CLI:
-
-```bash
-cd ui/bep-nha
-npm run dev
-```
-
-Open `http://127.0.0.1:4173`. Run its logic checks with `npm test`.
+The Android assistant now uses Firebase AI Logic on Spark, with App Check for registered internal devices and local Kotlin fallback. It needs no Python server or user-supplied Gemini key. See [Firebase demo setup](docs/firebase-spark-demo.md). The assistant is a multi-step agent for older users: voice input and read-aloud, a family diet profile, weekly planning and a step-by-step cooking mode; see [acceptance checklist](docs/kitchen-agent-acceptance.md). The Python setup below is for the original reference/CLI projects.
 
 ## Setup
 Prerequisites: Python 3.10+, Git.
@@ -96,7 +87,7 @@ pytest -q
 - `data/`: CSV data files for campus offices
 - `tests/`: automated smoke tests
 - `docs/`: project documentation and team roster
-- `ui/`: React frontend and an independent Bếp Nhà web prototype
+- `ui/`: React frontend
 - `android/`: native Kotlin/Compose app with offline recipes and Android reminders
 - `scripts/`: environment check script
 

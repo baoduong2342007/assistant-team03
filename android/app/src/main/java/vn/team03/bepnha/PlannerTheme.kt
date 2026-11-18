@@ -1,17 +1,17 @@
 package vn.team03.bepnha
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
-import androidx.compose.material3.Shapes
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 val KitchenGreen = Color(0xFF253F34)
 val KitchenInk = Color(0xFF252E27)
@@ -27,7 +27,8 @@ val KitchenOnGreen = Color(0xFFDFE9D9)
 
 @Composable fun BepNhaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(primary = KitchenGreen, onPrimary = Color.White,
+        colorScheme = lightColorScheme(
+            primary = KitchenGreen, onPrimary = Color.White,
             primaryContainer = KitchenSoft, onPrimaryContainer = KitchenInk,
             secondary = KitchenTerracotta, secondaryContainer = KitchenPeach,
             onSecondaryContainer = KitchenTerracotta, onSecondary = Color.White,

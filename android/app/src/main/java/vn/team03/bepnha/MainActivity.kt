@@ -32,7 +32,9 @@ data class NativeActions(
     val copy: (String) -> Unit,
     val pickTime: (LocalTime, (LocalTime) -> Unit) -> Unit,
     /** Android speech-to-text; the recognised words go to the fridge list or the chat. */
-    val listen: (AskTab) -> Unit,
+    val listen: () -> Unit = {},
+    /** Opens the system share sheet; the user picks the app and recipient. */
+    val share: (String) -> Unit = {},
 )
 
 /** Entirely native Android entry point. UI is rendered by Jetpack Compose. */
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
         val paper = KitchenPaper.toArgb()
         val surface = KitchenSurface.toArgb()
         enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(surface, surface))
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         ReminderStore.createChannel(this)
         planner.openNotification(intent)
         val actions = NativeActions(::requestNotifications, ::requestExactAlarms, ::openCalendar, { text ->
@@ -59,7 +62,7 @@ class MainActivity : ComponentActivity() {
         }, { initial, selected ->
             TimePickerDialog(this, { _, hour, minute -> selected(LocalTime.of(hour, minute)) },
                 initial.hour, initial.minute, true).show()
-        }, ::listen)
+        }, ::listen, ::shareText)
         setContent {
             BepNhaTheme {
                 val mealPhoto = ImageBitmap.imageResource(R.drawable.family_meal)
@@ -101,14 +104,19 @@ class MainActivity : ComponentActivity() {
         catch (exception: ActivityNotFoundException) { toast("Bạn cần cài ứng dụng lịch để thêm sự kiện.") }
     }
 
-    private fun listen(target: AskTab) {
-        planner.listenFor(target)
+    private fun listen() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
-            .putExtra(RecognizerIntent.EXTRA_PROMPT, if (target == AskTab.FRIDGE) "Tủ lạnh nhà bạn có gì?" else "Bạn muốn hỏi Bếp Nhà điều gì?")
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Tủ lạnh nhà bạn có gì?")
         try { speech.launch(intent) }
         catch (exception: ActivityNotFoundException) { toast("Máy chưa có dịch vụ nhận giọng nói. Bạn có thể gõ thay.") }
+    }
+
+    private fun shareText(text: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        try { startActivity(Intent.createChooser(send, "Gửi danh sách đi chợ")) }
+        catch (exception: ActivityNotFoundException) { toast("Không có ứng dụng nào để chia sẻ.") }
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()

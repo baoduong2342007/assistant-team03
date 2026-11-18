@@ -13,13 +13,14 @@ import kotlin.math.roundToLong
 class PlannerEngine(
     val recipes: Map<String, Recipe>,
     val combinations: List<List<String>>,
-    val breakfasts: List<String>,
+    val breakfasts: List<String> = emptyList(),
 ) {
     companion object {
         val zone: ZoneId = ZoneId.of("Asia/Ho_Chi_Minh")
         val locale: Locale = Locale.forLanguageTag("vi-VN")
         const val PANTRY = "Gia vị & đồ khô"
         const val MAX_TIMERS = 4
+        const val SHOPPING_ITEMS = 6
         fun key(date: LocalDate, meal: Meal) = "$date|${meal.value}"
         fun shopKey(date: LocalDate) = "$date|shop"
         fun mealOf(key: String) = Meal.from(key.substringAfter('|', ""))
@@ -70,20 +71,33 @@ class PlannerEngine(
     private val pantry = setOf(PANTRY)
     private val knownNames: Set<String> = recipes.values.flatMap { recipe -> recipe.ingredients.map { words(it.name) } + words(recipe.name) }.toSet()
 
+    val meals: List<Meal> = if (breakfasts.isEmpty()) listOf(Meal.LUNCH, Meal.DINNER) else Meal.entries
+
     init {
         require(recipes.isNotEmpty() && combinations.isNotEmpty() && breakfasts.isNotEmpty())
         require(combinations.all { validPlan(it, Meal.DINNER) })
         require(breakfasts.all { validPlan(listOf(it), Meal.BREAKFAST) })
     }
 
-    fun validPlan(ids: List<String>, meal: Meal) = if (meal.tray) ids.size == 3 &&
-        ids.map { recipes[it]?.kind } == listOf(RecipeKind.MAIN, RecipeKind.SOUP, RecipeKind.VEG)
+    fun startTimer(state: PlannerState, now: Long, minutes: Int, label: String, date: LocalDate, meal: Meal): PlannerState {
+        require(minutes in 1..180)
+        val running = state.timers.filter { it.end > now }
+        val replaced = running.filter { it.label == label && it.date == date && it.meal == meal }
+        require(running.size - replaced.size < MAX_TIMERS) {
+            "Đang chạy $MAX_TIMERS đồng hồ. Hãy dừng bớt một đồng hồ trước khi hẹn thêm."
+        }
+        val id = maxOf(now, (state.timers.maxOfOrNull { it.id } ?: 0L) + 1)
+        return state.copy(timers = running - replaced.toSet() + CookingTimer(id, now + minutes * 60_000L, label, date, meal))
+    }
+
+    fun validPlan(ids: List<String>, meal: Meal = Meal.DINNER) = if (meal.tray) ids.size == 3 &&
+        ids.map { recipes[it]?.kind } == RecipeKind.trayKinds
     else ids.size == 1 && recipes[ids[0]]?.kind == RecipeKind.BREAKFAST
     fun validEntry(key: String, ids: List<String>) = mealOf(key)?.let { validPlan(ids, it) } == true
 
     fun ensureWeek(state: PlannerState, today: LocalDate): PlannerState {
         val plans = state.plans.toMutableMap()
-        repeat(7) { day -> Meal.entries.forEach { meal ->
+        repeat(7) { day -> meals.forEach { meal ->
             val key = key(today.plusDays(day.toLong()), meal)
             if (!validPlan(plans[key].orEmpty(), meal)) plans[key] = when (meal) {
                 Meal.BREAKFAST -> listOf(breakfasts[day % breakfasts.size])
@@ -143,25 +157,37 @@ class PlannerEngine(
         val old = state.plans.getValue(state.key)
         require(index in old.indices)
         require(recipes.getValue(old[index]).kind == recipes.getValue(recipeId).kind)
+        if (old[index] == recipeId) return state
         val changed = old.toMutableList().apply { this[index] = recipeId }
-        return state.copy(plans = state.plans + (state.key to changed), done = state.done - state.key)
+        return setPlan(state, state.date, state.meal, changed)
     }
 
-    /** Puts a dish into the slot of the same kind for any planned meal. */
-    fun setDish(state: PlannerState, date: LocalDate, meal: Meal, recipeId: String): PlannerState {
-        val key = key(date, meal)
-        val kind = recipes.getValue(recipeId).kind
-        val old = state.plans.getValue(key)
-        val index = old.indexOfFirst { recipes.getValue(it).kind == kind }
-        require(index >= 0) { "${recipes.getValue(recipeId).name} không hợp với ${meal.title.lowercase(locale)}" }
-        val changed = old.toMutableList().apply { this[index] = recipeId }
-        return state.copy(plans = state.plans + (key to changed), done = state.done - key)
+    /** Day-level checks supersede picks made by older per-meal versions. */
+    fun checkedFor(state: PlannerState, date: LocalDate, meal: Meal): Set<String> =
+        state.checked[shopKey(date)] ?: state.checked[key(date, meal)].orEmpty()
+
+    fun checkedForShopping(state: PlannerState, date: LocalDate, selected: Set<Meal>): Set<String> {
+        state.checked[shopKey(date)]?.let { return it }
+        val checked = selected.map { meal ->
+            val required = ingredients(menu(state, date, meal), state.profile.people).map { it.key }.toSet()
+            required to checkedFor(state, date, meal)
+        }
+        return checked.flatMap { it.second }.filter { key -> checked.all { key !in it.first || key in it.second } }.toSet()
     }
 
     fun setPlan(state: PlannerState, date: LocalDate, meal: Meal, ids: List<String>): PlannerState {
         require(validPlan(ids, meal))
         val key = key(date, meal)
-        return state.copy(plans = state.plans + (key to ids.toList()), done = state.done - key)
+        if (state.plans[key] == ids) return state
+        val result = state.copy(plans = state.plans + (key to ids.toList()), done = state.done - key)
+        val shop = shopKey(date)
+        val scope = if (shop in state.checked) meals.filter { key(date, it) in state.plans }.toSet() else setOf(meal)
+        val checkKey = if (shop in state.checked) shop else key
+        val checked = state.checked[checkKey] ?: return result
+        val previous = ingredients(shoppingMenu(state, date, scope), state.profile.people).associate { it.key to it.amount }
+        val kept = ingredients(shoppingMenu(result, date, scope), state.profile.people)
+            .filter { it.key in checked && it.amount <= (previous[it.key] ?: 0.0) }.map { it.key }.toSet()
+        return result.copy(checked = result.checked + (checkKey to kept))
     }
 
     fun alarms(state: PlannerState, now: Long): List<NativeAlarm> {
@@ -182,7 +208,34 @@ class PlannerEngine(
                     "${timer.label.take(200)}: kiểm tra độ chín của món ăn nhé.", timer.date, timer.meal, true)
             }
         }
+        if (state.shopping.enabled) {
+            val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+            repeat(7) { day ->
+                val date = today.plusDays(day.toLong())
+                val at = date.atTime(state.shopping.time).atZone(zone).toInstant().toEpochMilli()
+                val missing = missingForShopping(state, date)
+                if (inWindow(at) && missing.isNotEmpty()) {
+                    alarms += NativeAlarm("shopping:$date", at, "Nhắc đi chợ", shoppingBody(missing),
+                        date, Meal.LUNCH, kind = AlarmKind.SHOPPING)
+                }
+            }
+        }
         return alarms.sortedBy { it.id }
+    }
+
+    /** Unchecked fresh ingredients for the day's lunch and dinner; pantry staples are assumed to be at home. */
+    fun missingForShopping(state: PlannerState, date: LocalDate): List<String> = meals.flatMap { meal ->
+        val key = key(date, meal)
+        if (!validPlan(state.plans[key].orEmpty(), meal)) return@flatMap emptyList()
+        val checked = checkedFor(state, date, meal)
+        ingredients(menu(state, date, meal), state.profile.people)
+            .filter { it.group != PANTRY && it.key !in checked }.map { it.name }
+    }.distinct()
+
+    fun shoppingBody(missing: List<String>): String {
+        val shown = missing.take(SHOPPING_ITEMS).joinToString()
+        val more = missing.size - SHOPPING_ITEMS
+        return "Hôm nay cần mua: $shown" + if (more > 0) " và $more thứ khác." else "."
     }
 
     // ---- Fridge suggestions -------------------------------------------------------------------
@@ -211,32 +264,39 @@ class PlannerEngine(
      * always mặn + canh + rau; the best trays put the fridge item in the main dish, need the fewest
      * extra purchases and prefer pairings already used in the weekly menu.
      */
-    fun suggestTrays(items: Collection<String>, meal: Meal, limit: Int = 3): List<TraySuggestion> {
+    fun suggestTrays(items: Collection<String>, meal: Meal, limit: Int = 3, diet: DietProfile = DietProfile(), people: Int = 4): List<TraySuggestion> {
         val wanted = items.map { it.trim() }.filter { it.length >= 2 }.distinctBy(::words)
         if (wanted.isEmpty()) return emptyList()
         val wantedTokens = wanted.flatMap(::tokens)
-        val byKind = recipes.values.groupBy { it.kind }
+        val byKind = recipes.values.filter(diet::allows).groupBy { it.kind }
+        val coverage = byKind.values.flatten().associate { it.id to covered(it, wanted) }
         val candidates: List<List<Recipe>> = if (!meal.tray) byKind[RecipeKind.BREAKFAST].orEmpty().map { listOf(it) }
         else byKind[RecipeKind.MAIN].orEmpty().flatMap { main -> byKind[RecipeKind.SOUP].orEmpty().flatMap { soup ->
             byKind[RecipeKind.VEG].orEmpty().map { veg -> listOf(main, soup, veg) } } }
 
-        fun missing(dishes: List<Recipe>) = dishes.flatMap { it.ingredients }
-            .filter { it.group !in pantry && wantedTokens.none { token -> hasWord(words(it.name), token) } }
-            .map { it.name }.distinct()
+        val missingByRecipe = byKind.values.flatten().associate { recipe ->
+            recipe.id to recipe.ingredients
+                .filter { it.group !in pantry && wantedTokens.none { token -> hasWord(words(it.name), token) } }
+                .map { it.name }
+        }
 
         class Scored(val dishes: List<Recipe>, val cover: List<String>, val mainCover: Int, val missing: List<String>) {
             val ids = dishes.map { it.id }
         }
-        val scored = candidates.map { dishes ->
-            val cover = dishes.flatMap { covered(it, wanted) }.toSet()
-            Scored(dishes, wanted.filter { it in cover }, covered(dishes[0], wanted).size, missing(dishes))
-        }.filter { it.cover.isNotEmpty() }.sortedWith(
+        val scored = candidates.asSequence()
+            .filter { diet.maxMinutes == null || minutes(it) <= diet.maxMinutes }
+            .filter { diet.maxCost == null || cost(it, people) <= diet.maxCost }
+            .map { dishes ->
+                val cover = dishes.flatMap { coverage.getValue(it.id) }.toSet()
+                Scored(dishes, wanted.filter { it in cover }, coverage.getValue(dishes[0].id).size,
+                    dishes.flatMap { missingByRecipe.getValue(it.id) }.distinct())
+            }.filter { it.cover.isNotEmpty() }.sortedWith(
             compareByDescending<Scored> { it.cover.size }
                 .thenByDescending { it.mainCover }
                 .thenBy { it.missing.size }
                 .thenByDescending { it.ids in combinations }
                 .thenBy { minutes(it.dishes) }
-                .thenBy { it.ids.joinToString() })
+                .thenBy { it.ids.joinToString() }).toList()
 
         val picked = mutableListOf<Scored>()
         // Different main dishes first so the three ideas really differ, then fill with the next best.
@@ -306,7 +366,7 @@ class PlannerEngine(
             val meal = askedMeal ?: state.meal
             val date = askedDate?.takeIf { it in days } ?: state.date
             if (items.isEmpty()) return AssistantAnswer("Tủ lạnh nhà bạn có gì? Ví dụ: “tủ lạnh có thịt heo và cà chua”.")
-            val trays = suggestTrays(items, meal)
+            val trays = suggestTrays(items, meal, diet = state.diet, people = state.profile.people)
             return if (trays.isEmpty()) AssistantAnswer("Mình chưa tìm thấy món hợp với ${items.joinToString()} trong ${recipes.size} công thức có sẵn. Bạn thử thịt heo, gà, cá, tôm, trứng, đậu hũ hoặc rau.")
             else AssistantAnswer("Với ${items.joinToString()}, Bếp Nhà gợi ý ${meal.title.lowercase(locale)} ${dayLabel(date, today)}:",
                 trays = trays, date = date, meal = meal)
@@ -316,7 +376,7 @@ class PlannerEngine(
         if (listOf("an gi", "nau gi", "thuc don", "mon gi").any { hasWord(q, it) } && namedRecipe(q) == null) {
             val date = askedDate ?: state.date
             if (date !in days) return AssistantAnswer("Bếp Nhà mới lên thực đơn đến ${weekday(days.last()).lowercase(locale)} ${shortDate(days.last())}.")
-            val meals = askedMeal?.let { listOf(it) } ?: Meal.entries
+            val meals = askedMeal?.let { listOf(it) } ?: meals
             return AssistantAnswer("Thực đơn ${dayLabel(date, today)}:\n" +
                 meals.joinToString("\n") { meal -> "• ${meal.title}: ${menu(state, date, meal).joinToString { it.name.lowercase(locale) }}" } +
                 "\n\nMuốn đổi, bạn nói “đổi sang …” hoặc cho mình biết tủ lạnh có gì.", date = date, meal = askedMeal)

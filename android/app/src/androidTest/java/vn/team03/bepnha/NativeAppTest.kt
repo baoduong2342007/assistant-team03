@@ -64,12 +64,14 @@ class NativeAppTest {
     }
 
     @Test fun sixPersonProfileUpdatesShoppingAndOpensCookingTimeline() {
+        compose.onNodeWithTag("more-menu").performClick()
         compose.onNodeWithContentDescription("Thông tin gia đình").performClick()
         compose.onNodeWithText("+").performClick().performClick()
         compose.onNodeWithText("Lưu thông tin gia đình").performScrollTo().performClick()
         compose.onNodeWithTag("family-people").assertTextEquals("6 người")
         compose.onNodeWithTag("tab-shopping").performClick()
-        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertTextContains("600 g")
+        compose.onNodeWithTag("shopping-list").performScrollToNode(hasTestTag("ingredient-Thịt ba chỉ"))
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").assertTextContains("600 g")
         compose.onNodeWithTag("tab-cook").performClick()
         compose.onNodeWithText("Dọn cơm lúc 18:30").assertIsDisplayed()
         capture("native-cook.png")
@@ -85,7 +87,8 @@ class NativeAppTest {
 
     @Test fun ingredientRowIsOneAccessibleCheckboxAndKeepsItsState() {
         compose.onNodeWithTag("tab-shopping").performClick()
-        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("shopping-list").performScrollToNode(hasTestTag("ingredient-Thịt ba chỉ"))
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").assertIsOff().performClick().assertIsOn()
         compose.onNodeWithTag("tab-cook").performClick()
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOn().performClick().assertIsOff()
@@ -98,14 +101,16 @@ class NativeAppTest {
         compose.onNodeWithTag("tray-0").assertIsDisplayed()
         capture("native-fridge.png")
         compose.onNodeWithTag("ask-chat").performClick()
-        compose.onNodeWithTag("chat-input").performTextInput("Ngày mai tôi muốn ăn đậu hũ")
-        compose.onNodeWithTag("chat-input").performImeAction()
-        compose.waitForIdle()
-        compose.onNodeWithTag("chat-list").performScrollToNode(hasTestTag("apply-change-0"))
-        compose.onNodeWithTag("apply-change-0").performClick()
+        compose.onNodeWithTag("assistant-input").performTextInput("Bua toi ngay mai toi muon an dau hu sot ca chua")
+        compose.onNodeWithTag("assistant-send").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("assistant-confirm")).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Quay lại").performClick()
         compose.onNodeWithTag("tab-today").performClick()
-        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag("recipe-tofu"))
-        compose.onNodeWithTag("recipe-tofu").assertIsDisplayed()
+        compose.onNodeWithTag("date-${PlannerEngine.today().plusDays(1)}").performClick()
+        onToday("recipe-tofu").assertIsDisplayed()
     }
 
     @Test fun shoppingCanCoverLunchAndDinnerTogether() {
