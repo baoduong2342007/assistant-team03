@@ -3,7 +3,6 @@ package vn.team03.bepnha
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,7 +30,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -289,12 +287,7 @@ import kotlinx.coroutines.isActive
     val duration = "${vm.engine.minutes(vm.menu)} phút"
     Surface(modifier.fillMaxWidth(), color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
         Column {
-            if (vm.state.meal.tray) Image(
-                LocalMealPhoto.current,
-                "Ảnh minh họa mâm cơm Việt với thịt kho, canh và rau",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(144.dp),
-            )
+            MealPhoto(vm.menu, Modifier.fillMaxWidth().height(144.dp))
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val dividerColor = KitchenOnGreen.copy(alpha = 0.27f)

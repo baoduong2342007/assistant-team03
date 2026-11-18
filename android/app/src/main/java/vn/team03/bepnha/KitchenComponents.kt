@@ -24,11 +24,10 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -224,20 +223,11 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
         RecipeKind.BREAKFAST -> Color(0xFFFFF3DC)
     }
     Box(Modifier.size(size).clip(MaterialTheme.shapes.medium).background(background), contentAlignment = Alignment.Center) {
-        // The three dishes actually pictured in the bundled photograph share one decoded bitmap.
-        if (recipe.id in setOf("pork", "soup", "greens")) {
-            val bitmap = LocalMealPhoto.current
-            Canvas(Modifier.fillMaxSize()) {
-                val (x, y, width, height) = when (recipe.id) {
-                    "soup" -> listOf(0.0f, 0.0f, 0.48f, 0.49f)
-                    "greens" -> listOf(0.48f, 0.0f, 0.48f, 0.49f)
-                    else -> listOf(0.20f, 0.36f, 0.58f, 0.62f)
-                }
-                drawImage(bitmap, srcOffset = IntOffset((bitmap.width * x).toInt(), (bitmap.height * y).toInt()),
-                    srcSize = IntSize((bitmap.width * width).toInt(), (bitmap.height * height).toInt()),
-                    dstSize = IntSize(this.size.width.toInt(), this.size.height.toInt()))
-            }
-        } else Text(recipe.emoji, fontSize = (size.value * 0.46f).sp)
+        if (hasRecipePhoto(recipe.id)) {
+            RecipePhoto(recipe, Modifier.fillMaxSize())
+        } else {
+            Text(recipe.emoji, Modifier.clearAndSetSemantics { }, fontSize = (size.value * 0.46f).sp)
+        }
     }
 }
 

@@ -44,12 +44,29 @@ class NativeAppTest {
         capture("native-home.png")
     }
 
-    @Test fun changingTheMainDishUpdatesTheNativeMealCard() {
+    @Test fun changingTheMainDishUpdatesTheNativeMealCardAndPhoto() {
+        onToday("meal-photo-family").assertIsDisplayed()
         onToday("swap-pork").performClick()
         compose.onNodeWithTag("swap-list").performScrollToNode(hasTestTag("choose-tofu"))
         compose.onNodeWithTag("choose-tofu").performClick()
         compose.onNodeWithTag("recipe-tofu").assertExists()
         compose.onNodeWithTag("recipe-pork").assertDoesNotExist()
+        onToday("meal-photo-tofu").assertContentDescriptionEquals("Ảnh minh họa Đậu hũ sốt cà chua")
+        compose.onNodeWithTag("meal-photo-family").assertDoesNotExist()
+        capture("native-demo-swapped.png")
+    }
+
+    @Test fun everyBundledRecipeHasAnIllustration() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val missing = RecipeRepository(context).engine.recipes.keys.filterNot(::hasRecipePhoto)
+        assertTrue("Missing recipe photos: $missing", missing.isEmpty())
+    }
+
+    @Test fun breakfastShowsItsOwnPhoto() {
+        compose.onNodeWithTag("meal-breakfast").performClick()
+        onToday("meal-photo-bread").assertContentDescriptionEquals("Ảnh minh họa Bánh mì ốp la")
+        compose.onNodeWithTag("meal-photo-family").assertDoesNotExist()
+        capture("native-demo-breakfast.png")
     }
 
     @Test fun opensTextRecipeAndShoppingAsNativeScreens() {
