@@ -8,13 +8,24 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.LocalDate
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class AssistantFlowTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private val compose = createAndroidComposeRule<MainActivity>()
+    // Chat is now kept on the device; each case starts from an empty conversation.
+    private val resetChat = object : org.junit.rules.ExternalResource() {
+        override fun before() {
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+                .getSharedPreferences("bep_nha_chat", 0).edit().clear().commit()
+        }
+    }
+    @get:Rule val chain: org.junit.rules.TestRule = org.junit.rules.RuleChain.outerRule(resetChat).around(compose)
     private fun vm() = ViewModelProvider(compose.activity)[PlannerViewModel::class.java]
 
     @Test fun assistantIsReachableFromEveryMainTabAndKeepsConversationAfterRecipeAndRotation() {
@@ -51,6 +62,89 @@ class AssistantFlowTest {
             val applied = vm().state
             vm().confirmAssistantProposal()
             assertEquals(applied, vm().state)
+        }
+    }
+
+    @Test fun pantryMealCanBeSelectedByChatRevisedAndSavedAtItsOriginalTarget() {
+        val calls = AtomicInteger()
+        lateinit var base: PlannerState
+        lateinit var target: LocalDate
+        lateinit var chosen: List<String>
+        lateinit var finalSoup: String
+        compose.runOnIdle {
+            val model = vm()
+            target = model.today.plusDays(2)
+            model.selectDate(target)
+            model.selectMeal(Meal.DINNER)
+            model.saveReminder(model.state.profile.dinner, enabled = true)
+            model.selectDate(model.today)
+            model.selectMeal(Meal.LUNCH)
+            base = model.state
+            val old = model.engine.menu(base, target, Meal.DINNER).map { it.id }
+            chosen = listOf(
+                if (old[0] == "tofu") "chicken" else "tofu",
+                if (old[1] == "sour") "soup" else "sour",
+                if (old[2] == "boiled") "greens" else "boiled",
+            )
+            finalSoup = if (old[1] == "cabbage") "squash" else "cabbage"
+            val pantry = model.engine.recipes.getValue(chosen[0]).ingredients.first().key
+            model.assistantTransport = { _, _, context ->
+                when (calls.incrementAndGet()) {
+                    1 -> AssistantGateway.parseReply(JSONObject().put("reply", "Mâm theo nguyên liệu có sẵn")
+                        .put("actions", JSONArray()).put("suggestions", JSONArray().put(
+                            JSONObject().put("id", 1).put("date", target.toString()).put("meal", "dinner")
+                                .put("recipe_ids", JSONArray(chosen)).put("pantry_keys", JSONArray(listOf(pantry))),
+                        )))
+                    else -> {
+                        val pending = context.getJSONArray("pending_menu_changes")
+                        assertEquals(3, pending.length())
+                        assertEquals(target.toString(), pending.getJSONObject(1).getString("date"))
+                        assertEquals("dinner", pending.getJSONObject(1).getString("meal"))
+                        assertEquals(chosen[1], pending.getJSONObject(1).getString("recipe_id"))
+                        AssistantReply("Đề xuất đổi canh", listOf(
+                            AssistantAction(AssistantActionType.swap_recipe, target, Meal.DINNER, recipeId = finalSoup, index = 1),
+                        ))
+                    }
+                }
+            }
+            model.openAssistant()
+            model.askAssistant("Tủ lạnh có nguyên liệu sẵn. Tối ngày mốt nấu gì?")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-meal-1"))
+        compose.onNodeWithTag("assistant-meal-1").assertExists()
+        compose.runOnIdle {
+            assertEquals(base, vm().state)
+            vm().askAssistant("Lấy mâm 1")
+            assertEquals(1, calls.get())
+            assertEquals(chosen, vm().assistantProposal?.actions?.map { it.recipeId })
+        }
+        compose.onNodeWithTag("assistant-edit").performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertNull("Edit button must dismiss preview", vm().assistantProposal)
+            assertNotNull("Edit button must retain revision context", vm().assistantRevisionTarget)
+            vm().askAssistant("À đổi món canh")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertEquals(base, vm().state)
+            assertEquals(listOf(chosen[0], finalSoup, chosen[2]), vm().assistantProposal?.actions?.map { it.recipeId })
+        }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-confirm"))
+        compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
+        compose.waitUntil(5000) { vm().assistantHistory.any { it.text.startsWith("Đã lưu và áp dụng") } }
+        compose.runOnIdle {
+            val model = vm()
+            val expected = base.plans + (PlannerEngine.key(target, Meal.DINNER) to listOf(chosen[0], finalSoup, chosen[2]))
+            assertEquals(expected, model.state.plans)
+            assertEquals(base.date to base.meal, model.state.date to model.state.meal)
+            val saved = PlannerStorage(compose.activity.application, model.engine).load(model.today)
+            assertEquals(expected, saved.plans)
+            assertEquals(finalSoup, model.engine.timeline(saved, target, Meal.DINNER).first { it.key == "soup" }.recipeId)
+            val alarm = model.engine.alarms(saved, model.now).first { it.date == target && it.meal == Meal.DINNER }
+            assertTrue(alarm.body.contains(model.engine.recipes.getValue(finalSoup).name))
+            model.confirmAssistantProposal()
+            assertEquals(expected, model.state.plans)
         }
     }
 
@@ -235,7 +329,7 @@ class AssistantFlowTest {
             assertNull(vm().assistantProposal)
             assertTrue(vm().assistantError.orEmpty().contains("Phản hồi trợ lý chưa hợp lệ"))
             assertFalse(vm().assistantError.orEmpty().contains("Failed requirement"))
-            assertFalse(vm().assistantHistory.any { it.role == "assistant" })
+            assertFalse(vm().assistantHistory.any { it.role == "assistant" && !it.id.startsWith("greeting-") })
         }
     }
 
@@ -247,12 +341,112 @@ class AssistantFlowTest {
         store.put("restored", restored)
         try {
             assertEquals("Câu hỏi chưa gửi", restored.assistantQuestion)
-            assertTrue(restored.assistantHistory.isEmpty())
+            // Chat text may be restored from the device, but never greetings, cards or an executable proposal.
+            assertTrue(restored.assistantHistory.none { it.id.startsWith("greeting-") })
             assertNull(restored.assistantProposal)
             assertFalse(restored.assistantBusy)
             restored.assistantQuestion = "Bản nháp mới"
             assertEquals("Bản nháp mới", handle.get<String>("assistant-draft"))
         } finally { store.clear() }
+    }
+
+    @Test fun localServiceSuggestsRevisesAndPersistsWithoutFirebase() {
+        lateinit var base: PlannerState
+        lateinit var chosen: List<String>
+        lateinit var replacement: Recipe
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, null)::ask
+            base = model.state
+            model.openAssistant()
+            model.assistantQuestion = "Tủ lạnh có thịt heo, trứng và rau muống. Tối mai nấu gì?"
+            model.submitAssistant()
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertEquals(2, vm().assistantMealSuggestions.size)
+            chosen = vm().assistantMealSuggestions.first().recipeIds
+            val oldSoup = vm().engine.menu(base, vm().today.plusDays(1), Meal.DINNER)[1].id
+            replacement = vm().engine.recipes.values.first { it.kind == RecipeKind.SOUP && it.id != chosen[1] && it.id != oldSoup }
+            assertEquals(AssistantSource.LOCAL, vm().assistantHistory.last().source)
+            assertEquals(base, vm().state)
+        }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-choose-meal-1"))
+        compose.onNodeWithTag("assistant-choose-meal-1").performClick()
+        compose.onNodeWithTag("assistant-edit").performScrollTo().performClick()
+        compose.runOnIdle {
+            assertNull("Edit button must dismiss preview", vm().assistantProposal)
+            assertNotNull("Edit button must retain revision context", vm().assistantRevisionTarget)
+            vm().askAssistant("À đổi món canh thành ${replacement.name}")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError); assertEquals(base, vm().state)
+            assertNotNull("Revision must create a proposal", vm().assistantProposal)
+        }
+        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-confirm"))
+        compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
+        compose.waitUntil(5000) { vm().assistantHistory.last().text.startsWith("Đã lưu và áp dụng") }
+        compose.runOnIdle {
+            val saved = PlannerStorage(compose.activity.application, vm().engine).load(vm().today)
+            assertEquals(listOf(chosen[0], replacement.id, chosen[2]), vm().engine.menu(saved, vm().today.plusDays(1), Meal.DINNER).map { it.id })
+            val once = vm().state
+            vm().confirmAssistantProposal()
+            assertEquals(once, vm().state)
+        }
+    }
+
+    @Test fun comparisonUsesCurrentBatchAndNewConstraintsInvalidateOldCards() {
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, null)::ask
+            model.openAssistant(); model.askAssistant("Tủ lạnh có trứng, rau muống. Tối mai nấu gì?")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        var firstMessage: String? = null
+        compose.runOnIdle {
+            assertEquals(2, vm().assistantMealSuggestions.size)
+            firstMessage = vm().assistantMealMessageId
+            vm().askAssistant("Mâm 2 khác mâm 1 thế nào?")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertEquals(firstMessage, vm().assistantMealMessageId)
+            assertTrue(vm().assistantHistory.last().text.contains("Mâm 1:"))
+            vm().askAssistant("Chỉ dùng rau muống, không mua thêm")
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+            val before = vm().state
+            vm().chooseAssistantMeal(1)
+            assertNull(vm().assistantProposal)
+            assertEquals(before, vm().state)
+        }
+    }
+
+    @Test fun quotaFallbackKeepsOriginalSwapAndShowsLocalSource() {
+        val calls = AtomicInteger()
+        compose.runOnIdle {
+            val model = vm()
+            model.assistantTransport = AssistantService(model.engine, AssistantProvider.reply {
+                calls.incrementAndGet(); throw AssistantFailure(AssistantFailureKind.QUOTA)
+            })::ask
+            model.openAssistant(); model.askAssistant("Tối mai đổi món canh thành canh chua cá")
+        }
+        compose.waitUntil(5000) { !vm().assistantBusy }
+        compose.runOnIdle {
+            assertNull(vm().assistantError)
+            assertEquals(1, calls.get())
+            assertEquals(AssistantSource.LOCAL, vm().assistantHistory.last().source)
+            assertEquals(AssistantFailureKind.QUOTA.explanation, vm().assistantHistory.last().notice)
+            assertTrue(vm().assistantMealSuggestions.isEmpty())
+            // A no-op is allowed when the original meal already contains this soup.
+            vm().assistantProposal?.actions?.forEach { assertEquals("sour", it.recipeId); assertEquals(1, it.index) }
+        }
     }
 
     @Test fun openingChatDoesNotResetTodayScrollPosition() {

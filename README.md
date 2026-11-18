@@ -13,6 +13,8 @@ cd android
 
 The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. See the Android README for installation, notification permissions and verification limits.
 
+The Android assistant now uses Firebase AI Logic on Spark, with App Check for registered internal devices and local Kotlin fallback. It needs no Python server or user-supplied Gemini key. See [Firebase demo setup](docs/firebase-spark-demo.md). The assistant is a multi-step agent for older users: voice input and read-aloud, a family diet profile, weekly planning and a step-by-step cooking mode; see [acceptance checklist](docs/kitchen-agent-acceptance.md). The Python setup below is for the original reference/CLI projects.
+
 ## Setup
 Prerequisites: Python 3.10+, Git.
 

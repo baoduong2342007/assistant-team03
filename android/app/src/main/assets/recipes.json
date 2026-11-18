@@ -10,6 +10,13 @@
       "minutes": 45,
       "cost": 65000,
       "note": "Đậm đà, mềm thơm, đưa cơm",
+      "tags": [
+        "soft"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "high",
       "ingredients": [
         {
           "name": "Thịt ba chỉ",
@@ -66,6 +73,14 @@
       "minutes": 15,
       "cost": 25000,
       "note": "Thanh mát, nhẹ bụng",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Cải xanh",
@@ -109,6 +124,13 @@
       "minutes": 10,
       "cost": 15000,
       "note": "Giòn xanh, thơm mùi tỏi",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Rau muống",
@@ -151,6 +173,11 @@
       "minutes": 35,
       "cost": 60000,
       "note": "Thơm gừng, ấm bữa cơm nhà",
+      "tags": [
+        "low_sugar"
+      ],
+      "allergens": [],
+      "sodium": "high",
       "ingredients": [
         {
           "name": "Thịt gà",
@@ -200,6 +227,14 @@
       "minutes": 30,
       "cost": 50000,
       "note": "Cá mềm, nước kho sánh nhẹ",
+      "tags": [
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "fish"
+      ],
+      "sodium": "high",
       "ingredients": [
         {
           "name": "Cá basa",
@@ -248,6 +283,16 @@
       "minutes": 20,
       "cost": 25000,
       "note": "Món quen dễ nấu, nhẹ chi phí",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Đậu hũ",
@@ -297,6 +342,13 @@
       "minutes": 20,
       "cost": 70000,
       "note": "Tôm săn ngọt, cả nhà dễ ăn",
+      "tags": [
+        "low_fat"
+      ],
+      "allergens": [
+        "shrimp"
+      ],
+      "sodium": "mid",
       "ingredients": [
         {
           "name": "Tôm",
@@ -345,6 +397,15 @@
       "minutes": 10,
       "cost": 22000,
       "note": "Nhanh gọn cho ngày bận rộn",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Trứng gà",
@@ -387,6 +448,14 @@
       "minutes": 20,
       "cost": 25000,
       "note": "Bí bùi ngọt, nước canh thanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Bí đỏ",
@@ -429,6 +498,15 @@
       "minutes": 25,
       "cost": 45000,
       "note": "Chua dịu, ngọt thanh kiểu miền Nam",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "fish"
+      ],
+      "sodium": "mid",
       "ingredients": [
         {
           "name": "Cá basa",
@@ -483,6 +561,15 @@
       "minutes": 15,
       "cost": 15000,
       "note": "Ngọt từ rau củ, dễ kết hợp",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Bắp cải",
@@ -525,6 +612,16 @@
       "minutes": 15,
       "cost": 22000,
       "note": "Thêm màu xanh cho bữa cơm",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Bông cải xanh",
@@ -573,6 +670,14 @@
       "minutes": 10,
       "cost": 15000,
       "note": "Đơn giản, tươi ngon mỗi ngày",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Đậu bắp",
@@ -615,6 +720,16 @@
       "minutes": 10,
       "cost": 12000,
       "note": "Giòn mát, cân bằng món kho",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
       "ingredients": [
         {
           "name": "Dưa leo",
@@ -653,6 +768,2552 @@
         "Trộn rau củ với nước trộn ngay trước khi ăn. Để riêng trong ngăn mát nếu chưa dùng ngay."
       ],
       "tip": "Chỉ trộn sát giờ ăn để dưa leo giữ được độ giòn."
+    },
+    {
+      "id": "steamed_egg",
+      "name": "Trứng hấp thịt bằm",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🥚",
+      "minutes": 30,
+      "cost": 35000,
+      "note": "Mềm mịn, dễ ăn cho ông bà",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Trứng gà",
+          "amount": 4,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 150,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa hành lá, cắt nhỏ. Đập trứng ra tô, đánh tan.",
+        "Trộn thịt bằm với trứng, hành lá, nước mắm và tiêu cho đều. Rửa tay sau khi xử lý thịt sống.",
+        "Đổ hỗn hợp vào đĩa sâu lòng, hấp cách thủy lửa vừa khoảng 20 phút.",
+        "Xiên tăm vào giữa, thấy không còn chảy nước hồng là thịt đã chín. Tắt bếp."
+      ],
+      "tip": "Hấp lửa vừa và đậy hé nắp để mặt trứng mịn, không bị rỗ."
+    },
+    {
+      "id": "lean_pork",
+      "name": "Thịt nạc kho tiêu",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍖",
+      "minutes": 35,
+      "cost": 55000,
+      "note": "Thịt nạc ít mỡ, thơm tiêu",
+      "tags": [
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Thịt nạc",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1.5,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa thịt, thấm khô, thái miếng mỏng vừa ăn. Băm hành tím.",
+        "Ướp thịt với hành tím, nước mắm, đường và nửa phần tiêu trong 10 phút.",
+        "Phi thơm phần hành còn lại với dầu, cho thịt vào đảo săn. Thêm nước xâm xấp mặt thịt.",
+        "Kho lửa nhỏ khoảng 20 phút đến khi thịt chín mềm, nước hơi sánh. Rắc tiêu, nêm lại rồi tắt bếp."
+      ],
+      "tip": "Thái thịt mỏng và ngang thớ để thịt nạc không bị khô, dai."
+    },
+    {
+      "id": "ribs",
+      "name": "Sườn non rim chua ngọt",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍖",
+      "minutes": 40,
+      "cost": 95000,
+      "note": "Sườn mềm, sốt chua ngọt đưa cơm",
+      "tags": [],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Sườn non",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Chặt sườn miếng nhỏ, chần qua nước sôi 2 phút rồi rửa lại. Cà chua thái nhỏ, tỏi băm.",
+        "Phi tỏi với dầu, cho sườn vào đảo đến khi hơi vàng.",
+        "Thêm cà chua, nước mắm, đường và nước xâm xấp sườn. Đậy nắp rim lửa nhỏ khoảng 25 phút.",
+        "Khi sườn chín mềm, sốt sánh lại thì nêm vừa ăn và tắt bếp."
+      ],
+      "tip": "Chần sườn trước giúp nước sốt trong và bớt mùi."
+    },
+    {
+      "id": "beef_tomato",
+      "name": "Bò xào cà chua",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🥩",
+      "minutes": 20,
+      "cost": 95000,
+      "note": "Thịt bò mềm, sốt cà chua dịu",
+      "tags": [
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Thịt bò",
+          "amount": 300,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Thái thịt bò thật mỏng, ngang thớ. Ướp với nửa phần tỏi băm và một ít nước mắm.",
+        "Cà chua bổ múi cau, hành lá cắt khúc.",
+        "Phi tỏi với dầu, xào cà chua với ít nước đến khi mềm, nêm nước mắm và đường.",
+        "Cho thịt bò vào đảo nhanh trên lửa lớn đến khi chín hết phần đỏ, thêm hành lá rồi tắt bếp."
+      ],
+      "tip": "Thái bò ngang thớ và xào nhanh tay để thịt mềm, không dai."
+    },
+    {
+      "id": "boiled_chicken",
+      "name": "Gà luộc",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍗",
+      "minutes": 40,
+      "cost": 85000,
+      "note": "Thanh đạm, chấm muối tiêu chanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Thịt gà",
+          "amount": 800,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 20,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Chanh",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        }
+      ],
+      "steps": [
+        "Làm sạch gà, rửa tay và dụng cụ sau khi xử lý thịt sống. Gừng đập dập, hành tím để nguyên củ.",
+        "Cho gà vào nồi nước lạnh vừa ngập cùng gừng, hành và một ít muối. Đun sôi rồi hớt bọt.",
+        "Hạ lửa nhỏ, luộc khoảng 25 phút. Xiên vào chỗ dày nhất, nước chảy ra trong là gà đã chín.",
+        "Vớt gà, để nguội bớt rồi chặt miếng. Pha phần muối còn lại với tiêu và chanh để chấm."
+      ],
+      "tip": "Bỏ bớt da gà khi ăn để món nhẹ béo hơn; giữ nước luộc để nấu canh."
+    },
+    {
+      "id": "chicken_mushroom",
+      "name": "Gà xào nấm rơm",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍄",
+      "minutes": 30,
+      "cost": 75000,
+      "note": "Gà mềm, nấm ngọt tự nhiên",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Thịt gà",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Nấm rơm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Gà rút xương, thái miếng vừa ăn. Nấm rơm cắt chân, rửa nhẹ, bổ đôi. Hành tím băm.",
+        "Ướp gà với nửa phần nước tương trong 10 phút.",
+        "Phi hành với dầu, cho gà vào xào đến khi săn và chín đều.",
+        "Thêm nấm và phần nước tương còn lại, xào 5 phút đến khi nấm chín mềm thì tắt bếp."
+      ],
+      "tip": "Không ngâm nấm rơm quá lâu để nấm không bị úng nước."
+    },
+    {
+      "id": "mackerel",
+      "name": "Cá thu sốt cà chua",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🐟",
+      "minutes": 30,
+      "cost": 100000,
+      "note": "Cá chắc thịt, sốt cà chua thơm",
+      "tags": [
+        "low_sugar",
+        "soft"
+      ],
+      "allergens": [
+        "fish"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Cá thu",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa cá, thấm thật khô. Cà chua thái nhỏ, hành tím băm.",
+        "Chiên cá với một nửa dầu đến khi vàng hai mặt, gắp ra.",
+        "Phi hành với phần dầu còn lại, cho cà chua vào xào nhừ, thêm ít nước, nước mắm và đường.",
+        "Xếp cá vào sốt, đun nhỏ lửa 10 phút, rưới sốt lên mặt cá đến khi cá chín đều rồi tắt bếp."
+      ],
+      "tip": "Thấm khô cá trước khi chiên để dầu không bắn."
+    },
+    {
+      "id": "snakehead",
+      "name": "Cá lóc kho tộ",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🐟",
+      "minutes": 40,
+      "cost": 60000,
+      "note": "Cá mềm, nước kho đậm vừa",
+      "tags": [
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "fish"
+      ],
+      "sodium": "high",
+      "ingredients": [
+        {
+          "name": "Cá lóc",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Làm sạch cá, cắt khúc vừa ăn. Băm hành tím.",
+        "Ướp cá với hành, nước mắm, đường và nửa phần tiêu trong 15 phút.",
+        "Phi một ít hành với dầu trong nồi đất hoặc nồi dày, xếp cá vào, thêm nước xâm xấp.",
+        "Kho lửa nhỏ khoảng 25 phút đến khi cá chín và nước kho sánh lại. Rắc tiêu rồi tắt bếp."
+      ],
+      "tip": "Gỡ xương cá cho ông bà trước khi dọn."
+    },
+    {
+      "id": "steamed_fish",
+      "name": "Cá diêu hồng hấp gừng",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🐟",
+      "minutes": 30,
+      "cost": 65000,
+      "note": "Hấp thanh nhẹ, giữ vị ngọt của cá",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "fish",
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Cá diêu hồng",
+          "amount": 700,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 30,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 3,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Làm sạch cá, khứa vài đường trên thân. Gừng thái sợi, hành lá cắt khúc.",
+        "Xếp cá vào đĩa, rải một nửa gừng lên trên và trong bụng cá.",
+        "Hấp cách thủy khoảng 15–20 phút đến khi thịt cá trắng đục và tách dễ dàng.",
+        "Rắc phần gừng và hành lá còn lại, rưới nước tương rồi hấp thêm 1 phút."
+      ],
+      "tip": "Gỡ xương kỹ cho người lớn tuổi; phần bụng cá mềm, ít xương."
+    },
+    {
+      "id": "steamed_shrimp",
+      "name": "Tôm hấp gừng",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🦐",
+      "minutes": 15,
+      "cost": 85000,
+      "note": "Ngọt tự nhiên, ít dầu mỡ",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [
+        "shrimp"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Tôm",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Gừng",
+          "amount": 20,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Chanh",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        }
+      ],
+      "steps": [
+        "Rửa tôm, cắt râu và bỏ chỉ lưng. Gừng thái lát.",
+        "Xếp gừng xuống đáy xửng, đặt tôm lên trên.",
+        "Hấp khoảng 7–10 phút đến khi tôm đỏ đều và thịt trắng đục.",
+        "Pha muối với tiêu và chanh làm nước chấm."
+      ],
+      "tip": "Bóc vỏ sẵn cho ông bà để dễ ăn hơn."
+    },
+    {
+      "id": "stuffed_tofu",
+      "name": "Đậu hũ nhồi thịt sốt cà",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍅",
+      "minutes": 35,
+      "cost": 55000,
+      "note": "Đậu mềm, thịt ngọt, dễ nhai",
+      "tags": [
+        "low_sugar",
+        "soft"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Đậu hũ",
+          "amount": 4,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Trộn thịt bằm với hành lá cắt nhỏ và một ít nước mắm. Rửa tay sau khi xử lý thịt sống.",
+        "Cắt đậu hũ làm đôi, khoét một đường giữa và nhồi thịt vào.",
+        "Áp chảo đậu với dầu, mặt có thịt xuống trước, đến khi vàng nhẹ.",
+        "Thêm cà chua thái nhỏ, ít nước và phần nước mắm còn lại. Đậy nắp om 15 phút đến khi thịt chín hẳn."
+      ],
+      "tip": "Nhồi thịt mỏng vừa phải để phần thịt chín cùng lúc với đậu."
+    },
+    {
+      "id": "tofu_mushroom",
+      "name": "Đậu hũ kho nấm",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍄",
+      "minutes": 25,
+      "cost": 40000,
+      "note": "Món chay mềm, đậm đà",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Đậu hũ",
+          "amount": 4,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Nấm rơm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 2,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Đậu hũ cắt miếng vuông. Nấm rơm cắt chân, rửa nhẹ, bổ đôi.",
+        "Áp chảo đậu hũ với dầu đến khi vàng nhẹ.",
+        "Thêm nấm, nước tương, đường và ít nước. Kho lửa nhỏ khoảng 15 phút cho thấm.",
+        "Rắc tiêu, nêm lại vừa ăn rồi tắt bếp."
+      ],
+      "tip": "Dùng nước tương thay nước mắm để giữ món chay."
+    },
+    {
+      "id": "egg_tomato",
+      "name": "Trứng xào cà chua",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍳",
+      "minutes": 15,
+      "cost": 28000,
+      "note": "Mềm, chua ngọt nhẹ, nấu nhanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Trứng gà",
+          "amount": 4,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cà chua bổ múi cau, hành lá cắt nhỏ. Đập trứng ra tô, đánh tan.",
+        "Xào cà chua với dầu và một ít nước đến khi mềm, nêm nước mắm.",
+        "Đổ trứng vào, đảo nhẹ đến khi trứng chín hoàn toàn, không còn lỏng.",
+        "Rắc hành lá và tắt bếp."
+      ],
+      "tip": "Đảo nhẹ tay để trứng thành từng mảng mềm quyện với cà chua."
+    },
+    {
+      "id": "boiled_pork",
+      "name": "Thịt heo luộc",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍖",
+      "minutes": 30,
+      "cost": 68000,
+      "note": "Đơn giản, thanh đạm",
+      "tags": [
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Thịt nạc",
+          "amount": 500,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Rửa sạch thịt, để nguyên miếng. Hành tím đập dập.",
+        "Cho thịt vào nồi nước vừa ngập cùng hành tím và muối. Đun sôi, hớt bọt rồi hạ lửa nhỏ.",
+        "Luộc khoảng 20 phút đến khi xiên vào thịt không còn nước hồng.",
+        "Vớt thịt, để nguội bớt rồi thái mỏng. Chấm với nước mắm pha loãng."
+      ],
+      "tip": "Thái thịt thật mỏng để người lớn tuổi dễ nhai."
+    },
+    {
+      "id": "beef_onion",
+      "name": "Bò xào hành tây",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🥩",
+      "minutes": 20,
+      "cost": 95000,
+      "note": "Thơm ngọt, xào nhanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Thịt bò",
+          "amount": 300,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành tây",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Thái thịt bò mỏng ngang thớ, ướp với tỏi băm và một nửa nước tương.",
+        "Hành tây bóc vỏ, thái múi cau.",
+        "Xào hành tây với dầu 2 phút đến khi hơi trong, gạt sang một bên.",
+        "Cho bò vào xào nhanh trên lửa lớn đến khi chín hết phần đỏ, nêm phần nước tương còn lại, đảo đều rồi tắt bếp."
+      ],
+      "tip": "Không xào bò quá lâu để thịt giữ được độ mềm."
+    },
+    {
+      "id": "mushroom_braise",
+      "name": "Nấm rơm kho tiêu",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍄",
+      "minutes": 20,
+      "cost": 45000,
+      "note": "Món chay thơm tiêu, mềm ngọt",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Nấm rơm",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1.5,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Đường",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nấm rơm cắt chân, rửa nhẹ, bổ đôi, để ráo.",
+        "Đảo nấm với dầu trên lửa vừa khoảng 3 phút.",
+        "Thêm nước tương, đường và một ít nước. Kho lửa nhỏ khoảng 10 phút đến khi nấm thấm.",
+        "Rắc tiêu, nêm lại vừa ăn rồi tắt bếp."
+      ],
+      "tip": "Kho lửa nhỏ để nấm thấm vị mà không bị teo."
+    },
+    {
+      "id": "beef_stew",
+      "name": "Bò hầm cà rốt khoai tây",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🥩",
+      "minutes": 70,
+      "cost": 130000,
+      "note": "Hầm mềm nhừ, ấm bụng",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Thịt bò",
+          "amount": 400,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Khoai tây",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành tím",
+          "amount": 2,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Thịt bò cắt miếng vuông vừa ăn. Cà rốt, khoai tây gọt vỏ, cắt khúc. Hành tím băm.",
+        "Phi hành với dầu, cho bò vào đảo săn, thêm nước ngập thịt.",
+        "Đun sôi, hớt bọt rồi hầm lửa nhỏ khoảng 40 phút đến khi bò mềm.",
+        "Thêm cà rốt và khoai tây, hầm tiếp 15 phút đến khi rau củ mềm. Nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Hầm lửa thật nhỏ, đậy nắp để thịt mềm nhừ, dễ nhai."
+    },
+    {
+      "id": "eggplant_tofu",
+      "name": "Cà tím om đậu hũ",
+      "kind": "main",
+      "label": "Món mặn",
+      "emoji": "🍆",
+      "minutes": 30,
+      "cost": 35000,
+      "note": "Món chay mềm, đậm vị",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Cà tím",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đậu hũ",
+          "amount": 3,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1.5,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cà tím cắt khúc, ngâm nước muối loãng 10 phút cho bớt thâm rồi để ráo. Đậu hũ cắt miếng, cà chua thái nhỏ.",
+        "Áp chảo đậu hũ với dầu đến khi vàng nhẹ, gắp ra.",
+        "Xào cà chua cho mềm, cho cà tím vào đảo đều, thêm ít nước và nước tương.",
+        "Cho đậu hũ vào, om lửa nhỏ khoảng 15 phút đến khi cà tím mềm. Rắc hành lá rồi tắt bếp."
+      ],
+      "tip": "Om đến khi cà tím mềm nhừ để món dễ ăn hơn."
+    },
+    {
+      "id": "winter_melon",
+      "name": "Canh bí xanh tôm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥒",
+      "minutes": 20,
+      "cost": 42000,
+      "note": "Thanh mát, ngọt nước",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "shrimp"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bí xanh",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tôm",
+          "amount": 150,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bí xanh gọt vỏ, bỏ ruột, thái miếng vừa ăn. Tôm bóc vỏ, bỏ chỉ lưng, băm sơ. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ cho khẩu phần, cho tôm vào khuấy tơi.",
+        "Thêm bí xanh, nấu khoảng 10 phút đến khi bí mềm trong. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Nấu bí vừa mềm trong để canh ngọt mà bí không bị nát."
+    },
+    {
+      "id": "malabar",
+      "name": "Canh mồng tơi thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥬",
+      "minutes": 15,
+      "cost": 25000,
+      "note": "Mát, mềm, dễ nuốt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Rau mồng tơi",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nhặt mồng tơi lấy lá và ngọn non, rửa sạch.",
+        "Đun sôi lượng nước vừa đủ, cho thịt bằm vào khuấy tơi và hớt bọt.",
+        "Khi thịt chín, cho mồng tơi vào nấu 2–3 phút. Nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Mồng tơi chín rất nhanh, cho vào sau cùng để rau không bị nhớt quá."
+    },
+    {
+      "id": "luffa",
+      "name": "Canh mướp nấu tôm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥒",
+      "minutes": 15,
+      "cost": 42000,
+      "note": "Mướp mềm ngọt, nước canh thanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "shrimp"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Mướp",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tôm",
+          "amount": 150,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Mướp gọt vỏ, thái lát xéo. Tôm bóc vỏ, bỏ chỉ lưng, băm sơ. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho tôm vào khuấy tơi.",
+        "Thêm mướp, nấu 3–5 phút đến khi mướp mềm. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Gọt mướp sát giờ nấu để mướp không bị thâm."
+    },
+    {
+      "id": "katuk",
+      "name": "Canh rau ngót thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🌿",
+      "minutes": 15,
+      "cost": 25000,
+      "note": "Món canh quen thuộc, nhẹ bụng",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Rau ngót",
+          "amount": 250,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Tuốt lá rau ngót, rửa sạch, vò nhẹ cho rau mềm.",
+        "Đun sôi lượng nước vừa đủ, cho thịt bằm vào khuấy tơi và hớt bọt.",
+        "Khi thịt chín, cho rau ngót vào nấu 3–4 phút. Nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Vò nhẹ rau ngót trước khi nấu để rau mềm, ngọt nước hơn."
+    },
+    {
+      "id": "amaranth",
+      "name": "Canh rau dền nấu tôm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🌿",
+      "minutes": 15,
+      "cost": 32000,
+      "note": "Rau mềm, nước canh ngọt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "shrimp"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Rau dền",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tôm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 2,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nhặt rau dền, bỏ gốc già, rửa sạch. Tôm bóc vỏ, băm sơ. Tỏi băm.",
+        "Phi thơm tỏi trong nồi khô, thêm lượng nước vừa đủ và đun sôi. Cho tôm vào khuấy tơi.",
+        "Cho rau dền vào nấu 3–4 phút đến khi mềm. Nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Không đậy nắp khi nấu rau dền để rau giữ màu đẹp."
+    },
+    {
+      "id": "gourd",
+      "name": "Canh bầu thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥒",
+      "minutes": 15,
+      "cost": 25000,
+      "note": "Bầu non mềm ngọt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bầu",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bầu gọt vỏ, thái sợi hoặc miếng mỏng. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho thịt bằm vào khuấy tơi và hớt bọt.",
+        "Thêm bầu, nấu 5 phút đến khi bầu mềm. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Chọn bầu non vỏ xanh nhạt để canh ngọt và mềm."
+    },
+    {
+      "id": "bitter_melon",
+      "name": "Canh khổ qua nhồi thịt",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥒",
+      "minutes": 40,
+      "cost": 45000,
+      "note": "Đắng nhẹ, thanh mát",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Khổ qua",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tiêu",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Khổ qua cắt khúc, bỏ ruột. Trộn thịt bằm với hành lá cắt nhỏ, tiêu và một ít nước mắm. Rửa tay sau khi xử lý thịt sống.",
+        "Nhồi thịt chặt vào từng khúc khổ qua.",
+        "Đun sôi lượng nước vừa đủ, thả khổ qua vào, hạ lửa nhỏ nấu khoảng 25 phút đến khi khổ qua mềm và thịt chín hẳn.",
+        "Nêm phần nước mắm còn lại rồi tắt bếp."
+      ],
+      "tip": "Nấu lửa nhỏ, lâu một chút để khổ qua mềm và bớt đắng."
+    },
+    {
+      "id": "napa_tofu",
+      "name": "Canh cải thảo đậu hũ",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥬",
+      "minutes": 15,
+      "cost": 22000,
+      "note": "Canh chay ngọt rau, mềm",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Cải thảo",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đậu hũ",
+          "amount": 2,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cải thảo rửa sạch, cắt khúc. Đậu hũ cắt miếng vuông, cà rốt thái lát mỏng, hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho cà rốt vào nấu 5 phút.",
+        "Thêm cải thảo và đậu hũ, nấu 5 phút đến khi rau mềm. Nêm muối, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Cho đậu hũ vào nhẹ tay để miếng đậu không bị vỡ."
+    },
+    {
+      "id": "rib_potato",
+      "name": "Canh sườn khoai tây",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥔",
+      "minutes": 50,
+      "cost": 70000,
+      "note": "Khoai bùi mềm, nước ngọt xương",
+      "tags": [
+        "low_sugar"
+      ],
+      "allergens": [],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Sườn non",
+          "amount": 300,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Khoai tây",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Chặt sườn miếng nhỏ, chần qua nước sôi rồi rửa lại. Khoai tây, cà rốt gọt vỏ, cắt miếng.",
+        "Cho sườn vào nồi nước vừa đủ, đun sôi, hớt bọt rồi hầm lửa nhỏ 25 phút.",
+        "Thêm khoai tây và cà rốt, nấu 15 phút đến khi rau củ mềm và sườn chín.",
+        "Nêm muối và nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Hớt bọt kỹ để nước canh trong và thanh."
+    },
+    {
+      "id": "chayote_soup",
+      "name": "Canh su su cà rốt",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥕",
+      "minutes": 15,
+      "cost": 12000,
+      "note": "Canh chay nhẹ, ngọt rau củ",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Su su",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Su su, cà rốt gọt vỏ, thái lát mỏng. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho cà rốt vào nấu 3 phút.",
+        "Thêm su su, nấu 5–7 phút đến khi mềm. Nêm muối, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Thái su su mỏng đều để chín nhanh và mềm."
+    },
+    {
+      "id": "mushroom_soup",
+      "name": "Canh nấm rơm đậu hũ",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🍄",
+      "minutes": 15,
+      "cost": 32000,
+      "note": "Canh chay thơm nấm",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Nấm rơm",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đậu hũ",
+          "amount": 2,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nấm rơm cắt chân, rửa nhẹ, bổ đôi. Đậu hũ cắt miếng, cà chua bổ múi, hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho cà chua và nấm vào nấu 5 phút.",
+        "Thêm đậu hũ, nấu 3 phút. Nêm nước tương, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Cà chua giúp nước canh chay có vị ngọt tự nhiên."
+    },
+    {
+      "id": "egg_soup",
+      "name": "Canh trứng cà chua",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🍅",
+      "minutes": 15,
+      "cost": 18000,
+      "note": "Nhanh, mềm, dễ ăn",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Trứng gà",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 3,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cà chua bổ múi cau, hành lá cắt nhỏ. Đánh tan trứng.",
+        "Đun sôi lượng nước vừa đủ, cho cà chua vào nấu 3–5 phút đến khi mềm.",
+        "Rót trứng thành dòng nhỏ vào nồi, khuấy nhẹ đến khi trứng chín. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Rót trứng từ từ khi nước đang sôi để trứng nở thành sợi mềm."
+    },
+    {
+      "id": "fish_tomato_soup",
+      "name": "Canh cá lóc nấu cà chua",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🐟",
+      "minutes": 25,
+      "cost": 40000,
+      "note": "Cá mềm, nước canh chua dịu",
+      "tags": [
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [
+        "fish"
+      ],
+      "sodium": "mid",
+      "ingredients": [
+        {
+          "name": "Cá lóc",
+          "amount": 300,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Gừng",
+          "amount": 10,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Làm sạch cá, cắt khúc. Cà chua bổ múi, hành lá cắt khúc, gừng thái sợi.",
+        "Đun sôi lượng nước vừa đủ với gừng, cho cà chua vào nấu 3 phút.",
+        "Thả cá vào, nấu lửa vừa khoảng 10 phút đến khi cá chín, thịt trắng đục.",
+        "Nêm nước mắm, thêm hành lá rồi tắt bếp."
+      ],
+      "tip": "Gừng giúp khử mùi tanh; gỡ xương cá trước khi múc cho ông bà."
+    },
+    {
+      "id": "radish_soup",
+      "name": "Canh củ cải thịt bằm",
+      "kind": "soup",
+      "label": "Món canh",
+      "emoji": "🥣",
+      "minutes": 25,
+      "cost": 23000,
+      "note": "Củ cải mềm ngọt, thanh nhiệt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Củ cải trắng",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Thịt heo bằm",
+          "amount": 100,
+          "unit": "g",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Củ cải gọt vỏ, thái miếng mỏng. Hành lá cắt nhỏ.",
+        "Đun sôi lượng nước vừa đủ, cho thịt bằm vào khuấy tơi và hớt bọt.",
+        "Thêm củ cải, nấu lửa nhỏ khoảng 15 phút đến khi củ cải mềm trong. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Nấu củ cải đến khi trong và mềm để dễ nhai."
+    },
+    {
+      "id": "choy_sum",
+      "name": "Cải ngọt xào tỏi",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥬",
+      "minutes": 10,
+      "cost": 15000,
+      "note": "Xanh ngọt, xào nhanh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Cải ngọt",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cải ngọt rửa sạch, cắt khúc. Tỏi đập dập.",
+        "Phi tỏi với dầu, cho phần cọng vào xào trước 1 phút rồi thêm phần lá.",
+        "Nêm nước mắm, xào 3–4 phút đến khi rau chín vừa thì tắt bếp."
+      ],
+      "tip": "Xào cọng trước, lá sau để rau chín đều."
+    },
+    {
+      "id": "bok_choy",
+      "name": "Cải thìa xào nấm",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥬",
+      "minutes": 15,
+      "cost": 30000,
+      "note": "Món chay thanh, nấm mềm",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Cải thìa",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nấm rơm",
+          "amount": 150,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Cải thìa rửa sạch, bổ đôi. Nấm rơm cắt chân, bổ đôi. Tỏi băm.",
+        "Phi tỏi với dầu, cho nấm vào xào 2 phút.",
+        "Thêm cải thìa và ít nước, đảo 3–4 phút đến khi rau chín. Nêm nước tương rồi tắt bếp."
+      ],
+      "tip": "Có thể đậy nắp 1 phút để cọng cải mềm hơn cho người lớn tuổi."
+    },
+    {
+      "id": "pumpkin_stirfry",
+      "name": "Bí đỏ xào tỏi",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🎃",
+      "minutes": 15,
+      "cost": 14000,
+      "note": "Bí bùi mềm, ngọt dịu",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bí đỏ",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bí đỏ gọt vỏ, bỏ hạt, thái lát mỏng. Tỏi băm.",
+        "Phi tỏi với dầu, cho bí vào đảo đều.",
+        "Thêm vài muỗng nước, đậy nắp 5 phút đến khi bí mềm. Nêm muối, đảo nhẹ rồi tắt bếp."
+      ],
+      "tip": "Thái bí mỏng đều để chín mềm cùng lúc."
+    },
+    {
+      "id": "chayote",
+      "name": "Su su xào cà rốt",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥕",
+      "minutes": 15,
+      "cost": 14000,
+      "note": "Giòn nhẹ, nhiều màu",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Su su",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 2,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Su su, cà rốt gọt vỏ, thái sợi. Tỏi băm.",
+        "Phi tỏi với dầu, cho cà rốt vào xào 2 phút.",
+        "Thêm su su và ít nước, xào 4–5 phút đến khi chín vừa. Nêm muối rồi tắt bếp."
+      ],
+      "tip": "Xào lâu hơn một chút nếu muốn su su mềm hơn."
+    },
+    {
+      "id": "bean_sprout",
+      "name": "Giá đỗ xào đậu hũ",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🌱",
+      "minutes": 15,
+      "cost": 18000,
+      "note": "Món chay nhẹ, giá ngọt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Giá đỗ",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Đậu hũ",
+          "amount": 2,
+          "unit": "miếng",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Giá nhặt bỏ vỏ, rửa sạch, để ráo. Đậu hũ cắt thanh, hành lá cắt khúc.",
+        "Áp chảo đậu hũ với dầu đến khi vàng nhẹ.",
+        "Cho giá vào đảo nhanh 2–3 phút đến khi giá chín tới, nêm nước tương, thêm hành lá rồi tắt bếp."
+      ],
+      "tip": "Xào giá nhanh trên lửa lớn để giá không ra nhiều nước."
+    },
+    {
+      "id": "green_beans",
+      "name": "Đậu que xào tỏi",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥒",
+      "minutes": 15,
+      "cost": 16000,
+      "note": "Xanh giòn, thơm tỏi",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Đậu que",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Đậu que tước xơ, cắt khúc, rửa sạch. Tỏi băm.",
+        "Luộc sơ đậu que 2 phút cho mềm bớt, vớt ra để ráo.",
+        "Phi tỏi với dầu, cho đậu que vào xào 3–4 phút, nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Luộc sơ trước giúp đậu que chín đều và mềm hơn."
+    },
+    {
+      "id": "cabbage_tomato",
+      "name": "Bắp cải xào cà chua",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥬",
+      "minutes": 15,
+      "cost": 15000,
+      "note": "Ngọt dịu, mềm vừa",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bắp cải",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà chua",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 2,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bắp cải rửa sạch, thái miếng vừa. Cà chua bổ múi, tỏi băm.",
+        "Phi tỏi với dầu, xào cà chua đến khi mềm.",
+        "Thêm bắp cải và ít nước, đậy nắp 4–5 phút đến khi bắp cải mềm. Nêm muối rồi tắt bếp."
+      ],
+      "tip": "Đậy nắp một lúc để bắp cải mềm hơn, dễ nhai."
+    },
+    {
+      "id": "sweet_potato_leaves",
+      "name": "Rau lang luộc",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🌿",
+      "minutes": 10,
+      "cost": 10000,
+      "note": "Đơn giản, mềm, tốt tiêu hóa",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Rau lang",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Nhặt rau lang lấy ngọn và lá non, rửa sạch.",
+        "Đun sôi nồi nước với ít muối.",
+        "Cho rau vào luộc 3–4 phút đến khi mềm, vớt ra để ráo."
+      ],
+      "tip": "Có thể chấm rau với nước kho của món mặn cho đậm vị."
+    },
+    {
+      "id": "gourd_egg",
+      "name": "Bầu xào trứng",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🍳",
+      "minutes": 15,
+      "cost": 20000,
+      "note": "Bầu mềm, trứng béo nhẹ",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bầu",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Hành lá",
+          "amount": 2,
+          "unit": "nhánh",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Bầu gọt vỏ, thái sợi. Hành lá cắt nhỏ. Đánh tan trứng.",
+        "Xào bầu với dầu và ít nước khoảng 4 phút đến khi mềm.",
+        "Đổ trứng vào, đảo đều đến khi trứng chín hoàn toàn. Nêm nước mắm, rắc hành rồi tắt bếp."
+      ],
+      "tip": "Xào bầu mềm trước rồi mới cho trứng để trứng không bị khô."
+    },
+    {
+      "id": "luffa_stirfry",
+      "name": "Mướp xào tỏi",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥒",
+      "minutes": 10,
+      "cost": 14000,
+      "note": "Mướp mềm ngọt",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Mướp",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 3,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Mướp gọt vỏ, thái khúc rồi bổ miếng. Tỏi băm.",
+        "Phi tỏi với dầu, cho mướp vào đảo đều.",
+        "Xào 3–4 phút đến khi mướp mềm, nêm muối rồi tắt bếp."
+      ],
+      "tip": "Mướp ra nhiều nước, không cần thêm nước khi xào."
+    },
+    {
+      "id": "kohlrabi",
+      "name": "Su hào xào cà rốt",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥕",
+      "minutes": 15,
+      "cost": 15000,
+      "note": "Ngọt thanh, giòn nhẹ",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Su hào",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Cà rốt",
+          "amount": 1,
+          "unit": "củ",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Tỏi",
+          "amount": 2,
+          "unit": "tép",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Su hào, cà rốt gọt vỏ, thái sợi. Tỏi băm.",
+        "Phi tỏi với dầu, cho cà rốt và su hào vào đảo đều.",
+        "Thêm ít nước, xào 5 phút đến khi chín vừa. Nêm nước tương rồi tắt bếp."
+      ],
+      "tip": "Thái sợi mỏng để món mềm và dễ ăn hơn."
+    },
+    {
+      "id": "steamed_broccoli",
+      "name": "Bông cải hấp",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥦",
+      "minutes": 15,
+      "cost": 30000,
+      "note": "Giữ trọn vị ngọt rau",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "soft",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [
+        "soy"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Bông cải xanh",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Bông cải trắng",
+          "amount": 200,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Nước tương",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Tách bông cải thành nhánh nhỏ, ngâm nước muối loãng rồi rửa sạch.",
+        "Hấp bông cải khoảng 8–10 phút đến khi mềm.",
+        "Bày ra đĩa, chấm hoặc rưới nước tương khi ăn."
+      ],
+      "tip": "Hấp lâu thêm 2–3 phút nếu cần bông cải mềm hơn."
+    },
+    {
+      "id": "bitter_melon_egg",
+      "name": "Khổ qua xào trứng",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥒",
+      "minutes": 15,
+      "cost": 22000,
+      "note": "Đắng nhẹ, thanh mát",
+      "tags": [
+        "low_salt",
+        "low_sugar"
+      ],
+      "allergens": [
+        "egg"
+      ],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Khổ qua",
+          "amount": 300,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Trứng gà",
+          "amount": 2,
+          "unit": "quả",
+          "group": "Thịt, cá & trứng"
+        },
+        {
+          "name": "Dầu ăn",
+          "amount": 1,
+          "unit": "muỗng canh",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Nước mắm",
+          "amount": 1,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        }
+      ],
+      "steps": [
+        "Khổ qua bỏ ruột, thái lát mỏng, ngâm nước đá 10 phút cho bớt đắng. Đánh tan trứng.",
+        "Xào khổ qua với dầu khoảng 4 phút đến khi chín.",
+        "Đổ trứng vào, đảo đều đến khi trứng chín hoàn toàn. Nêm nước mắm rồi tắt bếp."
+      ],
+      "tip": "Thái khổ qua thật mỏng để món bớt đắng và dễ nhai."
+    },
+    {
+      "id": "boiled_spinach",
+      "name": "Rau muống luộc",
+      "kind": "veg",
+      "label": "Món rau",
+      "emoji": "🥬",
+      "minutes": 10,
+      "cost": 12000,
+      "note": "Thanh mát, chấm cùng nước canh",
+      "tags": [
+        "low_salt",
+        "low_sugar",
+        "low_fat",
+        "vegetarian"
+      ],
+      "allergens": [],
+      "sodium": "low",
+      "ingredients": [
+        {
+          "name": "Rau muống",
+          "amount": 400,
+          "unit": "g",
+          "group": "Rau củ & trái cây"
+        },
+        {
+          "name": "Muối",
+          "amount": 0.5,
+          "unit": "muỗng cà phê",
+          "group": "Gia vị & đồ khô"
+        },
+        {
+          "name": "Chanh",
+          "amount": 1,
+          "unit": "quả",
+          "group": "Rau củ & trái cây"
+        }
+      ],
+      "steps": [
+        "Nhặt rau muống, bỏ phần già, rửa sạch.",
+        "Đun sôi nồi nước với ít muối, cho rau vào luộc 3–4 phút đến khi chín.",
+        "Vớt rau ra đĩa, vắt chanh vào nước luộc để làm canh nếu thích."
+      ],
+      "tip": "Luộc khi nước sôi mạnh để rau xanh và chín đều."
     }
   ],
   "combinations": [
@@ -690,6 +3351,111 @@
       "chicken",
       "cabbage",
       "cucumber"
+    ],
+    [
+      "steamed_fish",
+      "malabar",
+      "pumpkin_stirfry"
+    ],
+    [
+      "beef_tomato",
+      "napa_tofu",
+      "choy_sum"
+    ],
+    [
+      "tofu_mushroom",
+      "rib_potato",
+      "kohlrabi"
+    ],
+    [
+      "steamed_egg",
+      "chayote_soup",
+      "green_beans"
+    ],
+    [
+      "lean_pork",
+      "winter_melon",
+      "sweet_potato_leaves"
+    ],
+    [
+      "ribs",
+      "katuk",
+      "bean_sprout"
+    ],
+    [
+      "boiled_chicken",
+      "bitter_melon",
+      "cabbage_tomato"
+    ],
+    [
+      "chicken_mushroom",
+      "egg_soup",
+      "chayote"
+    ],
+    [
+      "mackerel",
+      "gourd",
+      "boiled_spinach"
+    ],
+    [
+      "snakehead",
+      "mushroom_soup",
+      "gourd_egg"
+    ],
+    [
+      "steamed_shrimp",
+      "radish_soup",
+      "luffa_stirfry"
+    ],
+    [
+      "stuffed_tofu",
+      "luffa",
+      "steamed_broccoli"
+    ],
+    [
+      "egg_tomato",
+      "amaranth",
+      "bok_choy"
+    ],
+    [
+      "boiled_pork",
+      "fish_tomato_soup",
+      "bitter_melon_egg"
+    ],
+    [
+      "beef_onion",
+      "squash",
+      "bok_choy"
+    ],
+    [
+      "mushroom_braise",
+      "cabbage",
+      "chayote"
+    ],
+    [
+      "beef_stew",
+      "soup",
+      "cucumber"
+    ],
+    [
+      "eggplant_tofu",
+      "egg_soup",
+      "steamed_broccoli"
+    ],
+    [
+      "fish",
+      "katuk",
+      "sweet_potato_leaves"
+    ],
+    [
+      "pork",
+      "malabar",
+      "boiled_spinach"
+    ],
+    [
+      "tofu",
+      "chayote_soup",
+      "pumpkin_stirfry"
     ]
   ]
 }

@@ -91,7 +91,7 @@ class PhoneAccessibilityTest {
         compose.onNodeWithText("Món nấu nhanh").performScrollTo().performClick()
         compose.onNodeWithTag("assistant-input").assertTextContains("Món nấu nhanh")
         assertEquals(0, sends)
-        compose.onNodeWithTag("assistant-send").assertTextEquals("Tìm công thức").performClick()
+        compose.onNodeWithTag("assistant-send").assertTextEquals("Gửi").performClick()
         assertEquals(1, sends)
         capture("phone-chat-offline.png")
     }

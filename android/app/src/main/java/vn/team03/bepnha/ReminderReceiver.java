@@ -17,9 +17,11 @@ public final class ReminderReceiver extends BroadcastReceiver {
         Intent open = new Intent(context, MainActivity.class)
                 .setData(new Uri.Builder().scheme("bepnha").authority("open").appendPath(spec.id).build())
                 .putExtra("date", spec.date).putExtra("meal", spec.meal)
+                .putExtra("screen", spec.isShopping() ? "shopping" : "cook")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent tap = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Notification notification = new Notification.Builder(context, ReminderStore.CHANNEL)
+        Notification notification = new Notification.Builder(context,
+                spec.isShopping() ? ReminderStore.SHOPPING_CHANNEL : ReminderStore.CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(Color.rgb(73, 97, 60))
                 .setContentTitle(spec.title)

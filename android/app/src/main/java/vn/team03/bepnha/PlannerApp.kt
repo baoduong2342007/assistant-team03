@@ -49,21 +49,32 @@ import kotlinx.coroutines.isActive
     LaunchedEffect(vm.message) {
         vm.message?.let { message -> snackbar.showSnackbar(message); vm.clearMessage(message) }
     }
-    BackHandler(enabled = vm.sheet == null && (vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
+    LaunchedEffect(vm.effect) {
+        val effect = vm.effect ?: return@LaunchedEffect
+        vm.consumeEffect(effect)
+        when (effect) {
+            is PlannerEffect.Share -> actions.share(effect.text)
+            is PlannerEffect.Calendar -> actions.calendar(effect.tasks)
+            PlannerEffect.Notifications -> actions.notifications()
+            PlannerEffect.ExactAlarms -> actions.exactAlarms()
+        }
+    }
+    val cooking = vm.cookAlong != null
+    BackHandler(enabled = vm.sheet == null && (cooking || vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
     KitchenFrame(
-        title = if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
+        title = if (cooking) "Nấu cùng tôi" else if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
         selected = vm.screen,
-        assistant = vm.assistantVisible,
-        showBack = vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
+        assistant = vm.assistantVisible || cooking,
+        showBack = cooking || vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
         hideNavigation = imeOpen,
-        timer = if (vm.assistantVisible) null else vm.timerUi(),
+        timer = if (vm.assistantVisible || cooking) null else vm.timerUi(),
         onBack = { vm.back() }, onTab = vm::navigate, onAssistant = vm::openAssistant,
         onFamily = { vm.navigate(Screen.FAMILY) }, onReminder = vm::openReminders,
         onFavorites = { vm.navigate(Screen.FAVORITES) }, onCancelTimer = vm::cancelTimer,
         snackbarHost = { SnackbarHost(snackbar) },
     ) {
-        screenStates.SaveableStateProvider(if (vm.assistantVisible) "assistant" else vm.screen.name) {
-            if (vm.assistantVisible) AssistantScreen(vm) else when (vm.screen) {
+        screenStates.SaveableStateProvider(if (cooking) "cook-along" else if (vm.assistantVisible) "assistant" else vm.screen.name) {
+            if (cooking) CookAlongScreen(vm) else if (vm.assistantVisible) AssistantScreen(vm) else when (vm.screen) {
                 Screen.TODAY -> TodayScreen(vm)
                 Screen.PLAN -> WeekScreen(vm)
                 Screen.SHOPPING -> ShoppingScreen(vm, actions)
@@ -235,6 +246,9 @@ import kotlinx.coroutines.isActive
             Text("Dọn cơm lúc ${vm.state.profile.time(vm.state.meal)}", style = MaterialTheme.typography.headlineSmall, color = KitchenGreen)
             Text("Bắt đầu ${PlannerEngine.time(tasks.first().at)} · Khoảng ${vm.engine.minutes(vm.menu)} phút", color = KitchenMuted)
             Text("Lịch dự kiến cho bếp có 2 vùng nấu. Đã xong ${tasks.count { it.key in done }}/${tasks.size} việc.", style = MaterialTheme.typography.bodyMedium)
+            KitchenButton(onClick = { vm.startCookAlong() }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("start-cook-along")) {
+                Text("Nấu cùng tôi: đọc to từng bước")
+            }
             KitchenActions(
                 { KitchenOutlinedButton(onClick = vm::openReminders, modifier = it) { Text("Chỉnh giờ") } },
                 { KitchenOutlinedButton(onClick = { actions.calendar(tasks) }, modifier = it) { Text("Thêm vào lịch") } },

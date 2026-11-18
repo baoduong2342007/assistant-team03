@@ -16,7 +16,7 @@ APK không cần đăng nhập ChatGPT và không phụ thuộc Android System W
 - **Đi chợ:** gộp nguyên liệu cùng tên và đơn vị, tích đồ đã có và sao chép danh sách qua clipboard Android.
 - **Vào bếp:** timeline tính ngược từ giờ ăn, canh/rau dùng lần lượt một vùng bếp; tích công việc, mở công thức và đặt đồng hồ. Đồng hồ giữ đúng bữa gốc khi bạn xem ngày khác.
 - **Gia đình:** tên, số người từ 1–12 và giờ ăn bằng đồng hồ chọn giờ Android; đổi khẩu phần cập nhật định lượng.
-- **Hỏi Bếp Nhà:** ô nhập native để tra món, xem lịch nấu, tìm món nhanh hoặc tiết kiệm trong công thức có sẵn. Có tích hợp Gemini qua backend HTTPS, xem [hướng dẫn trợ lý](../docs/bep-nha-assistant.md).
+- **Hỏi Bếp Nhà:** tra công thức, gợi ý mâm theo nguyên liệu, chọn mâm, chỉnh riêng món và xác nhận thay đổi. Gemini chạy qua Firebase AI Logic/Spark; mất mạng hoặc hết quota chuyển sang xử lý Kotlin trên máy. Xem [hướng dẫn Firebase](../docs/firebase-spark-demo.md).
 - **Nhắc nấu:** lưu lịch bằng AlarmManager, gửi thông báo Android, chạm thông báo mở đúng bữa ăn; cập nhật/hủy lịch khi thay đổi thực đơn, giờ ăn hoặc đồng hồ.
 
 Thêm sự kiện vào lịch bằng màn hình soạn sự kiện của ứng dụng lịch. Người dùng xác nhận lưu; Bếp Nhà không yêu cầu quyền đọc hoặc ghi lịch. Ứng dụng dùng quyền Internet để gọi trợ lý; thực đơn và tra cứu offline vẫn dùng được khi mất mạng.
@@ -60,6 +60,8 @@ Kiểm thử giao diện cần máy ảo riêng vì bộ kiểm thử xóa dữ 
 
 ## Xác minh
 
+Đợt Firebase Spark: **46 JVM tests và 30 instrumentation tests đạt**, năm ca Firebase thật tách riêng và không chạy trong suite thường. Lint: 0 lỗi, 6 cảnh báo. Xem [kết quả nghiệm thu mới](../docs/firebase-spark-verification.md). Phần thống kê dưới đây là lịch sử đợt UI trước.
+
 Đợt cập nhật UI điện thoại: **18 unit test** và **26 kiểm thử instrumentation trên máy ảo Android API 37** đạt. Bao gồm các luồng native cũ, tương phản chữ, chữ 200%, vùng nhập khi thiếu chiều cao, giữ bản nháp qua xoay máy, gửi lại không trùng, loại phản hồi cũ, xác nhận một lần và giữ vị trí khi đang đọc hội thoại. Xem phạm vi và giới hạn trong [bàn giao UI điện thoại](docs/phone-ui-handoff.md).
 
 Ảnh chụp native được tạo trực tiếp bằng Android instrumentation, không phải ảnh mockup. Android Lint không có lỗi chặn. Chưa kiểm tra trên điện thoại thật, các chế độ ngủ/tiết kiệm pin, reboot thực tế hoặc giao thông báo đúng giờ trên từng hãng máy.
@@ -78,14 +80,13 @@ Tham khảo: [Jetpack Compose](https://developer.android.com/develop/ui/compose)
 
 ## Trợ lý Gemini
 
-Xem [cấu hình backend, hợp đồng API và kiểm thử](../docs/bep-nha-assistant.md). Nút **Hỏi Bếp Nhà** nằm ngay trên thanh bốn tab. Menu **Thêm** mở Gia đình, Nhắc nấu và Món đã lưu. Màn chat giữ ngữ cảnh bữa/ngày/số người phía trên, hội thoại ở giữa và ô nhập ở dưới. Gợi ý điền vào ô nhập để người dùng chỉnh trước khi gửi. Mọi thay đổi do AI đề xuất đều cần xác nhận.
+Xem [cấu hình Firebase Spark, App Check và kiểm thử](../docs/firebase-spark-demo.md). Nút **Hỏi Bếp Nhà** nằm ngay trên thanh bốn tab. Menu **Thêm** mở Gia đình, Nhắc nấu và Món đã lưu. Màn chat giữ ngữ cảnh bữa/ngày/số người phía trên, hội thoại ở giữa và ô nhập ở dưới. Gợi ý điền vào ô nhập để người dùng chỉnh trước khi gửi. Mọi thay đổi do AI đề xuất đều cần xác nhận.
 
-### Nối backend vào UI chat
+### Kết nối Firebase vào chat
 
-- Cấu hình build bằng `-PassistantBaseUrl=https://your-backend.example`. Không đặt khóa Gemini trong APK.
-- `AssistantGateway.ask` gọi `POST /api/assistant/turn` với `message`, `history` (tối đa 20 tin trước đó) và `context` do `snapshot` tạo.
-- Phản hồi JSON: `{"reply":"Nội dung trả lời","actions":[]}`. Giữ `actions` là mảng rỗng nếu chỉ trả lời văn bản; thao tác dữ liệu phải theo hợp đồng và bộ kiểm tra trong `AssistantCommands`.
-- UI đã có trạng thái chờ, lỗi/thử lại, liên kết công thức và xem trước/xác nhận thay đổi. Không cần sửa Compose khi thay backend.
-- Khi chưa cấu hình URL, nút chính là **Tìm công thức**; kết quả mang nhãn **Tra cứu trên máy**, không gọi mô hình AI.
+- Tải `app/google-services.json` bằng Firebase CLI theo hướng dẫn. File được bỏ qua trong Git. Không nhúng Gemini key vào APK.
+- `AssistantService` nhận câu hỏi, tối đa 20 tin lịch sử và snapshot; `FirebaseAssistantProvider` gọi SDK Firebase. `MealPlanning` kiểm tra ngày/bữa, nguyên liệu và tự xếp mâm; `AssistantCommands` kiểm tra và thực thi sau xác nhận.
+- Mỗi lượt tối đa một yêu cầu AI, một tool call, tám actions, hai mâm; không tự gửi lại hoặc tự đổi model.
+- Khi thiếu cấu hình, dùng trợ lý cục bộ với nhãn nguồn và lý do. Màn nhập key và backend URL không còn dùng.
+- Chỉ debug build bật App Check Debug Provider. Mỗi thiết bị demo cần đăng ký; release build dùng cục bộ cho đến khi có phương án chứng thực phát hành.
 - Hội thoại giữ trong phiên qua xoay màn hình và xem công thức. Bản nháp Chat dùng SavedStateHandle; không lưu lịch sử lâu dài hoặc phục hồi đề xuất thực thi sau khi tiến trình kết thúc.
-- Hợp đồng API không đổi. Xem [hướng dẫn bàn giao](docs/phone-ui-handoff.md). Chưa cấu hình endpoint nên chưa xác minh phản hồi AI thực tế hoặc thử với người dùng trung niên.

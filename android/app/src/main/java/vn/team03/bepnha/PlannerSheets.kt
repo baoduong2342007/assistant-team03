@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -81,7 +82,9 @@ import java.time.LocalTime
 
 @Composable fun SwapSheet(vm: PlannerViewModel, index: Int) {
     val current = vm.menu[index]
+    // Dishes that fit the family's diet profile come first; the others say why they do not fit.
     val choices = vm.engine.recipes.values.filter { it.kind == current.kind && it.id != current.id }
+        .sortedBy { !vm.state.diet.allows(it) }
     LazyColumn(Modifier.fillMaxWidth().testTag("swap-list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -95,6 +98,10 @@ import java.time.LocalTime
                     Text("${recipe.minutes} phút", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                     Text("Ước tính ${PlannerEngine.money((recipe.cost * vm.state.profile.people / 4.0).toLong())}",
                         style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                    vm.state.diet.reasons(recipe).takeIf { it.isNotEmpty() }?.let { why ->
+                        Text("Chưa hợp hồ sơ ăn uống: ${why.joinToString()}", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
@@ -181,17 +188,138 @@ import java.time.LocalTime
             KitchenButton(onClick = { focus.clearFocus(); vm.saveFamily(name, people, lunch, dinner) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Lưu thông tin gia đình") }
         } }
+        item { DietCard(vm) }
+        item { VoiceSettingsCard(vm) }
+        item { ShoppingReminderCard(vm, actions) }
         item { PermissionInfo(vm, actions) }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Dữ liệu của nhà mình", style = MaterialTheme.typography.titleMedium)
                 Text("Thực đơn và công thức lưu trên thiết bị. Chưa có đồng bộ giữa các máy.", color = KitchenMuted)
-                Text("Dùng AI sẽ gửi câu hỏi và ngữ cảnh bữa ăn đến máy chủ. Tìm trong 14 công thức có sẵn dùng được khi mất mạng.",
+                Text("Dùng AI sẽ gửi câu hỏi và ngữ cảnh bữa ăn đến máy chủ. Tìm trong công thức có sẵn dùng được khi mất mạng.",
                     style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                 KitchenOutlinedButton(onClick = { vm.navigate(Screen.FAVORITES) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Xem món đã lưu") }
             }
         }
+    }
+}
+
+@Composable private fun DietCard(vm: PlannerViewModel) {
+    val saved = vm.state.diet
+    var tags by remember(saved) { mutableStateOf(saved.tags) }
+    var allergens by remember(saved) { mutableStateOf(saved.allergens) }
+    var avoid by remember(saved) { mutableStateOf(saved.avoid) }
+    var maxMinutes by remember(saved) { mutableStateOf(saved.maxMinutes) }
+    var term by rememberSaveable { mutableStateOf("") }
+    var termError by remember { mutableStateOf<String?>(null) }
+    @Composable fun ToggleRow(label: String, on: Boolean, tag: String, onChange: (Boolean) -> Unit) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(value = on, role = Role.Checkbox, onValueChange = onChange).testTag(tag),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Checkbox(checked = on, onCheckedChange = null)
+            Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        }
+    }
+    KitchenCard {
+        Text("Ăn uống của gia đình", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Text("Gợi ý món, thực đơn tuần và trợ lý sẽ luôn theo những điều này. Không thay cho lời khuyên của bác sĩ.",
+            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+        Text("Mọi món cần", style = MaterialTheme.typography.bodySmall)
+        DietProfile.TAG_LABELS.forEach { (tag, label) ->
+            ToggleRow(label.replaceFirstChar { it.titlecase() }, tag in tags, "diet-tag-$tag") { tags = if (it) tags + tag else tags - tag }
+        }
+        Text("Dị ứng hoặc không ăn", style = MaterialTheme.typography.bodySmall)
+        DietProfile.ALLERGEN_LABELS.forEach { (code, label) ->
+            ToggleRow(label.replaceFirstChar { it.titlecase() }, code in allergens, "diet-allergen-$code") { allergens = if (it) allergens + code else allergens - code }
+        }
+        avoid.sorted().forEach { name ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Tránh $name", modifier = Modifier.weight(1f))
+                TextButton(onClick = { avoid = avoid - name }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Bỏ") }
+            }
+        }
+        OutlinedTextField(value = term, onValueChange = { term = it.take(40); termError = null }, label = { Text("Thêm nguyên liệu cần tránh") },
+            placeholder = { Text("Ví dụ: hành, sả, thịt bò") }, singleLine = true, isError = termError != null,
+            supportingText = termError?.let { { Text(it) } }, modifier = Modifier.fillMaxWidth().testTag("diet-avoid-input"))
+        KitchenOutlinedButton(onClick = {
+            val found = vm.resolveDietTerm(term)
+            when {
+                found == null -> termError = "Chưa có nguyên liệu này trong công thức."
+                found.first != null -> { allergens = allergens + found.first!!; term = "" }
+                else -> { avoid = avoid + found.second; term = "" }
+            }
+        }, enabled = term.isNotBlank(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Thêm vào danh sách tránh") }
+        Text("Thời gian nấu mỗi bữa", style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(null to "Không giới hạn", 30 to "30 phút", 45 to "45 phút").forEach { (value, label) ->
+                val modifier = Modifier.weight(1f).heightIn(min = 56.dp).semantics { selected = maxMinutes == value }
+                if (maxMinutes == value) KitchenButton(onClick = { maxMinutes = value }, modifier = modifier) { Text(label) }
+                else KitchenOutlinedButton(onClick = { maxMinutes = value }, modifier = modifier) { Text(label) }
+            }
+        }
+        val draft = saved.copy(tags = tags, allergens = allergens, avoid = avoid, maxMinutes = maxMinutes)
+        val outside = vm.mealsOutsideDiet(draft)
+        if (outside > 0) Text("$outside bữa trong tuần đang có món chưa hợp. Bạn có thể nhờ trợ lý “lên lại thực đơn tuần theo hồ sơ”.",
+            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+        KitchenButton(onClick = { vm.saveDiet(draft) }, enabled = draft != saved,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("diet-save")) { Text("Lưu hồ sơ ăn uống") }
+    }
+}
+
+@Composable private fun VoiceSettingsCard(vm: PlannerViewModel) {
+    val saved = vm.state.voice
+    var address by rememberSaveable(saved) { mutableStateOf(saved.addressAs) }
+    var readAloud by rememberSaveable(saved) { mutableStateOf(saved.readAloud) }
+    var rate by rememberSaveable(saved) { mutableFloatStateOf(saved.rate) }
+    KitchenCard {
+        Text("Trợ lý nói chuyện", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        OutlinedTextField(value = address, onValueChange = { address = it.take(20) }, label = { Text("Trợ lý gọi bạn là") },
+            placeholder = { Text("Ví dụ: bác, cô, bà, bạn") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("voice-address"))
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .toggleable(value = readAloud, role = Role.Switch, onValueChange = { readAloud = it }).testTag("voice-read-aloud"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Đọc to câu trả lời", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Switch(checked = readAloud, onCheckedChange = null)
+        }
+        Text("Tốc độ đọc", style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            VoiceSettings.RATES.forEach { (value, label) ->
+                val selected = rate == value
+                val modifier = Modifier.weight(1f).heightIn(min = 56.dp).semantics { this.selected = selected }
+                if (selected) KitchenButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
+                else KitchenOutlinedButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
+            }
+        }
+        KitchenOutlinedButton(onClick = { vm.previewVoice(address, rate) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-preview")) { Text("Nghe thử") }
+        KitchenButton(onClick = { vm.saveVoiceSettings(address, readAloud, rate) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-save")) { Text("Lưu cách nói chuyện") }
+    }
+}
+
+@Composable private fun ShoppingReminderCard(vm: PlannerViewModel, actions: NativeActions) {
+    val saved = vm.state.shopping
+    var enabled by rememberSaveable(saved) { mutableStateOf(saved.enabled) }
+    var timeText by rememberSaveable(saved) { mutableStateOf(saved.time.toString()) }
+    val time = LocalTime.parse(timeText)
+    KitchenCard {
+        Text("Nhắc đi chợ", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = { enabled = it }).testTag("shopping-enabled"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Nhắc đi chợ mỗi sáng", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Switch(checked = enabled, onCheckedChange = null)
+        }
+        Text("Thông báo liệt kê đồ còn thiếu cho bữa trưa và bữa tối hôm đó. Đã mua đủ thì không nhắc.",
+            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+        TimeField("Giờ nhắc đi chợ", time, Modifier.fillMaxWidth().testTag("shopping-time")) {
+            actions.pickTime(time) { timeText = it.toString() }
+        }
+        KitchenButton(onClick = {
+            vm.saveShoppingReminder(enabled, time)
+            if (enabled && !vm.notifications) actions.notifications()
+        }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shopping-save")) { Text("Lưu nhắc đi chợ") }
     }
 }
 
