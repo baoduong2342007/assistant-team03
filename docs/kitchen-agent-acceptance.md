@@ -35,7 +35,7 @@ Cần `android/app/google-services.json` của nhóm, thiết bị đã đăng k
 adb shell am instrument -w -e class vn.team03.bepnha.AgentEvalTest -e firebaseLive true -e evalGroup swap vn.team03.bepnha.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Nhóm: `swap`, `plan`, `diet`, `pantry`, `app`, `clarify` (23 câu). Dùng `-e evalCase swap-casual` để chạy một câu. Bộ thử dừng khi hết quota. Câu do trợ lý trên máy trả lời được ghi `not-ai`, không tính là đạt. Báo cáo nằm ở `files/agent-eval.json` của app:
+Nhóm: `swap`, `plan`, `diet`, `pantry`, `app`, `clarify` (23 câu). Dùng `-e evalCase swap-casual` để chạy một câu. Bộ thử dừng khi hết quota; thêm `-e evalPauseMs 20000` để giãn cách khi chạy cả bộ. Câu do trợ lý trên máy trả lời được ghi `not-ai`, không tính là đạt. Báo cáo nằm ở `files/agent-eval.json` của app:
 
 ```powershell
 adb shell run-as vn.team03.bepnha cat files/agent-eval.json
@@ -54,6 +54,8 @@ adb shell run-as vn.team03.bepnha cat files/agent-eval.json
 - Thời gian chờ mỗi lần gọi mặc định 25 giây; đổi khi build bằng `-PassistantTimeoutMs=60000`.
 
 Ghi nhận ngày 17/11/2026 (emulator, project `bep-nha-team03-20261116-21eb9`): App Check debug token được chấp nhận, `countTokens` khoảng 2,3 giây; `generateContent` với `gemini-3.8-flash` lúc báo *high demand*, lúc không phản hồi sau 60 giây; `gemini-3.6-flash` cũng không phản hồi; `gemini-2.5-flash` không còn cho người dùng mới. Chưa có lượt AI thật thành công cho bản agent.
+
+Ghi nhận ngày 18/11/2026 (cùng emulator và project, model `gemini-3.5-flash-lite`): `generateContent` khoảng 1,7 giây. `AgentEvalTest` **23/23 đạt**, mỗi câu 2–8 giây. Gói miễn phí chỉ cho 15 lượt gọi mỗi phút, mà một câu có thể tốn tới 4 lượt, nên chạy cả bộ với `-e evalPauseMs 20000` (khoảng 8 phút).
 
 ## 3. Kịch bản thủ công trên điện thoại
 

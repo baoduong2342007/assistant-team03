@@ -46,7 +46,8 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
                     model.startChat().also { chat = it }.sendMessage(payload.toString())
                 } else {
                     require(results.isNotEmpty())
-                    current.sendMessage(Content("function", results.map { result ->
+                    // The Gemini Developer API accepts only "user" and "model" roles; tool results go back as "user".
+                    current.sendMessage(Content("user", results.map { result ->
                         FunctionResponsePart(result.call.name, Json.parseToJsonElement(result.result.toString()).jsonObject, result.call.id)
                     }))
                 }
@@ -77,7 +78,11 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
         } catch (_: TimeoutCancellationException) { throw AssistantFailure(AssistantFailureKind.TIMEOUT)
         } catch (e: CancellationException) { throw e
         } catch (e: AssistantFailure) { throw e
-        } catch (e: Exception) { throw AssistantFailure(classify(e)) }
+        } catch (e: Exception) {
+            // Debug builds only: the raw SDK reason, which the user-facing message hides.
+            if (BuildConfig.DEBUG) android.util.Log.w("BepNhaAI", "AI call failed: ${causes(e).joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message?.take(500)}" }}")
+            throw AssistantFailure(classify(e))
+        }
     }
 
     // Fail explicitly on unregistered demo devices instead of silently sending an invalid token.
