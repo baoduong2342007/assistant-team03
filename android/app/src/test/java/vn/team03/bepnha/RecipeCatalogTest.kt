@@ -56,6 +56,18 @@ class RecipeCatalogTest {
         assertEquals(emptySet<String>(), engine.recipes.keys - engine.combinations.flatten().toSet() - engine.breakfasts.toSet())
     }
 
+    @Test fun assistantPlansAllThreeMealsAcrossTheWeek() {
+        val today = java.time.LocalDate.of(2026, 11, 16)
+        val state = engine.ensureWeek(PlannerState(date = today), today)
+        val targets = (0L..6L).flatMap { offset -> engine.meals.map { today.plusDays(offset) to it } }
+        val planned = MealPlanner(engine).plan(state, targets, PlanConstraints())
+        assertEquals(21, planned.size)
+        assertEquals(7, planned.count { it.meal == Meal.BREAKFAST })
+        planned.forEach { assertTrue(engine.validPlan(it.recipeIds, it.meal)) }
+        val snapshot = AssistantGateway.snapshot(engine, state, today, Screen.TODAY, null)
+        assertEquals(state.plans, AssistantGateway.stateFrom(engine, snapshot).plans)
+    }
+
     @Test fun tagsAllergensAndSodiumUseKnownValues() {
         raw.forEach { item -> listOf("tags", "allergens").forEach { key -> assertNotNull("${item.getString("id")} $key", item.optJSONArray(key)) } }
         recipes.forEach { recipe ->

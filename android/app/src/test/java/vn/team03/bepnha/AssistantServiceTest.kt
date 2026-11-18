@@ -160,7 +160,7 @@ class AssistantServiceTest {
         assertTrue(reply.actions.isNotEmpty() && reply.actions.all { it.type == AssistantActionType.swap_recipe })
         assertTrue(AssistantCommands(engine).proposal(AssistantTestCatalog.state(), reply.actions, day, 0).needsConfirmation)
         val after = applied(reply)
-        val week = (0L..6L).flatMap { offset -> Meal.entries.map { engine.menu(after, day.plusDays(offset), it) } }
+        val week = (0L..6L).flatMap { offset -> engine.meals.map { engine.menu(after, day.plusDays(offset), it) } }
         assertEquals(14, week.size)
         week.flatten().forEach { recipe -> assertFalse(recipe.name, recipe.ingredients.any { it.name == "Trứng gà" }) }
         assertTrue(week.map { it[0].id }.distinct().size >= 4)

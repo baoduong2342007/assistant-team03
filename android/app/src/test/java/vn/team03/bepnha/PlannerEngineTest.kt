@@ -228,7 +228,7 @@ class PlannerEngineTest {
 
     @Test fun shoppingReminderSkipsADayWhenEverythingIsChecked() {
         val initial = shoppingState().copy(shopping = ShoppingReminder(true, LocalTime.of(6, 30)))
-        val stocked = Meal.entries.associate { meal ->
+        val stocked = shoppingEngine.meals.associate { meal ->
             val key = PlannerEngine.key(day, meal)
             key to shoppingEngine.ingredients(shoppingEngine.menu(initial, day, meal), initial.profile.people).map { it.key }.toSet()
         }

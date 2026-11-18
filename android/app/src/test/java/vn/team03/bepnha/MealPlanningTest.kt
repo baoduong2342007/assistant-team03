@@ -81,7 +81,7 @@ class MealPlanningTest {
         assertEquals(options, rules.rankMeals(pantry, excluded))
         options.forEach { option ->
             val menu = option.recipeIds.map(AssistantTestCatalog.engine.recipes::getValue)
-            assertEquals(RecipeKind.entries.toList(), menu.map { it.kind })
+            assertEquals(RecipeKind.trayKinds, menu.map { it.kind })
             assertFalse(menu.flatMap { it.ingredients }.any { it.name in excluded })
             assertTrue(option.pantryKeys.isNotEmpty())
         }

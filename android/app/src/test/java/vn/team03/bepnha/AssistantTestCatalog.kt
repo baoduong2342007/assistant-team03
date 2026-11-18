@@ -6,21 +6,8 @@ import java.time.LocalDate
 internal object AssistantTestCatalog {
     val day: LocalDate = LocalDate.of(2026, 11, 16)
     val engine: PlannerEngine by lazy {
-        val root = JSONObject(checkNotNull(javaClass.getResourceAsStream("/recipes.json")).bufferedReader().use { it.readText() })
-        val items = root.getJSONArray("recipes")
-        val recipes = (0 until items.length()).map { i ->
-            val item = items.getJSONObject(i); val ingredients = item.getJSONArray("ingredients")
-            Recipe(item.getString("id"), item.getString("name"), when(item.getString("kind")) {
-                "main" -> RecipeKind.MAIN; "soup" -> RecipeKind.SOUP; else -> RecipeKind.VEG
-            }, item.getString("emoji"), item.getInt("minutes"), item.getLong("cost"), item.getString("note"),
-                (0 until ingredients.length()).map { j -> ingredients.getJSONObject(j).let { Ingredient(it.getString("name"), it.getDouble("amount"), it.getString("unit"), it.getString("group")) } },
-                item.getJSONArray("steps").let { steps -> (0 until steps.length()).map(steps::getString) }, item.getString("tip"),
-                item.optJSONArray("tags")?.let { list -> (0 until list.length()).map(list::getString).toSet() }.orEmpty(),
-                item.optJSONArray("allergens")?.let { list -> (0 until list.length()).map(list::getString).toSet() }.orEmpty(),
-                item.optString("sodium"))
-        }.associateBy { it.id }
-        val choices = root.getJSONArray("combinations")
-        PlannerEngine(recipes, (0 until choices.length()).map { i -> val ids = choices.getJSONArray(i); (0 until ids.length()).map(ids::getString) })
+        val catalog = RecipeRepository.parse(checkNotNull(javaClass.getResourceAsStream("/recipes.json")).bufferedReader().use { it.readText() })
+        PlannerEngine(catalog.recipes.filterValues { it.kind != RecipeKind.BREAKFAST }, catalog.combinations)
     }
     fun state(): PlannerState = engine.ensureWeek(PlannerState(date = day, meal = Meal.LUNCH), day)
     fun context(): JSONObject = AssistantGateway.snapshot(engine, state(), day, Screen.TODAY, null)
