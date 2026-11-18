@@ -66,14 +66,14 @@ object AssistantGateway {
         val meals = JSONArray()
         state.plans.keys.sorted().forEach { key ->
             val parts = key.split('|'); val date = LocalDate.parse(parts[0]); val meal = Meal.from(parts[1]) ?: return@forEach
-            if (date !in today..today.plusDays(6) || !engine.validPlan(state.plans.getValue(key))) return@forEach
+            if (date !in today..today.plusDays(6) || !engine.validPlan(state.plans.getValue(key), meal)) return@forEach
             val menu = engine.menu(state, date, meal)
             val entry = JSONObject().put("date", date.toString()).put("meal", meal.value).put("recipes", JSONArray(menu.map { it.id }))
                 .put("cost", engine.cost(menu, state.profile.people)).put("minutes", engine.minutes(menu))
                 .put("reminder", key in state.reminders)
             if (key == state.key) {
                 entry.put("ingredients", JSONArray(engine.ingredients(menu, state.profile.people).map { i ->
-                    JSONObject().put("key", i.key).put("amount", i.amount).put("checked", i.key in state.checked[key].orEmpty()) }))
+                    JSONObject().put("key", i.key).put("amount", i.amount).put("checked", i.key in engine.checkedFor(state, date, meal)) }))
                 entry.put("tasks", JSONArray(engine.timeline(state, date, meal).map { t ->
                     JSONObject().put("key", t.key).put("title", t.title).put("time", PlannerEngine.time(t.at)).put("done", t.key in state.done[key].orEmpty()) }))
             }
@@ -81,11 +81,14 @@ object AssistantGateway {
         }
         return JSONObject().put("today", today.toString()).put("timezone", PlannerEngine.zone.id)
             .put("date", state.date.toString()).put("meal", state.meal.value).put("screen", screen.name).put("recipe_id", recipeId ?: JSONObject.NULL)
-            .put("people", state.profile.people).put("lunch", state.profile.lunch.toString()).put("dinner", state.profile.dinner.toString())
+            .put("breakfast", state.profile.breakfast.toString()).put("people", state.profile.people).put("lunch", state.profile.lunch.toString()).put("dinner", state.profile.dinner.toString())
             .put("address_as", state.voice.addressAs)
             .put("diet", dietJson(state.diet).put("summary", state.diet.describe()))
             .put("meals", meals).put("favorites", JSONArray(state.favorites.toList()))
-            .put("timer", state.timer?.let { JSONObject().put("label", it.label).put("end", it.end).put("date", it.date.toString()).put("meal", it.meal.value) } ?: JSONObject.NULL)
+            .put("timers", JSONArray(state.timers.map { JSONObject().put("id", it.id).put("label", it.label)
+                .put("end", it.end).put("date", it.date.toString()).put("meal", it.meal.value) }))
+            .put("shopping_checked", JSONObject((0L..6L).map(today::plusDays).map(PlannerEngine::shopKey)
+                .mapNotNull { key -> state.checked[key]?.let { key to JSONArray(it.toList()) } }.toMap()))
             .apply {
                 if (pendingMenuChanges.isNotEmpty()) put("pending_menu_changes", menuChangesJson(pendingMenuChanges))
                 if (lastMenuChanges.isNotEmpty()) put("last_menu_changes", menuChangesJson(lastMenuChanges))
@@ -114,14 +117,25 @@ object AssistantGateway {
                 done[key] = (0 until items.length()).map(items::getJSONObject).filter { it.optBoolean("done") }.map { it.getString("key") }.toSet()
             }
         }
-        val timer = context.optJSONObject("timer")?.let {
-            CookingTimer(it.getLong("end"), it.getString("label"), LocalDate.parse(it.getString("date")), requireNotNull(Meal.from(it.getString("meal"))))
+        context.optJSONObject("shopping_checked")?.let { days ->
+            days.keys().forEach { key ->
+                val items = days.getJSONArray(key)
+                checked[key] = (0 until items.length()).map(items::getString).toSet()
+            }
         }
+        val timers = context.optJSONArray("timers")?.let { items ->
+            (0 until items.length()).map { index ->
+                val timer = items.getJSONObject(index)
+                CookingTimer(timer.getLong("id"), timer.getLong("end"), timer.getString("label"),
+                    LocalDate.parse(timer.getString("date")), requireNotNull(Meal.from(timer.getString("meal"))))
+            }
+        }.orEmpty()
         val favorites = context.optJSONArray("favorites")?.let { ids -> (0 until ids.length()).map(ids::getString).filter { it in engine.recipes }.toSet() }.orEmpty()
         return PlannerState(
-            profile = FamilyProfile(people = context.getInt("people"), lunch = LocalTime.parse(context.getString("lunch")), dinner = LocalTime.parse(context.getString("dinner"))),
+            profile = FamilyProfile(people = context.getInt("people"), lunch = LocalTime.parse(context.getString("lunch")), dinner = LocalTime.parse(context.getString("dinner")),
+                breakfast = LocalTime.parse(context.optString("breakfast", "06:30"))),
             date = LocalDate.parse(context.getString("date")), meal = requireNotNull(Meal.from(context.getString("meal"))),
-            plans = plans, checked = checked, done = done, favorites = favorites, reminders = reminders, timer = timer,
+            plans = plans, checked = checked, done = done, favorites = favorites, reminders = reminders, timers = timers,
             diet = context.optJSONObject("diet")?.let { dietFrom(it, engine) } ?: DietProfile(),
         )
     }
@@ -222,7 +236,7 @@ object AssistantGateway {
         val missing = (fields - OPTIONAL_FIELDS[type].orEmpty()).filter { !o.has(it) || o.isNull(it) }
         require(missing.isEmpty()) { "Thao tác $typeName thiếu tham số ${missing.joinToString()}." }
         val date = text("date")?.let(MealPlanning::parseDay) ?: requireNotNull(defaultDate) { "Thao tác $typeName thiếu date." }
-        val meal = text("meal")?.let { requireNotNull(Meal.from(it)) { "meal phải là lunch hoặc dinner." } }
+        val meal = text("meal")?.let { requireNotNull(Meal.from(it)) { "meal phải là breakfast, lunch hoặc dinner." } }
             ?: requireNotNull(defaultMeal) { "Thao tác $typeName thiếu meal." }
         return AssistantAction(type, date, meal,
             text("screen")?.let { name -> Screen.entries.firstOrNull { it.name == name } ?: throw IllegalArgumentException("Không có màn hình $name.") },

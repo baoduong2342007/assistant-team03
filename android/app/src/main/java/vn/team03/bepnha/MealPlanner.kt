@@ -29,9 +29,9 @@ class MealPlanner(private val engine: PlannerEngine) {
         val diet = state.diet
         val maxMinutes = listOfNotNull(constraints.maxMinutes, diet.maxMinutes).minOrNull()
         val maxCost = listOfNotNull(constraints.maxCost, diet.maxCost).minOrNull()
-        val byKind = RecipeKind.entries.map { kind -> engine.recipes.values.filter { it.kind == kind }.sortedBy { it.id } }
+        val byKind = RecipeKind.trayKinds.map { kind -> engine.recipes.values.filter { it.kind == kind }.sortedBy { it.id } }
         val allowed = byKind.map { group -> group.filter { recipe -> diet.allows(recipe) && recipe.ingredients.none { it.name in constraints.avoid } } }
-        RecipeKind.entries.forEachIndexed { index, kind ->
+        if (targets.any { it.second.tray }) RecipeKind.trayKinds.forEachIndexed { index, kind ->
             if (allowed[index].isEmpty()) throw NoMealFits(buildString {
                 append("Không còn ${kind.label.lowercase()} nào phù hợp")
                 if (!diet.isEmpty) append(" hồ sơ ăn uống (${diet.describe()})")
@@ -47,13 +47,21 @@ class MealPlanner(private val engine: PlannerEngine) {
                 add(menu)
             }
         }
-        if (trays.isEmpty()) throw NoMealFits(buildString {
+        if (targets.any { it.second.tray } && trays.isEmpty()) throw NoMealFits(buildString {
             append("Không có mâm nào thỏa")
             maxMinutes?.let { append(" thời gian nấu tối đa $it phút") }
             maxCost?.let { append(" ngân sách ${PlannerEngine.money(it)} mỗi bữa") }
             if (!diet.isEmpty) append(" cùng hồ sơ ăn uống (${diet.describe()})")
             append(".")
         })
+        val breakfasts = engine.breakfasts.map(engine.recipes::getValue)
+            .filter { diet.allows(it) && it.ingredients.none { ingredient -> ingredient.name in constraints.avoid } }
+            .map(::listOf)
+            .filter { (maxMinutes == null || engine.minutes(it) <= maxMinutes) &&
+                (maxCost == null || engine.cost(it, people) <= maxCost) }
+        if (targets.any { !it.second.tray } && breakfasts.isEmpty()) {
+            throw NoMealFits("Không có món sáng nào đáp ứng các điều kiện của gia đình.")
+        }
         // Already-planned meals outside the targets still count for variety.
         val chosen = state.plans.filterKeys { key -> targets.none { PlannerEngine.key(it.first, it.second) == key } }
             .mapNotNull { (key, ids) -> runCatching { LocalDate.parse(key.substringBefore('|')) to ids }.getOrNull() }
@@ -61,7 +69,8 @@ class MealPlanner(private val engine: PlannerEngine) {
         val ordered = targets.distinct().sortedWith(compareBy({ it.first }, { it.second.ordinal }))
         return ordered.mapIndexed { position, (date, meal) ->
             fun usedNear(id: String, days: Long) = chosen.any { (day, ids) -> id in ids && kotlin.math.abs(day.toEpochDay() - date.toEpochDay()) <= days }
-            val best = trays.minWith(compareBy<List<Recipe>>(
+            val candidates = if (meal.tray) trays else breakfasts
+            val best = candidates.minWith(compareBy<List<Recipe>>(
                 // Same main within three days, or same soup/veg on the same or next day, feels repetitive.
                 { menu -> (if (usedNear(menu[0].id, 2)) 4 else 0) + menu.drop(1).count { usedNear(it.id, 1) } },
                 { menu -> -menu.flatMap { it.ingredients }.map { it.name }.distinct().count { it in constraints.prefer } },

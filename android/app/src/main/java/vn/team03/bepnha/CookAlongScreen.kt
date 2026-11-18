@@ -45,7 +45,7 @@ import vn.team03.bepnha.voice.rememberMicPermission
                 KitchenTonalButton(onClick = { vm.cookTimer(minutes) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("cook-timer")) { Text("Hẹn $minutes phút") }
             }
-            vm.timerUi()?.let { KitchenTimer(it, vm::cancelTimer) }
+            vm.timerUi()?.let { timer -> KitchenTimer(timer) { vm.cancelTimer(timer.id) } }
             if (listening) Text((heard as VoiceState.Listening).partial.ifBlank { "Đang nghe…" }, style = MaterialTheme.typography.titleMedium)
             vm.voiceNotice?.let { Text(it, color = KitchenMuted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
             Text("Có thể nói: “tiếp”, “đọc lại”, “quay lại”, “hẹn giờ 10 phút”.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)

@@ -21,8 +21,8 @@ class RecipeCatalogTest {
     }
 
     @Test fun kindsAreValidAndEveryKindHasChoices() {
-        raw.forEach { assertTrue(it.getString("id"), it.getString("kind") in setOf("main", "soup", "veg")) }
-        RecipeKind.entries.forEach { kind -> assertTrue(kind.name, recipes.count { it.kind == kind } >= 14) }
+        raw.forEach { assertTrue(it.getString("id"), it.getString("kind") in setOf("main", "soup", "veg", "breakfast")) }
+        RecipeKind.trayKinds.forEach { kind -> assertTrue(kind.name, recipes.count { it.kind == kind } >= 14) }
     }
 
     @Test fun recipesAreComplete() {
@@ -51,7 +51,21 @@ class RecipeCatalogTest {
         assertTrue(engine.combinations.size >= 14)
         engine.combinations.forEach { assertTrue(it.toString(), engine.validPlan(it)) }
         assertEquals(engine.combinations.size, engine.combinations.toSet().size)
-        assertEquals(engine.recipes.keys - engine.combinations.flatten().toSet(), emptySet<String>())
+        assertEquals(6, engine.breakfasts.size)
+        engine.breakfasts.forEach { assertTrue(engine.validPlan(listOf(it), Meal.BREAKFAST)) }
+        assertEquals(emptySet<String>(), engine.recipes.keys - engine.combinations.flatten().toSet() - engine.breakfasts.toSet())
+    }
+
+    @Test fun assistantPlansAllThreeMealsAcrossTheWeek() {
+        val today = java.time.LocalDate.of(2026, 11, 16)
+        val state = engine.ensureWeek(PlannerState(date = today), today)
+        val targets = (0L..6L).flatMap { offset -> engine.meals.map { today.plusDays(offset) to it } }
+        val planned = MealPlanner(engine).plan(state, targets, PlanConstraints())
+        assertEquals(21, planned.size)
+        assertEquals(7, planned.count { it.meal == Meal.BREAKFAST })
+        planned.forEach { assertTrue(engine.validPlan(it.recipeIds, it.meal)) }
+        val snapshot = AssistantGateway.snapshot(engine, state, today, Screen.TODAY, null)
+        assertEquals(state.plans, AssistantGateway.stateFrom(engine, snapshot).plans)
     }
 
     @Test fun tagsAllergensAndSodiumUseKnownValues() {
@@ -59,7 +73,7 @@ class RecipeCatalogTest {
         recipes.forEach { recipe ->
             assertTrue("${recipe.id}: ${recipe.tags}", Recipe.TAGS.containsAll(recipe.tags))
             assertTrue("${recipe.id}: ${recipe.allergens}", Recipe.ALLERGENS.containsAll(recipe.allergens))
-            assertTrue("${recipe.id}: ${recipe.sodium}", recipe.sodium in Recipe.SODIUM)
+            assertTrue("${recipe.id}: ${recipe.sodium}", recipe.sodium in Recipe.SODIUM || (recipe.kind == RecipeKind.BREAKFAST && recipe.sodium.isEmpty()))
             if ("low_salt" in recipe.tags) assertEquals(recipe.id, "low", recipe.sodium)
         }
     }

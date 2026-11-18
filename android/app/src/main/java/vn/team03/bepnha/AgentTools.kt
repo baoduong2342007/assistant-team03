@@ -26,16 +26,16 @@ data class ToolSpec(
 
 object AgentTools {
     private val date = ToolParam("string", "Ngày YYYY-MM-DD trong thực đơn bảy ngày")
-    private val meal = ToolParam("enum", values = listOf("lunch", "dinner"))
+    private val meal = ToolParam("enum", values = Meal.entries.map { it.value })
     private val nameList = ToolParam("array", items = ToolParam("string"), maxItems = 30)
 
     private val actionFields = linkedMapOf(
         "type" to ToolParam("enum", values = AssistantActionType.entries.map { it.name }),
         "date" to ToolParam("string", "Ngày YYYY-MM-DD; bỏ trống để dùng bữa đang chọn"),
-        "meal" to ToolParam("enum", values = listOf("lunch", "dinner")),
+        "meal" to ToolParam("enum", values = Meal.entries.map { it.value }),
         "screen" to ToolParam("enum", values = Screen.entries.map { it.name }),
         "recipe_id" to ToolParam("string", "ID công thức lấy từ catalog hoặc search_recipes"),
-        "index" to ToolParam("integer", "0=món mặn, 1=món canh, 2=món rau"),
+        "index" to ToolParam("integer", "Bữa sáng: 0. Bữa trưa và tối: 0=món mặn, 1=món canh, 2=món rau"),
         "people" to ToolParam("integer", "Số người từ 1 đến 12"),
         "time" to ToolParam("string", "Giờ ăn HH:mm"),
         "enabled" to ToolParam("boolean", "Trạng thái đích"),
@@ -53,7 +53,7 @@ object AgentTools {
         ToolSpec("search_recipes", "Tìm công thức trong kho theo tên, nhóm món, nguyên liệu, thời gian và giá. Chỉ dùng món có trong kết quả.",
             mapOf(
                 "query" to ToolParam("string", "Tên món hoặc từ khóa"),
-                "kind" to ToolParam("enum", values = listOf("main", "soup", "veg")),
+                "kind" to ToolParam("enum", values = RecipeKind.entries.map { it.name.lowercase() }),
                 "include_ingredients" to nameList, "exclude_ingredients" to nameList,
                 "max_minutes" to ToolParam("integer"), "max_cost" to ToolParam("integer", "VND cho 4 người"),
                 "tags" to ToolParam("array", "Yêu cầu thêm: low_salt, low_sugar, soft, low_fat, vegetarian", items = ToolParam("enum", values = Recipe.TAGS.toList()), maxItems = 5),
@@ -71,7 +71,7 @@ object AgentTools {
             terminal = true),
         ToolSpec("plan_meals", "Lên thực đơn cho nhiều bữa/ngày. App tự chọn mâm mặn-canh-rau hợp lệ theo ràng buộc; người dùng xem trước rồi xác nhận.",
             mapOf("from" to date, "to" to date,
-                "meals" to ToolParam("array", items = meal, maxItems = 2),
+                "meals" to ToolParam("array", items = meal, maxItems = 3),
                 "avoid_ingredients" to nameList, "prefer_ingredients" to nameList,
                 "max_minutes" to ToolParam("integer", "Thời gian nấu tối đa mỗi bữa"),
                 "max_cost" to ToolParam("integer", "Ngân sách tối đa mỗi bữa (VND) cho số người hiện tại"),
@@ -91,7 +91,7 @@ object AgentTools {
             .put("minutes", recipe.minutes).put("cost", recipe.cost).put("tags", JSONArray(recipe.tags.sorted()))
     })
 
-    fun kindName(kind: RecipeKind) = listOf("main", "soup", "veg")[kind.ordinal]
+    fun kindName(kind: RecipeKind) = kind.name.lowercase()
 }
 
 /** Runs read-only tools against a planner state. Never changes state. */
@@ -143,18 +143,17 @@ class AgentReadTools(private val engine: PlannerEngine, private val rules: MealP
         }
         "get_shopping_list" -> {
             val day = requireWindow(args.getString("date"), today)
-            val meals = args.optString("meal").takeIf { it.isNotBlank() }?.let { listOf(requireNotNull(Meal.from(it)) { "meal phải là lunch hoặc dinner." }) } ?: Meal.entries
+            val meals = args.optString("meal").takeIf { it.isNotBlank() }?.let { listOf(requireNotNull(Meal.from(it)) { "meal phải là breakfast, lunch hoặc dinner." }) } ?: engine.meals
             JSONObject().put("date", day.toString()).put("items", JSONArray(meals.flatMap { meal ->
-                val key = PlannerEngine.key(day, meal)
                 engine.ingredients(engine.menu(state, day, meal), state.profile.people).map {
                     JSONObject().put("meal", meal.value).put("key", it.key).put("name", it.name)
-                        .put("amount", it.amount).put("unit", it.unit).put("checked", it.key in state.checked[key].orEmpty())
+                        .put("amount", it.amount).put("unit", it.unit).put("checked", it.key in engine.checkedFor(state, day, meal))
                 }
             }))
         }
         "get_cooking_plan" -> {
             val day = requireWindow(args.getString("date"), today)
-            val meal = requireNotNull(Meal.from(args.getString("meal"))) { "meal phải là lunch hoặc dinner." }
+            val meal = requireNotNull(Meal.from(args.getString("meal"))) { "meal phải là breakfast, lunch hoặc dinner." }
             val key = PlannerEngine.key(day, meal)
             JSONObject().put("serve_at", state.profile.time(meal).toString()).put("tasks", JSONArray(engine.timeline(state, day, meal).map {
                 JSONObject().put("key", it.key).put("title", it.title).put("time", PlannerEngine.time(it.at))

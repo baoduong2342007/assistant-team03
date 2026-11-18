@@ -37,8 +37,8 @@ class AssistantCommandsTest {
     }
 
     @Test fun globalActionsIgnoreTheMealWindow() {
-        val timer = state().copy(timer = CookingTimer(60000, "Canh", day, Meal.DINNER))
-        assertNull(commands.apply(timer, AssistantAction(AssistantActionType.cancel_timer, day.plusDays(30), Meal.DINNER), day, 0).timer)
+        val timer = state().copy(timers = listOf(CookingTimer(1, 60000, "Canh", day, Meal.DINNER)))
+        assertTrue(commands.apply(timer, AssistantAction(AssistantActionType.cancel_timer, day.plusDays(30), Meal.DINNER), day, 0).timers.isEmpty())
         assertEquals("Nhà bà Tư", commands.apply(state(), AssistantAction(AssistantActionType.set_family_name, day, Meal.DINNER, name = " Nhà bà Tư "), day, 0).profile.name)
     }
 
@@ -52,7 +52,7 @@ class AssistantCommandsTest {
         assertTrue(commands.proposal(state(), listOf(favorite, swap), day, 0).needsConfirmation)
         // Replacing a running timer cannot be undone safely.
         assertFalse(commands.proposal(state(), listOf(timer), day, 0).needsConfirmation)
-        val running = state().copy(timer = CookingTimer(60_000, "Cơm", day, Meal.DINNER))
+        val running = state().copy(timers = listOf(CookingTimer(1, 60_000, "Canh", day, Meal.DINNER)))
         assertTrue(commands.proposal(running, listOf(timer), day, 0).needsConfirmation)
     }
 
@@ -106,13 +106,14 @@ class AssistantCommandsTest {
         commands.actionsFor(state(), suggestion, day)
     }
 
-    @Test fun timerRetainsTargetAndPreviewNamesExistingTimer() {
-        val before = state().copy(timer = CookingTimer(60000, "Canh", day, Meal.DINNER))
+    @Test fun timerRetainsTargetAlongsideAnExistingTimer() {
+        val before = state().copy(timers = listOf(CookingTimer(1, 60000, "Canh", day, Meal.DINNER)))
         val action = AssistantAction(AssistantActionType.start_timer, day.plusDays(1), Meal.LUNCH, minutes = 15, label = "Đậu")
-        assertTrue(commands.preview(before, action).contains("Canh"))
+        assertFalse(commands.preview(before, action).contains("Canh"))
         val after = commands.apply(before, action, day, 1000)
-        assertEquals(day.plusDays(1), after.timer?.date)
-        assertEquals(901000L, after.timer?.end)
+        assertEquals(2, after.timers.size)
+        assertEquals(day.plusDays(1), after.timers.last().date)
+        assertEquals(901000L, after.timers.last().end)
     }
 
     @Test fun quotaMessageDistinguishesDailyWaitFromShortRateLimit() {

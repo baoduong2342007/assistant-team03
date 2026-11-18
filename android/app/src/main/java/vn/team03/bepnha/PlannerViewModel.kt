@@ -3,6 +3,7 @@ package vn.team03.bepnha
 import android.app.Application
 import android.content.Intent
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,11 +31,16 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     var state by mutableStateOf(storage.load(today)); private set
     var screen by mutableStateOf(Screen.TODAY); private set
     var sheet by mutableStateOf<PlannerSheet?>(null); private set
-    var pendingTimer by mutableStateOf<Pair<Int, String>?>(null); private set
     var now by mutableLongStateOf(System.currentTimeMillis()); private set
     var message by mutableStateOf<String?>(null); private set
     var notifications by mutableStateOf(ReminderStore.canNotify(application)); private set
     var exactAlarms by mutableStateOf(ReminderStore.canScheduleExact(application)); private set
+
+    // "Hỏi Bếp Nhà" keeps its drafts and conversation while the user moves between tabs.
+    var askTab by mutableStateOf(AskTab.FRIDGE); private set
+    var fridgeItems by mutableStateOf(listOf<String>()); private set
+    var fridgeDraft by mutableStateOf("")
+    var fridgeMeal by mutableStateOf(if (state.meal.tray) state.meal else Meal.DINNER); private set
     var assistantVisible by mutableStateOf(false); private set
     private val chatStore = ChatStore(application)
     private val chatSaves = Channel<List<AssistantChatMessage>>(Channel.CONFLATED)
@@ -224,9 +230,11 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         message = "Đã xóa lịch sử trò chuyện."
     }
 
-    val menu get() = engine.menu(state)
-    val tasks get() = engine.timeline(state)
-    val days get() = (0L..6L).map(today::plusDays)
+    val menu by derivedStateOf { engine.menu(state) }
+    val tasks by derivedStateOf { engine.timeline(state) }
+    val days by derivedStateOf { (0L..6L).map(today::plusDays) }
+    val shoppingMenu by derivedStateOf { engine.shoppingMenu(state) }
+    val fridgeTrays by derivedStateOf { engine.suggestTrays(fridgeItems, fridgeMeal, diet = state.diet, people = state.profile.people) }
     val reminderEnabled get() = state.key in state.reminders
 
     private fun update(next: PlannerState, outcome: String? = null) {
@@ -251,6 +259,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun openRecipe(id: String) { if (id in engine.recipes) sheet = PlannerSheet.RecipeDetail(id) }
     fun openSwap(index: Int) { sheet = PlannerSheet.Swap(index) }
     fun openReminders() { sheet = PlannerSheet.Reminder }
+    fun openAsk(tab: AskTab) { askTab = tab; screen = Screen.ASK }
+    fun selectAskTab(tab: AskTab) { if (tab == AskTab.CHAT) openAssistant() else askTab = tab }
     fun openAssistant() {
         if (assistantVisible) {
             (sheet as? PlannerSheet.RecipeDetail)?.let { recipe ->
@@ -330,7 +340,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         val session = cookAlong ?: return
         if (minutes !in 1..180) return
         startTimer(minutes, "${session.step.title}: bước ${session.index + 1}")
-        if (pendingTimer == null) voice.speak("Đã hẹn $minutes phút.")
+        message?.let(voice::speak)
     }
     fun exitCookAlong() {
         cookAlong = null
@@ -674,7 +684,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
                 }
                 AssistantActionType.close_assistant -> closeAssistant()
                 AssistantActionType.share_shopping_list ->
-                    effect = PlannerEffect.Share(shoppingText(action.date, if (action.option == "day") null else action.meal))
+                    effect = PlannerEffect.Share(shoppingText(action.date, if (action.option == "day") engine.meals.toSet() else setOf(action.meal)))
                 AssistantActionType.add_to_calendar -> effect = PlannerEffect.Calendar(engine.timeline(state, action.date, action.meal))
                 AssistantActionType.request_permission ->
                     effect = if (action.option == "exact_alarms") PlannerEffect.ExactAlarms else PlannerEffect.Notifications
@@ -691,7 +701,6 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         else -> listOf("Đổi món mặn", "Món nấu nhanh", "Nấu món nào trước?")
     }
     fun dismissSheet() { sheet = null }
-    fun dismissTimerReplacement() { pendingTimer = null }
     fun clearMessage(shown: String) { if (message == shown) message = null }
     fun showMessage(text: String) { message = text }
 
@@ -703,23 +712,47 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         val favorites = if (id in state.favorites) state.favorites - id else state.favorites + id
         update(state.copy(favorites = favorites))
     }
-    fun checkIngredient(key: String) {
-        val checked = state.checked[state.key].orEmpty().toggle(key)
-        update(state.copy(checked = state.checked + (state.key to checked)))
+
+    // ---- Shopping ----
+    fun toggleShopMeal(meal: Meal) {
+        val current = state.shoppingMeals
+        val next = if (meal in current) current - meal else current + meal
+        if (next.isEmpty()) { message = "Chọn ít nhất một bữa để đi chợ."; return }
+        selectShoppingMeals(next)
     }
+    fun shopWholeDay() = selectShoppingMeals(engine.meals.toSet())
+
+    private fun selectShoppingMeals(selected: Set<Meal>) {
+        if (selected == state.shoppingMeals) return
+        val shop = PlannerEngine.shopKey(state.date)
+        if (shop !in state.checked) {
+            update(state.copy(shopMeals = selected))
+            return
+        }
+        val previous = engine.ingredients(shoppingMenu, state.profile.people).associate { it.key to it.amount }
+        val more = engine.ingredients(engine.shoppingMenu(state, meals = selected), state.profile.people)
+            .filter { it.amount > (previous[it.key] ?: 0.0) }.map { it.key }.toSet()
+        update(state.copy(shopMeals = selected, checked = state.checked + (shop to (checkedIngredients - more))))
+    }
+    fun checkIngredient(key: String) {
+        val shop = PlannerEngine.shopKey(state.date)
+        update(state.copy(checked = state.checked + (shop to checkedIngredients.toggle(key))))
+    }
+    val checkedIngredients: Set<String> get() = engine.checkedForShopping(state, state.date, state.shoppingMeals)
+
     fun checkTask(key: String) {
         val done = state.done[state.key].orEmpty().toggle(key)
         update(state.copy(done = state.done + (state.key to done)))
     }
-    fun saveFamily(name: String, people: Int, lunch: LocalTime, dinner: LocalTime) {
+    fun saveFamily(name: String, people: Int, breakfast: LocalTime, lunch: LocalTime, dinner: LocalTime) {
         val changedPeople = people != state.profile.people
-        update(state.copy(profile = FamilyProfile(name.trim().take(35).ifBlank { "Nhà mình" }, people.coerceIn(1, 12), lunch, dinner),
+        update(state.copy(profile = FamilyProfile(name.trim().take(35).ifBlank { "Nhà mình" }, people.coerceIn(1, 12), lunch, dinner, breakfast),
             checked = if (changedPeople) emptyMap() else state.checked))
         message = "Đã lưu thông tin gia đình và cập nhật định lượng."
     }
     fun saveReminder(time: LocalTime, enabled: Boolean) {
-        val profile = if (state.meal == Meal.LUNCH) state.profile.copy(lunch = time) else state.profile.copy(dinner = time)
-        update(state.copy(profile = profile, reminders = if (enabled) state.reminders + state.key else state.reminders - state.key))
+        update(state.copy(profile = state.profile.with(state.meal, time),
+            reminders = if (enabled) state.reminders + state.key else state.reminders - state.key))
         sheet = null
         message = when {
             !enabled -> "Đã tắt nhắc nấu cho bữa này."
@@ -733,25 +766,66 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         message = if (!enabled) "Đã tắt nhắc đi chợ." else if (!notifications) "Đã lưu. Hãy cho phép thông báo để nhận nhắc đi chợ."
             else "Mỗi sáng lúc $time sẽ nhắc những đồ còn thiếu."
     }
-    fun startTimer(minutes: Int, label: String, replace: Boolean = false) {
-        require(minutes in 1..180)
-        if (!replace && state.timer?.end?.let { it > System.currentTimeMillis() } == true) {
-            pendingTimer = minutes to label; return
+    fun startTimer(minutes: Int, label: String) {
+        val clock = System.currentTimeMillis()
+        val next = try {
+            engine.startTimer(state, clock, minutes, label, state.date, state.meal)
+        } catch (e: IllegalArgumentException) {
+            message = e.message
+            return
         }
-        update(state.copy(timer = CookingTimer(System.currentTimeMillis() + minutes * 60_000L, label, state.date, state.meal)))
-        pendingTimer = null; sheet = null
-        message = "Đã hẹn $minutes phút. Kiểm tra quyền thông báo và nhắc đúng giờ để được nhắc khi đóng app."
+        update(next)
+        now = clock
+        sheet = null
+        message = "Đã hẹn $minutes phút. Đang chạy ${next.timers.size} đồng hồ."
     }
-    fun cancelTimer() { update(state.copy(timer = null)); message = "Đã dừng hẹn giờ." }
+
+    fun cancelTimer(id: Long) {
+        val timer = state.timers.firstOrNull { it.id == id } ?: return
+        update(state.copy(timers = state.timers - timer)); message = "Đã dừng hẹn giờ ${timer.label.lowercase(PlannerEngine.locale)}."
+    }
     fun visibleTick() {
         now = System.currentTimeMillis()
         if (PlannerEngine.today() != today) {
             today = PlannerEngine.today(); update(engine.ensureWeek(state, today))
         }
-        state.timer?.takeIf { it.end <= now }?.let { timer ->
-            update(state.copy(timer = null)); message = "Hết giờ: ${timer.label}. Hãy kiểm tra món ăn nhé!"
+        val finished = state.timers.filter { it.end <= now }
+        if (finished.isNotEmpty()) {
+            update(state.copy(timers = state.timers - finished.toSet()))
+            message = "Hết giờ: ${finished.joinToString { it.label }}. Hãy kiểm tra món ăn nhé!"
         }
     }
+
+    // ---- Hỏi Bếp Nhà ----
+    fun toggleFridgeItem(item: String) {
+        fridgeItems = if (fridgeItems.any { it.equals(item, ignoreCase = true) })
+            fridgeItems.filterNot { it.equals(item, ignoreCase = true) } else fridgeItems + item
+    }
+    fun addFridgeText(text: String) {
+        val items = text.split(Regex(",|;|\\.|\\s+và\\s+|\\s+với\\s+|\\n", RegexOption.IGNORE_CASE))
+            .map { it.trim().replaceFirstChar { c -> c.titlecase(PlannerEngine.locale) } }.filter { it.length >= 2 }
+        fridgeItems = (fridgeItems + items).distinctBy { PlannerEngine.words(it) }.take(16)
+        fridgeDraft = ""
+    }
+    fun clearFridge() { fridgeItems = emptyList() }
+    fun selectFridgeMeal(meal: Meal) { fridgeMeal = meal }
+    fun openFridgeWith(item: String) {
+        if (fridgeItems.none { it.equals(item, ignoreCase = true) }) fridgeItems = fridgeItems + item
+        openAsk(AskTab.FRIDGE)
+    }
+    fun applyTray(date: LocalDate, meal: Meal, ids: List<String>) {
+        if (date !in days) return
+        update(engine.setPlan(state, date, meal, ids).copy(date = date, meal = meal))
+        message = "Đã chọn ${engine.recipes.getValue(ids[0]).name.lowercase(PlannerEngine.locale)} cho ${meal.title.lowercase(PlannerEngine.locale)} " +
+            "${PlannerEngine.dayLabel(date, today)}. Danh sách đi chợ đã cập nhật."
+    }
+    fun isPlanned(date: LocalDate, meal: Meal, ids: List<String>) = state.plans[PlannerEngine.key(date, meal)]?.containsAll(ids) == true
+
+    fun receiveSpeech(text: String) {
+        if (text.isBlank()) return
+        addFridgeText(text)
+    }
+
     fun refreshPermissions() {
         notifications = ReminderStore.canNotify(getApplication())
         exactAlarms = ReminderStore.canScheduleExact(getApplication())
@@ -772,16 +846,10 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         if (screen != Screen.TODAY) { screen = Screen.TODAY; return true }
         return false
     }
-    /** Shopping list for one meal, or for both meals of [date] when [meal] is null. */
-    fun shoppingText(date: LocalDate = state.date, meal: Meal? = state.meal): String {
-        val merged = linkedMapOf<String, Ingredient>()
-        (meal?.let(::listOf) ?: Meal.entries).forEach { m ->
-            engine.ingredients(engine.menu(state, date, m), state.profile.people).forEach { item ->
-                merged[item.key] = merged[item.key]?.let { it.copy(amount = it.amount + item.amount) } ?: item
-            }
-        }
-        return "${meal?.title ?: "Cả ngày"} ${PlannerEngine.shortDate(date)} — ${state.profile.people} người\n" +
-            merged.values.joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
+    fun shoppingText(date: LocalDate = state.date, meals: Set<Meal> = state.shoppingMeals): String {
+        val title = if (meals.size == Meal.entries.size) "Cả ngày" else meals.joinToString(" + ") { it.title }
+        return "$title ${PlannerEngine.shortDate(date)} — ${state.profile.people} người\n" +
+            engine.ingredients(engine.shoppingMenu(state, date, meals), state.profile.people).joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
     }
 }
 

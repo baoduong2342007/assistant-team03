@@ -117,7 +117,7 @@ data class AssistantMealCard(
         onQuestion = { vm.assistantQuestion = it }, onSend = vm::submitAssistant,
         onRetry = vm::retryAssistant, onOffline = vm::lookupFailedOffline,
         onRecipe = vm::openRecipe, onConfirm = vm::confirmAssistantProposal,
-        onCancel = vm::cancelAssistantProposal, onCancelTimer = vm::cancelTimer,
+        onCancel = vm::cancelAssistantProposal, onCancelTimer = { vm.timerUi()?.let { vm.cancelTimer(it.id) } },
         onChooseMeal = vm::chooseAssistantMeal, onEdit = vm::editAssistantProposal,
         onDropMeal = { vm.dropProposalMeal(it.date, it.meal) }, onUndo = vm::undoAssistant,
     )

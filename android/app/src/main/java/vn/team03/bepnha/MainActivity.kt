@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.provider.Settings
+import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -18,6 +19,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.imageResource
 import java.time.LocalTime
 
 data class NativeActions(
@@ -26,6 +31,8 @@ data class NativeActions(
     val calendar: (List<CookingTask>) -> Unit,
     val copy: (String) -> Unit,
     val pickTime: (LocalTime, (LocalTime) -> Unit) -> Unit,
+    /** Android speech-to-text; the recognised words go to the fridge list or the chat. */
+    val listen: () -> Unit = {},
     /** Opens the system share sheet; the user picks the app and recipient. */
     val share: (String) -> Unit = {},
 )
@@ -36,11 +43,16 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         planner.refreshPermissions()
     }
+    private val speech = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (result.resultCode == RESULT_OK && !text.isNullOrBlank()) planner.receiveSpeech(text)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val paper = android.graphics.Color.rgb(247, 248, 245)
-        enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(paper, paper))
+        val paper = KitchenPaper.toArgb()
+        val surface = KitchenSurface.toArgb()
+        enableEdgeToEdge(SystemBarStyle.light(paper, paper), SystemBarStyle.light(surface, surface))
         if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         ReminderStore.createChannel(this)
         planner.openNotification(intent)
@@ -50,8 +62,13 @@ class MainActivity : ComponentActivity() {
         }, { initial, selected ->
             TimePickerDialog(this, { _, hour, minute -> selected(LocalTime.of(hour, minute)) },
                 initial.hour, initial.minute, true).show()
-        }, ::shareText)
-        setContent { BepNhaTheme { BepNhaApp(planner, actions) } }
+        }, ::listen, ::shareText)
+        setContent {
+            BepNhaTheme {
+                val mealPhoto = ImageBitmap.imageResource(R.drawable.family_meal)
+                CompositionLocalProvider(LocalMealPhoto provides mealPhoto) { BepNhaApp(planner, actions) }
+            }
+        }
     }
 
     override fun onResume() { super.onResume(); planner.refreshPermissions() }
@@ -85,6 +102,15 @@ class MainActivity : ComponentActivity() {
             .putExtra(CalendarContract.Events.DESCRIPTION, tasks.joinToString("\n") { "${PlannerEngine.time(it.at)} — ${it.title}" })
         try { startActivity(intent) }
         catch (exception: ActivityNotFoundException) { toast("Bạn cần cài ứng dụng lịch để thêm sự kiện.") }
+    }
+
+    private fun listen() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN")
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Tủ lạnh nhà bạn có gì?")
+        try { speech.launch(intent) }
+        catch (exception: ActivityNotFoundException) { toast("Máy chưa có dịch vụ nhận giọng nói. Bạn có thể gõ thay.") }
     }
 
     private fun shareText(text: String) {

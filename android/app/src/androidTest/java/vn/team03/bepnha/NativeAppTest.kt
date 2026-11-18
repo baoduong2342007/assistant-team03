@@ -30,7 +30,7 @@ class NativeAppTest {
 
     @Test fun screenUsesActualComposeViews() {
         compose.onNodeWithTag("native-root").assertExists()
-        compose.onNodeWithText("Hôm nay nhà mình ăn gì?").assertIsDisplayed()
+        compose.onNodeWithText("Nhà mình ăn gì?").assertIsDisplayed()
         compose.activityRule.scenario.onActivity { activity ->
             val views = mutableListOf<View>()
             fun collect(view: View) {
@@ -45,20 +45,21 @@ class NativeAppTest {
     }
 
     @Test fun changingTheMainDishUpdatesTheNativeMealCard() {
-        compose.onNodeWithTag("swap-pork").performScrollTo().performClick()
-        compose.onNodeWithTag("choose-tofu").performScrollTo().performClick()
+        onToday("swap-pork").performClick()
+        compose.onNodeWithTag("swap-list").performScrollToNode(hasTestTag("choose-tofu"))
+        compose.onNodeWithTag("choose-tofu").performClick()
         compose.onNodeWithTag("recipe-tofu").assertExists()
         compose.onNodeWithTag("recipe-pork").assertDoesNotExist()
     }
 
     @Test fun opensTextRecipeAndShoppingAsNativeScreens() {
-        compose.onNodeWithTag("open-pork").performScrollTo().performClick()
+        onToday("open-pork").performClick()
         compose.onNodeWithText("Cách nấu từng bước").performScrollTo().assertIsDisplayed()
         capture("native-recipe.png")
         compose.onNodeWithContentDescription("Đóng").performClick()
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("shopping-list").assertExists()
-        compose.onNodeWithText("Đi chợ đủ bữa ngon").assertIsDisplayed()
+        compose.onNodeWithText("Danh sách đi chợ").assertIsDisplayed()
         capture("native-shopping.png")
     }
 
@@ -69,10 +70,64 @@ class NativeAppTest {
         compose.onNodeWithText("Lưu thông tin gia đình").performScrollTo().performClick()
         compose.onNodeWithTag("family-people").assertTextEquals("6 người")
         compose.onNodeWithTag("tab-shopping").performClick()
-        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertTextContains("600 g")
+        compose.onNodeWithTag("shopping-list").performScrollToNode(hasTestTag("ingredient-Thịt ba chỉ"))
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").assertTextContains("600 g")
         compose.onNodeWithTag("tab-cook").performClick()
         compose.onNodeWithText("Dọn cơm lúc 18:30").assertIsDisplayed()
         capture("native-cook.png")
+    }
+
+    @Test fun switchingTabsRestoresTheHomeScrollPosition() {
+        onToday("swap-pork").assertIsDisplayed()
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("shopping-list").assertExists()
+        compose.onNodeWithTag("tab-today").performClick()
+        compose.onNodeWithTag("swap-pork").assertIsDisplayed()
+    }
+
+    @Test fun ingredientRowIsOneAccessibleCheckboxAndKeepsItsState() {
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("shopping-list").performScrollToNode(hasTestTag("ingredient-Thịt ba chỉ"))
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("tab-cook").performClick()
+        compose.onNodeWithTag("tab-shopping").performClick()
+        compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOn().performClick().assertIsOff()
+    }
+
+    @Test fun fridgeSuggestsAMealAndChatChangesTomorrowsDinner() {
+        compose.onNodeWithTag("tab-ask").performClick()
+        compose.onNodeWithTag("fridge-Trứng").performClick()
+        compose.onNodeWithTag("fridge-list").performScrollToNode(hasTestTag("tray-0"))
+        compose.onNodeWithTag("tray-0").assertIsDisplayed()
+        capture("native-fridge.png")
+        compose.onNodeWithTag("ask-chat").performClick()
+        compose.onNodeWithTag("assistant-input").performTextInput("Bua toi ngay mai toi muon an dau hu sot ca chua")
+        compose.onNodeWithTag("assistant-send").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("assistant-confirm")).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Quay lại").performClick()
+        compose.onNodeWithTag("tab-today").performClick()
+        compose.onNodeWithTag("date-${PlannerEngine.today().plusDays(1)}").performClick()
+        onToday("recipe-tofu").assertIsDisplayed()
+    }
+
+    @Test fun shoppingCanCoverLunchAndDinnerTogether() {
+        compose.onNodeWithTag("tab-shopping").performClick()
+        val list = compose.onNodeWithTag("shopping-list")
+        list.performScrollToNode(hasTestTag("ingredient-Gạo"))
+        compose.onNodeWithTag("ingredient-Gạo").assertTextContains("360 g", substring = true)
+        list.performScrollToNode(hasTestTag("shop-lunch"))
+        compose.onNodeWithTag("shop-lunch").performClick()
+        list.performScrollToNode(hasTestTag("ingredient-Gạo"))
+        compose.onNodeWithTag("ingredient-Gạo").assertTextContains("720 g", substring = true)
+    }
+
+    /** The Today list is lazy: cards below the week strip and fridge card are composed only once scrolled to. */
+    private fun onToday(tag: String): SemanticsNodeInteraction {
+        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag(tag))
+        return compose.onNodeWithTag(tag)
     }
 
     private fun capture(name: String) {

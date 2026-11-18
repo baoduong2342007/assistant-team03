@@ -178,7 +178,7 @@ class AssistantService(
         val to = requireNotNull(args.optDate("to")) { "plan_meals thiếu to." }
         val last = today.plusDays(6)
         require(from in today..last && to in from..last) { "from/to phải nằm trong $today..$last và from ≤ to." }
-        val meals = args.optStrings("meals").map { requireNotNull(Meal.from(it)) { "meals chỉ gồm lunch, dinner." } }.ifEmpty { Meal.entries }
+        val meals = args.optStrings("meals").map { requireNotNull(Meal.from(it)) { "meals chỉ gồm breakfast, lunch, dinner." } }.ifEmpty { engine.meals }
         val avoidTerms = args.optStrings("avoid_ingredients")
         val unknownAvoid = avoidTerms.filter { rules.ingredientNames(listOf(it)).isEmpty() }
         require(unknownAvoid.isEmpty()) { "Không có nguyên liệu ${unknownAvoid.joinToString()} trong kho; dùng tên nguyên liệu có trong công thức hoặc hỏi lại người dùng." }
@@ -219,7 +219,8 @@ class AssistantService(
         if (swaps.isEmpty() || swaps.map { it.date to it.meal }.distinct().size != 1) return null
         val request = "${rules.previousQuestion(history)} $question"
         val text = MealPlanning.normalize(request)
-        fun slot(index: Int?) = RecipeKind.entries[requireNotNull(index)].label.lowercase()
+        fun slot(index: Int?) = if (swaps.first().meal.tray) RecipeKind.trayKinds[requireNotNull(index)].label.lowercase()
+            else RecipeKind.BREAKFAST.label.lowercase()
         val kept = rules.namedSlots(request, "giu(?: nguyen)?|(?:dung|khong|khoi) (?:doi|thay)")
         swaps.firstOrNull { it.index in kept }?.let { return "Người dùng muốn giữ nguyên ${slot(it.index)}. Chỉ đổi vị trí họ yêu cầu." }
         if (kept.isEmpty() && Regex("""\b(?:dung|khong|khoi) (?:doi|thay)\b""").containsMatchIn(text))
@@ -239,7 +240,7 @@ class AssistantService(
         val unknown = args.keys().asSequence().filter { it !in setOf("date", "meal", "pantry_items", "exclude_ingredients", "pantry_only") }.toList()
         require(unknown.isEmpty()) { "suggest_meals không nhận tham số ${unknown.joinToString()}." }
         val day = MealPlanning.parseDay(args.strictText("date"))
-        val meal = requireNotNull(Meal.from(args.strictText("meal"))) { "meal phải là lunch hoặc dinner." }
+        val meal = requireNotNull(Meal.from(args.strictText("meal"))) { "meal phải là breakfast, lunch hoặc dinner." }
         checkTarget(day, meal, context)
         val terms = args.stringList("pantry_items", 1, 30)
         val excluded = if (args.has("exclude_ingredients")) args.stringList("exclude_ingredients", 0, 30) else emptyList()
@@ -250,7 +251,7 @@ class AssistantService(
         val pantry = rules.pantryNames(terms, messages)
         if (excluded.any { rules.ingredientNames(listOf(it)).isEmpty() } || grounded.unknownExclusion)
             return AssistantReply("Mình chưa đối chiếu được nguyên liệu cần tránh với kho công thức. Bạn cho mình tên cụ thể nhé.", emptyList())
-        return suggest(MenuScope(day, meal), PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only), diet)
+        return suggest(MenuScope(day, meal), PantryConstraints(pantry, rules.ingredientNames(excluded) + grounded.excluded, only || grounded.only), diet, context.getInt("people"))
     }
 
     private fun userMessages(question: String, history: List<AssistantChatMessage>, context: JSONObject): List<String> {
@@ -265,11 +266,15 @@ class AssistantService(
         return listOf(question) + listOfNotNull(prior) + history.filter { it.role == "user" }.takeLast(2).reversed().map { it.text }
     }
 
-    private fun suggest(scope: MenuScope, constraints: PantryConstraints, diet: DietProfile): AssistantReply {
+    private fun suggest(scope: MenuScope, constraints: PantryConstraints, diet: DietProfile, people: Int = 4): AssistantReply {
         scope.clarification?.let { return AssistantReply(it, emptyList()) }
         if (constraints.unknownExclusion) return AssistantReply("Mình chưa nhận ra nguyên liệu cần tránh. Bạn cho mình tên cụ thể nhé.", emptyList())
         if (constraints.pantry.isEmpty()) return AssistantReply("Mình chưa nhận ra nguyên liệu nào trong kho công thức. Bạn cho mình tên nguyên liệu cụ thể nhé.", emptyList())
-        val ranked = rules.rankMeals(constraints.pantry, constraints.excluded + diet.avoid, diet::allows)
+        val meal = requireNotNull(scope.meal)
+        val ranked = rules.rankMeals(constraints.pantry, constraints.excluded + diet.avoid, diet::allows, meal) { dishes ->
+            (diet.maxMinutes == null || engine.minutes(dishes) <= diet.maxMinutes) &&
+                (diet.maxCost == null || engine.cost(dishes, people) <= diet.maxCost)
+        }
         if (ranked.isEmpty()) return AssistantReply("Mình chưa tìm được mâm có thể tận dụng nguyên liệu đã nêu và đáp ứng yêu cầu này" +
             (if (diet.isEmpty) "." else " cùng hồ sơ ăn uống (${diet.describe()})."), emptyList())
         val options = ranked.filter { !constraints.only || it.missing.isEmpty() }.take(2)
@@ -292,14 +297,22 @@ class AssistantService(
                 return AssistantReply("Mình giữ nguyên thực đơn. Bạn muốn chỉnh món nào khác?", emptyList())
             if (localExtraIntents.any { Regex("\\b(?:$it)\\b").containsMatchIn(text) })
                 return AssistantReply("Yêu cầu này có thêm thao tác ngoài đổi món mà trợ lý trên máy chưa xử lý chắc chắn. Bạn hãy tách yêu cầu hoặc dùng các màn hình của ứng dụng.", emptyList())
-            return AssistantReply("Mình đề xuất các thao tác sau.", named.map { (index, id) ->
-                AssistantAction(AssistantActionType.swap_recipe, requireNotNull(scope.day), requireNotNull(scope.meal), recipeId = id, index = index)
+            val meal = requireNotNull(scope.meal)
+            val diet = AssistantGateway.stateFrom(engine, context).diet
+            val dishes = named.values.map(engine.recipes::getValue)
+            if (dishes.any { (it.kind == RecipeKind.BREAKFAST) == meal.tray })
+                return AssistantReply("Món bạn nêu thuộc nhóm của bữa khác. Bạn muốn chọn bữa nào?", emptyList())
+            val warnings = dishes.flatMap(diet::reasons).distinct()
+            val reply = if (warnings.isEmpty()) "Mình đề xuất các thao tác sau."
+                else "Món bạn chọn chưa hợp hồ sơ ăn uống: ${warnings.joinToString()}. Bạn hãy kiểm tra trước khi xác nhận."
+            return AssistantReply(reply, named.map { (index, id) ->
+                AssistantAction(AssistantActionType.swap_recipe, requireNotNull(scope.day), meal, recipeId = id, index = index)
             })
         }
         if (Regex("""\b(?:doi|thay)\b""").containsMatchIn(text))
             return AssistantReply("Bạn cho mình tên đầy đủ của món muốn thay vào nhé. Bạn cũng có thể chọn món trực tiếp trong Thực đơn.", emptyList())
         if (MealPlanning.menuRequest.containsMatchIn(text) || Regex("""\b(?:chi co|chi con|moi mua|tranh|khong dung|khong mua them)\b""").containsMatchIn(text))
-            return suggest(scope, rules.constraints(userMessages(question, history, context)), AssistantGateway.stateFrom(engine, context).diet)
+            return suggest(scope, rules.constraints(userMessages(question, history, context)), AssistantGateway.stateFrom(engine, context).diet, context.getInt("people"))
         val focused = engine.recipes[context.optString("recipe_id")]
         if (focused != null && "mon nay" in text) {
             val answer = if ("nguyen lieu" in text) focused.ingredients.joinToString("\n") {
@@ -307,10 +320,22 @@ class AssistantService(
             } else focused.steps.mapIndexed { i, step -> "${i + 1}. $step" }.joinToString("\n\n")
             return AssistantReply("${focused.name}\n\n$answer", emptyList(), recipeIds = listOf(focused.id))
         }
+        val current = AssistantGateway.stateFrom(engine, context)
+        val answer = engine.answer(question, current, MealPlanning.parseDay(context.getString("today")))
+        if (Regex("""^(?:hay |giup minh )?(?:hen|dat gio|dem nguoc)\b""").containsMatchIn(text)) {
+            answer.timerMinutes?.let { minutes ->
+                if (current.timers.count { it.end > clock() } < PlannerEngine.MAX_TIMERS ||
+                    current.timers.any { it.label == answer.timerLabel && it.date == current.date && it.meal == current.meal }) {
+                    return AssistantReply("Mình đặt đồng hồ cho bạn nhé.", listOf(
+                        AssistantAction(AssistantActionType.start_timer, current.date, current.meal, minutes = minutes, label = answer.timerLabel)))
+                }
+                return AssistantReply("Đang chạy ${PlannerEngine.MAX_TIMERS} đồng hồ. Bạn hãy dừng bớt một đồng hồ trước khi hẹn thêm.", emptyList())
+            }
+            return AssistantReply(answer.text, emptyList())
+        }
         // Other mutations require the online agent or explicit app controls.
         if (Regex("""\b(?:nhac|hen gio|dong ho|khau phan|nguoi|danh dau|da mua|da xong|luu mon|mo)\b""").containsMatchIn(text))
             return AssistantReply("Trợ lý trên máy chưa xử lý chắc chắn thao tác này. Bạn có thể mở Thực đơn, Đi chợ, Vào bếp hoặc Gia đình để thao tác trực tiếp.", emptyList())
-        val answer = engine.answer(question, AssistantGateway.stateFrom(engine, context))
         return AssistantReply(answer.text, emptyList(), recipeIds = answer.recipes)
     }
 
@@ -325,7 +350,7 @@ class AssistantService(
         val batch = context.optJSONArray("active_suggestions") ?: return null
         if (batch.length() != 2) return AssistantReply("Bạn cần hai mâm trong cùng lượt gợi ý để so sánh.", emptyList(), source = AssistantSource.LOCAL)
         val text = (0..1).joinToString("\n\n") { i ->
-            val ids = batch.getJSONObject(i).stringList("recipe_ids", 3, 3)
+            val ids = batch.getJSONObject(i).stringList("recipe_ids", 1, 3)
             val recipes = ids.map(engine.recipes::getValue)
             "Mâm ${i + 1}: ${recipes.joinToString { it.name }}. Ước tính ${engine.cost(recipes, context.getInt("people"))} đồng, ${engine.minutes(recipes)} phút."
         }

@@ -35,7 +35,7 @@ class DietProfileTest {
         val reply = ask("Lên thực đơn cả tuần", call("plan_meals", JSONObject().put("from", day.toString()).put("to", day.plusDays(6).toString())))
         var after = state()
         reply.actions.forEach { after = commands.apply(after, it, day, 0) }
-        (0L..6L).forEach { offset -> Meal.entries.forEach { meal ->
+        (0L..6L).forEach { offset -> engine.meals.forEach { meal ->
             engine.menu(after, day.plusDays(offset), meal).forEach { assertTrue(it.name, strict.allows(it)) }
         } }
     }

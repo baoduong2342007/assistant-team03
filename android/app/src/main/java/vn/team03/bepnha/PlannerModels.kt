@@ -3,15 +3,24 @@ package vn.team03.bepnha
 import java.time.LocalDate
 import java.time.LocalTime
 
-enum class Meal(val value: String, val title: String) {
-    LUNCH("lunch", "Bữa trưa"), DINNER("dinner", "Bữa tối");
+enum class Meal(val value: String, val title: String, val short: String) {
+    BREAKFAST("breakfast", "Bữa sáng", "Sáng"), LUNCH("lunch", "Bữa trưa", "Trưa"), DINNER("dinner", "Bữa tối", "Tối");
+    /** Lunch and dinner are a Vietnamese rice tray (mặn + canh + rau); breakfast is a single dish. */
+    val tray: Boolean get() = this != BREAKFAST
     companion object { fun from(value: String) = entries.firstOrNull { it.value == value } }
 }
-enum class RecipeKind(val label: String) { MAIN("Món mặn"), SOUP("Món canh"), VEG("Món rau") }
+enum class RecipeKind(val label: String) {
+    MAIN("Món mặn"), SOUP("Món canh"), VEG("Món rau"), BREAKFAST("Món sáng");
+
+    companion object {
+        val trayKinds = listOf(MAIN, SOUP, VEG)
+    }
+}
 enum class Screen(val title: String) {
-    TODAY("Hôm nay"), PLAN("Thực đơn"), SHOPPING("Đi chợ"), COOK("Vào bếp"),
+    TODAY("Hôm nay"), PLAN("Thực đơn"), SHOPPING("Đi chợ"), COOK("Vào bếp"), ASK("Hỏi bếp"),
     FAMILY("Gia đình của bạn"), FAVORITES("Món đã lưu")
 }
+enum class AskTab(val title: String) { FRIDGE("Tủ lạnh"), CHAT("Trò chuyện"), TIMER("Hẹn giờ") }
 data class Ingredient(val name: String, val amount: Double, val unit: String, val group: String) {
     val key: String get() = "$name|$unit"
 }
@@ -28,15 +37,21 @@ data class Recipe(
 ) {
     companion object {
         val TAGS = setOf("low_salt", "low_sugar", "soft", "low_fat", "vegetarian")
-        val ALLERGENS = setOf("shrimp", "shellfish", "fish", "egg", "peanut", "soy", "milk", "sesame")
+        val ALLERGENS = setOf("shrimp", "shellfish", "fish", "egg", "peanut", "soy", "milk", "sesame", "wheat")
         val SODIUM = setOf("low", "mid", "high")
     }
 }
 data class FamilyProfile(
     val name: String = "Nhà mình", val people: Int = 4,
     val lunch: LocalTime = LocalTime.of(11, 30), val dinner: LocalTime = LocalTime.of(18, 30),
-) { fun time(meal: Meal) = if (meal == Meal.LUNCH) lunch else dinner }
-/** Daily morning reminder listing what is still missing for that day's lunch and dinner. */
+    val breakfast: LocalTime = LocalTime.of(6, 30),
+) {
+    fun time(meal: Meal) = when (meal) { Meal.BREAKFAST -> breakfast; Meal.LUNCH -> lunch; Meal.DINNER -> dinner }
+    fun with(meal: Meal, time: LocalTime) = when (meal) {
+        Meal.BREAKFAST -> copy(breakfast = time); Meal.LUNCH -> copy(lunch = time); Meal.DINNER -> copy(dinner = time)
+    }
+}
+/** Daily morning reminder listing what is still missing for that day. */
 data class ShoppingReminder(val enabled: Boolean = false, val time: LocalTime = LocalTime.of(7, 0))
 /**
  * The family's lasting eating needs, applied to every suggestion and plan.
@@ -73,7 +88,7 @@ data class DietProfile(
         val TAG_LABELS = linkedMapOf("low_salt" to "ít muối", "low_sugar" to "ít đường", "soft" to "mềm, dễ nhai",
             "low_fat" to "ít dầu mỡ", "vegetarian" to "ăn chay")
         val ALLERGEN_LABELS = linkedMapOf("shrimp" to "tôm", "shellfish" to "hải sản có vỏ", "fish" to "cá", "egg" to "trứng",
-            "peanut" to "đậu phộng", "soy" to "đậu nành", "milk" to "sữa", "sesame" to "mè")
+            "peanut" to "đậu phộng", "soy" to "đậu nành", "milk" to "sữa", "sesame" to "mè", "wheat" to "lúa mì")
     }
 }
 
@@ -84,7 +99,7 @@ data class VoiceSettings(val addressAs: String = "bạn", val readAloud: Boolean
         fun clean(addressAs: String) = addressAs.trim().take(20).ifBlank { "bạn" }
     }
 }
-data class CookingTimer(val end: Long, val label: String, val date: LocalDate, val meal: Meal)
+data class CookingTimer(val id: Long, val end: Long, val label: String, val date: LocalDate, val meal: Meal)
 data class PlannerState(
     val profile: FamilyProfile = FamilyProfile(),
     val date: LocalDate, val meal: Meal = Meal.DINNER,
@@ -93,11 +108,16 @@ data class PlannerState(
     val done: Map<String, Set<String>> = emptyMap(),
     val favorites: Set<String> = emptySet(),
     val reminders: Set<String> = emptySet(),
-    val timer: CookingTimer? = null,
+    val timers: List<CookingTimer> = emptyList(),
+    /** Meals bought together on the shopping screen; empty follows the selected meal. */
+    val shopMeals: Set<Meal> = emptySet(),
     val shopping: ShoppingReminder = ShoppingReminder(),
     val voice: VoiceSettings = VoiceSettings(),
     val diet: DietProfile = DietProfile(),
-) { val key: String get() = PlannerEngine.key(date, meal) }
+) {
+    val key: String get() = PlannerEngine.key(date, meal)
+    val shoppingMeals: Set<Meal> get() = shopMeals.ifEmpty { setOf(meal) }
+}
 data class CookingTask(
     val key: String, val title: String, val detail: String, val at: Long,
     val minutes: Int = 0, val recipeId: String? = null,
@@ -114,4 +134,17 @@ sealed interface PlannerSheet {
     data class Swap(val index: Int) : PlannerSheet
     data object Reminder : PlannerSheet
 }
-data class AssistantAnswer(val text: String, val recipes: List<String> = emptyList())
+
+/** One suggested meal built around what is already in the fridge. */
+data class TraySuggestion(val ids: List<String>, val matched: List<String>, val missing: List<String>)
+data class MenuChange(val date: LocalDate, val meal: Meal, val recipeId: String)
+data class AssistantAnswer(
+    val text: String,
+    val recipes: List<String> = emptyList(),
+    val trays: List<TraySuggestion> = emptyList(),
+    val date: LocalDate? = null,
+    val meal: Meal? = null,
+    val changes: List<MenuChange> = emptyList(),
+    val timerMinutes: Int? = null,
+    val timerLabel: String = "",
+)

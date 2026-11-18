@@ -24,7 +24,7 @@ final class ReminderSpec {
         if (title == null || title.trim().isEmpty() || title.length() > 100) throw new IllegalArgumentException("Invalid title");
         if (body == null || body.length() > 600) throw new IllegalArgumentException("Invalid body");
         if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) throw new IllegalArgumentException("Invalid date");
-        if (!"lunch".equals(meal) && !"dinner".equals(meal)) throw new IllegalArgumentException("Invalid meal");
+        if (!"breakfast".equals(meal) && !"lunch".equals(meal) && !"dinner".equals(meal)) throw new IllegalArgumentException("Invalid meal");
         if (at <= 0 || at > 8_640_000_000_000_000L) throw new IllegalArgumentException("Invalid time");
         if (!KIND_MEAL.equals(kind) && !KIND_TIMER.equals(kind) && !KIND_SHOPPING.equals(kind)) {
             throw new IllegalArgumentException("Invalid kind");

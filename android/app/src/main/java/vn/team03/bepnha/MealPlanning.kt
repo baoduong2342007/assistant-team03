@@ -12,7 +12,7 @@ data class PantryConstraints(val pantry: Set<String>, val excluded: Set<String>,
 /** Deterministic rules shared by cloud tool handling and the local assistant. No network or UI. */
 class MealPlanning(private val recipes: Map<String, Recipe>) {
     companion object {
-        const val MEAL_QUESTION = "Bạn muốn áp dụng cho bữa trưa hay bữa tối?"
+        const val MEAL_QUESTION = "Bạn muốn áp dụng cho bữa nào?"
         const val DISH_QUESTION = "Bạn muốn đổi món mặn, món canh hay món rau?"
         private const val STAPLES = "Gia vị & đồ khô"
         fun normalize(value: String): String = Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
@@ -112,7 +112,9 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
             days = mentionedDays(question, today).ifEmpty { mentionedDays(previous, today) }
             meals = mentionedMeals(question).ifEmpty { mentionedMeals(previous) }
         } catch (_: RuntimeException) { return MenuScope(clarification = "Bạn cho mình ngày hợp lệ trong thực đơn bảy ngày nhé.") }
-        if ("breakfast" in meals) return MenuScope(clarification = "Thực đơn hiện hỗ trợ bữa trưa và bữa tối. Bạn muốn chọn bữa nào?")
+        if ("breakfast" in meals && context.getJSONArray("meals").let { list ->
+                (0 until list.length()).none { list.getJSONObject(it).optString("meal") == "breakfast" }
+            }) return MenuScope(clarification = "Thực đơn hiện chưa có bữa sáng. Bạn muốn chọn bữa nào?")
         if (days.size > 1 || meals.size > 1) return MenuScope(clarification = "Bạn muốn chỉnh hoặc gợi ý cho ngày và bữa nào trước?")
         val current = target(context)
         var focus = changeTarget(context, "pending_menu_changes")
@@ -147,7 +149,7 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
         val result = mutableMapOf<Int, String>()
         Regex("""\b(?:sang|thanh|bang|muon an|muon nau)\s+(?:mon\s+)?""").findAll(text).forEach { match ->
             recipes.values.forEach { recipe ->
-                if (Regex("^${Regex.escape(normalize(recipe.name))}\\b").containsMatchIn(text.substring(match.range.last + 1))) result[recipe.kind.ordinal] = recipe.id
+                if (Regex("^${Regex.escape(normalize(recipe.name))}\\b").containsMatchIn(text.substring(match.range.last + 1))) result[if (recipe.kind == RecipeKind.BREAKFAST) 0 else recipe.kind.ordinal] = recipe.id
             }
         }
         return result
@@ -234,25 +236,35 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
         return PantryConstraints(pantry, excluded.orEmpty(), only ?: false, unknown)
     }
 
-    fun rankMeals(pantry: Set<String>, excluded: Set<String>, allowed: (Recipe) -> Boolean = { true }): List<MealOption> {
-        data class Ranked(val score: List<Int>, val option: MealOption)
-        val groups = RecipeKind.entries.map { kind -> recipes.values.filter { it.kind == kind && allowed(it) } }
+    fun rankMeals(
+        pantry: Set<String>, excluded: Set<String>, allowed: (Recipe) -> Boolean = { true },
+        meal: Meal = Meal.DINNER, fits: (List<Recipe>) -> Boolean = { true },
+    ): List<MealOption> {
+        data class Ranked(
+            val freshCovered: Int, val covered: Int, val freshMissing: Int, val missing: Int,
+            val ids: String, val option: MealOption,
+        )
+        val groups = recipes.values.filter(allowed).groupBy { it.kind }
+        val menus = if (meal.tray) sequence {
+            for (main in groups[RecipeKind.MAIN].orEmpty())
+                for (soup in groups[RecipeKind.SOUP].orEmpty())
+                    for (veg in groups[RecipeKind.VEG].orEmpty()) yield(listOf(main, soup, veg))
+        } else groups[RecipeKind.BREAKFAST].orEmpty().asSequence().map(::listOf)
         val ranked = mutableListOf<Ranked>()
-        for (main in groups[0]) for (soup in groups[1]) for (veg in groups[2]) {
-            val menu = listOf(main, soup, veg)
-            val ingredients = menu.flatMap { it.ingredients } + Ingredient("Gạo", 0.0, "g", STAPLES)
+        val rice = listOf(Ingredient("Gạo", 0.0, "g", STAPLES)).takeIf { meal.tray }.orEmpty()
+        val missingOrder = compareBy<String> { ingredientGroups[it] == STAPLES }.thenBy { it }
+        for (menu in menus.filter(fits)) {
+            val ingredients = menu.flatMap { it.ingredients } + rice
             val names = ingredients.map { it.name }.toSet()
             val available = pantry intersect names
             if (available.isEmpty() || (excluded intersect names).isNotEmpty()) continue
             val missing = names - pantry
             val option = MealOption(menu.map { it.id }, ingredients.filter { it.name in pantry }.map { it.key }.toSortedSet(),
-                missing.sortedWith(compareBy<String> { ingredientGroups[it] == STAPLES }.thenBy { it }))
-            ranked += Ranked(listOf(-available.count { ingredientGroups[it] != STAPLES }, -available.size,
-                missing.count { ingredientGroups[it] != STAPLES }, missing.size), option)
+                missing.sortedWith(missingOrder))
+            ranked += Ranked(available.count { ingredientGroups[it] != STAPLES }, available.size,
+                missing.count { ingredientGroups[it] != STAPLES }, missing.size, option.recipeIds.joinToString("|"), option)
         }
-        return ranked.sortedWith { a, b ->
-            a.score.zip(b.score).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 }
-                ?: a.option.recipeIds.joinToString("|").compareTo(b.option.recipeIds.joinToString("|"))
-        }.map { it.option }
+        return ranked.sortedWith(compareByDescending<Ranked> { it.freshCovered }.thenByDescending { it.covered }
+            .thenBy { it.freshMissing }.thenBy { it.missing }.thenBy { it.ids }).map { it.option }
     }
 }

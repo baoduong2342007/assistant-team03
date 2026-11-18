@@ -68,7 +68,9 @@ class AssistantCommands(private val engine: PlannerEngine) {
 
     /** Replacing a running timer cannot be undone safely, so it needs confirmation. */
     fun risk(state: PlannerState, action: AssistantAction, now: Long): AssistantRisk =
-        if (action.type == AssistantActionType.start_timer && state.timer?.end?.let { it > now } == true) AssistantRisk.HIGH
+        if (action.type == AssistantActionType.start_timer && state.timers.any {
+            it.end > now && it.label == action.label && it.date == action.date && it.meal == action.meal
+        }) AssistantRisk.HIGH
         else action.risk
 
     fun proposal(state: PlannerState, actions: List<AssistantAction>, today: LocalDate, now: Long): AssistantProposal {
@@ -99,7 +101,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
 
     fun actionsFor(state: PlannerState, suggestion: AssistantMealSuggestion, today: LocalDate): List<AssistantAction> {
         val current = requireMeal(state, suggestion.date, suggestion.meal, today)
-        require(engine.validPlan(suggestion.recipeIds)) { "Mâm gợi ý có món hoặc nhóm món chưa hợp lệ." }
+        require(engine.validPlan(suggestion.recipeIds, suggestion.meal)) { "Mâm gợi ý có món hoặc nhóm món chưa hợp lệ." }
         val recipes = suggestion.recipeIds.map(engine.recipes::getValue)
         val keys = engine.ingredients(recipes, state.profile.people).map { it.key }.toSet()
         require(suggestion.pantryKeys.isNotEmpty() && suggestion.pantryKeys.all { it in keys }) {
@@ -118,7 +120,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
     private fun requireMeal(state: PlannerState, date: LocalDate, meal: Meal, today: LocalDate): List<String> {
         require(date in today..today.plusDays(6)) { "Ngày ${date} nằm ngoài thực đơn bảy ngày (từ $today đến ${today.plusDays(6)})." }
         val ids = state.plans[PlannerEngine.key(date, meal)].orEmpty()
-        require(engine.validPlan(ids)) { "Không tìm thấy bữa ăn." }
+        require(engine.validPlan(ids, meal)) { "Không tìm thấy bữa ăn." }
         return ids
     }
 
@@ -134,7 +136,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
             AssistantActionType.start_cook_along -> state
             AssistantActionType.open_sheet -> {
                 require(action.option in AssistantAction.SHEETS) { "Sheet phải là swap_options hoặc reminder." }
-                if (action.option == "swap_options") require(action.index in 0..2) { "Vị trí món phải là 0, 1 hoặc 2." }
+                if (action.option == "swap_options") require(action.index in current.indices) { "Vị trí món phải là 0, 1 hoặc 2." }
                 state
             }
             AssistantActionType.share_shopping_list -> {
@@ -147,10 +149,10 @@ class AssistantCommands(private val engine: PlannerEngine) {
             }
             AssistantActionType.swap_recipe -> {
                 val index = requireNotNull(action.index) { "Thiếu vị trí món." }
-                require(index in 0..2) { "Vị trí món phải là 0, 1 hoặc 2." }
+                require(index in current.indices) { "Vị trí món phải là 0, 1 hoặc 2." }
                 val recipe = engine.recipes[action.recipeId]
                 requireNotNull(recipe) { "Không có công thức ${action.recipeId} trong kho." }
-                require(recipe.kind.ordinal == index) { "${recipe.name} là ${recipe.kind.label.lowercase()}, không đặt được vào vị trí $index." }
+                require(recipe.kind == engine.recipes.getValue(current[index]).kind) { "${recipe.name} là ${recipe.kind.label.lowercase()}, không đặt được vào vị trí $index." }
                 if (current[index] == recipe.id) return state
                 val changed = engine.swap(state.copy(date = action.date, meal = action.meal), index, recipe.id)
                 changed.copy(date = state.date, meal = state.meal)
@@ -185,7 +187,7 @@ class AssistantCommands(private val engine: PlannerEngine) {
             }
             AssistantActionType.set_meal_time -> {
                 val time = requireNotNull(action.time) { "Thiếu giờ ăn." }
-                state.copy(profile = if (action.meal == Meal.LUNCH) state.profile.copy(lunch = time) else state.profile.copy(dinner = time))
+                state.copy(profile = state.profile.with(action.meal, time))
             }
             AssistantActionType.set_reminder -> {
                 if (action.enabled == true) require(engine.timeline(state, action.date, action.meal).first().at > now) { "Giờ chuẩn bị đã qua. Hãy chỉnh giờ ăn trước." }
@@ -194,13 +196,19 @@ class AssistantCommands(private val engine: PlannerEngine) {
             AssistantActionType.start_timer -> {
                 val minutes = requireNotNull(action.minutes) { "Thiếu số phút." }; require(minutes in 1..180) { "Hẹn giờ từ 1 đến 180 phút." }
                 val label = requireNotNull(action.label) { "Thiếu tên hẹn giờ." }; require(label.isNotBlank() && label.length <= 200)
-                state.copy(timer = CookingTimer(now + minutes * 60_000L, label, action.date, action.meal))
+                engine.startTimer(state, now, minutes, label, action.date, action.meal)
             }
-            AssistantActionType.cancel_timer -> state.copy(timer = null)
+            AssistantActionType.cancel_timer -> {
+                val running = state.timers.filter { it.end > now }
+                require(running.size <= 1) { "Đang chạy nhiều đồng hồ. Hãy mở Hẹn giờ và chọn đồng hồ muốn dừng." }
+                state.copy(timers = state.timers - running.toSet())
+            }
             AssistantActionType.set_ingredient -> {
                 val ingredient = requireNotNull(action.key) { "Thiếu key nguyên liệu." }
                 require(engine.ingredients(engine.menu(state, action.date, action.meal), state.profile.people).any { it.key == ingredient }) { "Nguyên liệu không thuộc bữa này." }
-                state.copy(checked = state.checked + (key to flag(state.checked[key].orEmpty(), ingredient)))
+                val shop = PlannerEngine.shopKey(action.date)
+                val checkedKey = if (shop in state.checked) shop else key
+                state.copy(checked = state.checked + (checkedKey to flag(state.checked[checkedKey].orEmpty(), ingredient)))
             }
             AssistantActionType.set_task -> {
                 val task = requireNotNull(action.key) { "Thiếu key bước nấu." }
@@ -240,8 +248,9 @@ class AssistantCommands(private val engine: PlannerEngine) {
             ).joinToString("; ")
             AssistantActionType.set_meal_time -> "Đổi giờ ăn ${a.meal.title.lowercase()} từ ${state.profile.time(a.meal)} thành ${a.time} cho mọi ngày."
             AssistantActionType.set_reminder -> "$flag nhắc chuẩn bị bữa ăn."
-            AssistantActionType.start_timer -> "Hẹn ${a.minutes} phút: ${a.label}." + if (state.timer != null) " Thay đồng hồ đang có: ${state.timer.label}." else ""
-            AssistantActionType.cancel_timer -> "Dừng đồng hồ: ${state.timer?.label ?: "không có"}."
+            AssistantActionType.start_timer -> "Hẹn ${a.minutes} phút: ${a.label}." + state.timers.firstOrNull { it.label == a.label && it.date == a.date && it.meal == a.meal }
+                ?.let { " Đặt lại đồng hồ đang có: ${it.label}." }.orEmpty()
+            AssistantActionType.cancel_timer -> "Dừng đồng hồ: ${state.timers.singleOrNull()?.label ?: "không có"}."
             AssistantActionType.set_ingredient -> "${if (a.enabled == true) "Đánh dấu đã có" else "Bỏ đánh dấu"}: ${a.key?.substringBefore('|')}"
             AssistantActionType.set_task -> "${if (a.enabled == true) "Đánh dấu đã xong" else "Bỏ đánh dấu"}: ${engine.timeline(state, a.date, a.meal).first { it.key == a.key }.title}"
             AssistantActionType.set_favorite -> "${if (a.enabled == true) "Lưu" else "Bỏ lưu"} món $name"
@@ -253,6 +262,6 @@ class AssistantCommands(private val engine: PlannerEngine) {
     fun swapLine(state: PlannerState, a: AssistantAction): String {
         val index = requireNotNull(a.index)
         val old = engine.menu(state, a.date, a.meal)[index]
-        return "${RecipeKind.entries[index].label}: ${old.name} → ${engine.recipes[a.recipeId]?.name.orEmpty()}"
+        return "${old.kind.label}: ${old.name} → ${engine.recipes[a.recipeId]?.name.orEmpty()}"
     }
 }

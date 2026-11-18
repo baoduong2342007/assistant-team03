@@ -32,15 +32,6 @@ data class TodayUi(
     val favorites: Set<String>, val cost: String, val minutes: Int,
 )
 
-@Composable fun TodayScreen(vm: PlannerViewModel) {
-    TodayContent(
-        TodayUi(vm.today, vm.state.date, vm.days, vm.state.meal, vm.state.profile.people, vm.menu,
-            vm.state.favorites, PlannerEngine.money(vm.engine.cost(vm.menu, vm.state.profile.people)), vm.engine.minutes(vm.menu)),
-        vm::selectDate, vm::selectMeal, vm::openRecipe, vm::openSwap, vm::toggleFavorite,
-        { vm.navigate(Screen.PLAN) }, { vm.navigate(Screen.SHOPPING) }, { vm.navigate(Screen.COOK) },
-    )
-}
-
 @Composable fun TodayContent(
     ui: TodayUi,
     onDate: (LocalDate) -> Unit, onMeal: (Meal) -> Unit,
@@ -101,9 +92,6 @@ data class TodayUi(
     }
 }
 
-@Composable fun MealSelector(vm: PlannerViewModel) =
-    KitchenMealSelector(vm.state.meal, vm.state.profile.people, vm::selectMeal)
-
 @Composable fun KitchenDateStrip(today: LocalDate, date: LocalDate, days: List<LocalDate>, onSelect: (LocalDate) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 16.dp)) {
         items(days, key = { it.toString() }) { day ->
@@ -124,11 +112,6 @@ data class TodayUi(
             }
         }
     }
-}
-
-@Composable fun RecipeCard(vm: PlannerViewModel, recipe: Recipe, index: Int? = null) {
-    RecipeCardContent(recipe, recipe.id in vm.state.favorites, { vm.openRecipe(recipe.id) },
-        { vm.toggleFavorite(recipe.id) }, index?.let { { vm.openSwap(it) } })
 }
 
 @Composable fun RecipeCardContent(recipe: Recipe, saved: Boolean, onOpen: () -> Unit, onSave: () -> Unit, onSwap: (() -> Unit)? = null) {
