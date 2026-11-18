@@ -136,12 +136,13 @@ class PlannerEngine(
         val menu = menu(state, date, meal)
         val finish = date.atTime(state.profile.time(meal)).atZone(zone).toInstant().toEpochMilli()
         if (menu.size == 1) {
-            val dish = menu[0]
-            return listOf(
-                CookingTask("prep", "Chuẩn bị nguyên liệu", "Lấy đủ nguyên liệu, rửa sạch và cắt sẵn.", finish - minutes(menu) * 60_000L, 5),
-                CookingTask("main", "Nấu ${dish.name.lowercase(locale)}", dish.tip, finish - dish.minutes * 60_000L, dish.minutes, dish.id),
-                CookingTask("serve", "Dọn bữa sáng", "Nếm lại cho vừa ăn rồi bày ra bàn.", finish),
-            )
+            val dish = menu.single()
+            val prepAt = finish - minutes(menu) * 60_000L
+            val cookAt = finish - dish.minutes * 60_000L
+            val prep = CookingTask("prep", "Chuẩn bị nguyên liệu", "Lấy đủ nguyên liệu, rửa sạch và cắt sẵn.", prepAt, 5)
+            val cook = CookingTask("main", "Nấu ${dish.name.lowercase(locale)}", dish.tip, cookAt, dish.minutes, dish.id)
+            val serve = CookingTask("serve", "Dọn bữa sáng", "Nếm lại cho vừa ăn rồi bày ra bàn.", finish)
+            return listOf(prep, cook, serve)
         }
         val (main, soup, veg) = menu
         return listOf(
