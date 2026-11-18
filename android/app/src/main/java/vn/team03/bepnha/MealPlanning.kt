@@ -240,7 +240,10 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
         pantry: Set<String>, excluded: Set<String>, allowed: (Recipe) -> Boolean = { true },
         meal: Meal = Meal.DINNER, fits: (List<Recipe>) -> Boolean = { true },
     ): List<MealOption> {
-        data class Ranked(val score: List<Int>, val option: MealOption)
+        data class Ranked(
+            val freshCovered: Int, val covered: Int, val freshMissing: Int, val missing: Int,
+            val ids: String, val option: MealOption,
+        )
         val groups = recipes.values.filter(allowed).groupBy { it.kind }
         val menus = if (meal.tray) sequence {
             for (main in groups[RecipeKind.MAIN].orEmpty())
@@ -248,21 +251,20 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
                     for (veg in groups[RecipeKind.VEG].orEmpty()) yield(listOf(main, soup, veg))
         } else groups[RecipeKind.BREAKFAST].orEmpty().asSequence().map(::listOf)
         val ranked = mutableListOf<Ranked>()
+        val rice = listOf(Ingredient("Gạo", 0.0, "g", STAPLES)).takeIf { meal.tray }.orEmpty()
+        val missingOrder = compareBy<String> { ingredientGroups[it] == STAPLES }.thenBy { it }
         for (menu in menus.filter(fits)) {
-            val ingredients = menu.flatMap { it.ingredients } +
-                listOfNotNull(Ingredient("Gạo", 0.0, "g", STAPLES).takeIf { meal.tray })
+            val ingredients = menu.flatMap { it.ingredients } + rice
             val names = ingredients.map { it.name }.toSet()
             val available = pantry intersect names
             if (available.isEmpty() || (excluded intersect names).isNotEmpty()) continue
             val missing = names - pantry
             val option = MealOption(menu.map { it.id }, ingredients.filter { it.name in pantry }.map { it.key }.toSortedSet(),
-                missing.sortedWith(compareBy<String> { ingredientGroups[it] == STAPLES }.thenBy { it }))
-            ranked += Ranked(listOf(-available.count { ingredientGroups[it] != STAPLES }, -available.size,
-                missing.count { ingredientGroups[it] != STAPLES }, missing.size), option)
+                missing.sortedWith(missingOrder))
+            ranked += Ranked(available.count { ingredientGroups[it] != STAPLES }, available.size,
+                missing.count { ingredientGroups[it] != STAPLES }, missing.size, option.recipeIds.joinToString("|"), option)
         }
-        return ranked.sortedWith { a, b ->
-            a.score.zip(b.score).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 }
-                ?: a.option.recipeIds.joinToString("|").compareTo(b.option.recipeIds.joinToString("|"))
-        }.map { it.option }
+        return ranked.sortedWith(compareByDescending<Ranked> { it.freshCovered }.thenByDescending { it.covered }
+            .thenBy { it.freshMissing }.thenBy { it.missing }.thenBy { it.ids }).map { it.option }
     }
 }

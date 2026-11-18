@@ -74,7 +74,7 @@ class PlannerEngine(
     val meals: List<Meal> = if (breakfasts.isEmpty()) listOf(Meal.LUNCH, Meal.DINNER) else Meal.entries
 
     init {
-        require(recipes.isNotEmpty() && combinations.isNotEmpty() && breakfasts.isNotEmpty())
+        require(recipes.isNotEmpty() && combinations.isNotEmpty())
         require(combinations.all { validPlan(it, Meal.DINNER) })
         require(breakfasts.all { validPlan(listOf(it), Meal.BREAKFAST) })
     }
@@ -353,7 +353,7 @@ class PlannerEngine(
             val label = Regex("\\d{1,3}\\s*(phút|phut|p)\\b\\s*(cho|để|de)?\\s*(.*)", RegexOption.IGNORE_CASE)
                 .find(question)?.groupValues?.get(3)?.trim()?.trimEnd('.', '!', '?').orEmpty()
                 .ifBlank { namedRecipe(q)?.name ?: "Hẹn giờ $minutes phút" }.replaceFirstChar { it.titlecase(locale) }
-            return AssistantAnswer("Đã hẹn $minutes phút cho ${label.lowercase(locale)}.", timerMinutes = minutes, timerLabel = label.take(60))
+            return AssistantAnswer("Có thể hẹn $minutes phút cho ${label.lowercase(locale)}.", timerMinutes = minutes, timerLabel = label.take(60))
         }
 
         // 2. Fridge: "tủ lạnh có thịt heo, cà chua".
