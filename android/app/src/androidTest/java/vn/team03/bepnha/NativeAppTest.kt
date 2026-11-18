@@ -45,14 +45,15 @@ class NativeAppTest {
     }
 
     @Test fun changingTheMainDishUpdatesTheNativeMealCard() {
-        compose.onNodeWithTag("swap-pork").performScrollTo().performClick()
-        compose.onNodeWithTag("choose-tofu").performScrollTo().performClick()
+        onToday("swap-pork").performClick()
+        compose.onNodeWithTag("swap-list").performScrollToNode(hasTestTag("choose-tofu"))
+        compose.onNodeWithTag("choose-tofu").performClick()
         compose.onNodeWithTag("recipe-tofu").assertExists()
         compose.onNodeWithTag("recipe-pork").assertDoesNotExist()
     }
 
     @Test fun opensTextRecipeAndShoppingAsNativeScreens() {
-        compose.onNodeWithTag("open-pork").performScrollTo().performClick()
+        onToday("open-pork").performClick()
         compose.onNodeWithText("Cách nấu từng bước").performScrollTo().assertIsDisplayed()
         capture("native-recipe.png")
         compose.onNodeWithContentDescription("Đóng").performClick()
@@ -75,7 +76,7 @@ class NativeAppTest {
     }
 
     @Test fun switchingTabsRestoresTheHomeScrollPosition() {
-        compose.onNodeWithTag("swap-pork").performScrollTo().assertIsDisplayed()
+        onToday("swap-pork").assertIsDisplayed()
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("shopping-list").assertExists()
         compose.onNodeWithTag("tab-today").performClick()
@@ -98,7 +99,8 @@ class NativeAppTest {
         capture("native-fridge.png")
         compose.onNodeWithTag("ask-chat").performClick()
         compose.onNodeWithTag("chat-input").performTextInput("Ngày mai tôi muốn ăn đậu hũ")
-        compose.onNodeWithTag("chat-send").performClick()
+        compose.onNodeWithTag("chat-input").performImeAction()
+        compose.waitForIdle()
         compose.onNodeWithTag("chat-list").performScrollToNode(hasTestTag("apply-change-0"))
         compose.onNodeWithTag("apply-change-0").performClick()
         compose.onNodeWithTag("tab-today").performClick()
@@ -115,6 +117,12 @@ class NativeAppTest {
         compose.onNodeWithTag("shop-lunch").performClick()
         list.performScrollToNode(hasTestTag("ingredient-Gạo"))
         compose.onNodeWithTag("ingredient-Gạo").assertTextContains("720 g", substring = true)
+    }
+
+    /** The Today list is lazy: cards below the week strip and fridge card are composed only once scrolled to. */
+    private fun onToday(tag: String): SemanticsNodeInteraction {
+        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag(tag))
+        return compose.onNodeWithTag(tag)
     }
 
     private fun capture(name: String) {
