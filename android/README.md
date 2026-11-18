@@ -6,7 +6,7 @@ Bản 0.3.0-native là ứng dụng Android native. Các màn hình, điều hư
 
 Build bản UI điện thoại mới rồi chép `app/build/outputs/apk/debug/app-debug.apk` sang điện thoại Android 8.0 trở lên để cài. APK trong `releases/` là bản cũ, không chứa các thay đổi UI mới. Đây là APK debug, chưa phát hành lên Google Play. Khi Android hỏi, cấp quyền thông báo để nhận nhắc nấu; trong **Nhắc nấu** có nút mở quyền **Nhắc đúng giờ**.
 
-APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. 66 công thức có sẵn trong gói, dùng được offline. Bản demo có ảnh minh họa cho 15 món, gồm cả sáu món sáng. Món chưa có ảnh hiển thị emoji. Xem [kịch bản demo offline](docs/demo-offline.md). Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
+APK không cần đăng nhập ChatGPT và không phụ thuộc Android System WebView. 66 công thức có sẵn trong gói, dùng được offline. Cả 66 món trong bản demo đều có ảnh minh họa được đóng gói trong APK. Xem [kịch bản demo offline](docs/demo-offline.md). Dữ liệu của bản WebView 0.1 và bản web chưa được nhập tự động sang kho dữ liệu native mới.
 
 ## Những màn hình đã có
 

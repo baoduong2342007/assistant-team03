@@ -56,6 +56,12 @@ class NativeAppTest {
         capture("native-demo-swapped.png")
     }
 
+    @Test fun everyBundledRecipeHasAnIllustration() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val missing = RecipeRepository(context).engine.recipes.keys.filterNot(::hasRecipePhoto)
+        assertTrue("Missing recipe photos: $missing", missing.isEmpty())
+    }
+
     @Test fun breakfastShowsItsOwnPhoto() {
         compose.onNodeWithTag("meal-breakfast").performClick()
         onToday("meal-photo-bread").assertContentDescriptionEquals("Ảnh minh họa Bánh mì ốp la")
