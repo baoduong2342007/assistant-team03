@@ -53,9 +53,9 @@ object AssistantGreeting {
         val next = upcoming(state, today, now)
             ?: return "Chào ${state.voice.addressAs}. ${me.replaceFirstChar { it.titlecase() }} có thể giúp lên thực đơn, đi chợ hoặc nấu ăn."
         val menu = engine.menu(state, next.date, next.meal)
-        val key = PlannerEngine.key(next.date, next.meal)
+        val checked = engine.checkedFor(state, next.date, next.meal)
         val missing = engine.ingredients(menu, state.profile.people)
-            .filter { it.group != "Gia vị & đồ khô" && it.key !in state.checked[key].orEmpty() }.map { it.name.lowercase(PlannerEngine.locale) }
+            .filter { it.group != PlannerEngine.PANTRY && it.key !in checked }.map { it.name.lowercase(PlannerEngine.locale) }
         val start = engine.timeline(state, next.date, next.meal).first().at
         val day = when (next.date) { today -> "hôm nay"; today.plusDays(1) -> "ngày mai"; else -> PlannerEngine.fullDate(next.date) }
         return buildString {
