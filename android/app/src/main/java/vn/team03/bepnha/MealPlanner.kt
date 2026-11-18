@@ -59,14 +59,17 @@ class MealPlanner(private val engine: PlannerEngine) {
             .map(::listOf)
             .filter { (maxMinutes == null || engine.minutes(it) <= maxMinutes) &&
                 (maxCost == null || engine.cost(it, people) <= maxCost) }
-        if (targets.any { !it.second.tray } && breakfasts.isEmpty()) {
+        // No breakfast fits (e.g. a diet tag no breakfast dish carries yet): still plan lunch and
+        // dinner and leave breakfasts as they are; fail only when breakfast was all that was asked.
+        if (targets.any { !it.second.tray } && breakfasts.isEmpty() && targets.none { it.second.tray }) {
             throw NoMealFits("Không có món sáng nào đáp ứng các điều kiện của gia đình.")
         }
+        val planned = if (breakfasts.isEmpty()) targets.filter { it.second.tray } else targets
         // Already-planned meals outside the targets still count for variety.
-        val chosen = state.plans.filterKeys { key -> targets.none { PlannerEngine.key(it.first, it.second) == key } }
+        val chosen = state.plans.filterKeys { key -> planned.none { PlannerEngine.key(it.first, it.second) == key } }
             .mapNotNull { (key, ids) -> runCatching { LocalDate.parse(key.substringBefore('|')) to ids }.getOrNull() }
             .toMutableList()
-        val ordered = targets.distinct().sortedWith(compareBy({ it.first }, { it.second.ordinal }))
+        val ordered = planned.distinct().sortedWith(compareBy({ it.first }, { it.second.ordinal }))
         return ordered.mapIndexed { position, (date, meal) ->
             fun usedNear(id: String, days: Long) = chosen.any { (day, ids) -> id in ids && kotlin.math.abs(day.toEpochDay() - date.toEpochDay()) <= days }
             val candidates = if (meal.tray) trays else breakfasts

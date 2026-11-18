@@ -131,6 +131,7 @@ class AssistantService(
         } else {
             val texts = mutableListOf<String>()
             val actions = mutableListOf<AssistantAction>()
+            val planNotes = mutableListOf<String>()
             for (call in calls) {
                 val args = call.arguments
                 args.optString("reply").takeIf { it.isNotBlank() }?.let { texts += it.trim().take(2000) }
@@ -142,7 +143,7 @@ class AssistantService(
                         try { AssistantGateway.parseAction(list.getJSONObject(i), state.date, state.meal) }
                         catch (e: IllegalArgumentException) { throw IllegalArgumentException("Thao tác thứ ${i + 1}: ${e.message}") }
                     }
-                } else actions += planMeals(args, question, history, state, today)
+                } else planMeals(args, question, history, state, today).let { (planned, note) -> actions += planned; note?.let(planNotes::add) }
             }
             val proposal = commands.proposal(state, actions, today, clock())
             val (dietAdvice, dietNotes) = dietCheck(actions, question, history, state.diet)
@@ -158,7 +159,7 @@ class AssistantService(
                 actions.isEmpty() -> Outcome.Done(AssistantReply(texts.joinToString(" ").ifBlank { GAVE_UP }, emptyList()))
                 else -> Outcome.Done(AssistantReply(
                     (texts.joinToString(" ").ifBlank { if (proposal.needsConfirmation) "Mình đề xuất các thay đổi sau." else "Mình làm ngay cho bạn nhé." } +
-                        dietNotes.joinToString("") { " $it" }).trim(),
+                        (dietNotes + planNotes).joinToString("") { " $it" }).trim(),
                     actions, recipeIds = actions.filter { it.type == AssistantActionType.open_recipe }.mapNotNull { it.recipeId }))
             }
         }
@@ -170,7 +171,8 @@ class AssistantService(
         Outcome.Retry("Tham số không đúng cấu trúc: ${e.message}")
     }
 
-    private fun planMeals(args: JSONObject, question: String, history: List<AssistantChatMessage>, state: PlannerState, today: LocalDate): List<AssistantAction> {
+    /** The swaps for a multi-meal plan, plus a note when some requested breakfasts were left as they are. */
+    private fun planMeals(args: JSONObject, question: String, history: List<AssistantChatMessage>, state: PlannerState, today: LocalDate): Pair<List<AssistantAction>, String?> {
         val allowed = setOf("from", "to", "meals", "avoid_ingredients", "prefer_ingredients", "max_minutes", "max_cost", "reply")
         val unknown = args.keys().asSequence().filter { it !in allowed }.toList()
         require(unknown.isEmpty()) { "plan_meals không nhận tham số ${unknown.joinToString()}." }
@@ -190,9 +192,11 @@ class AssistantService(
             maxMinutes = args.optPositiveInt("max_minutes"), maxCost = args.optPositiveInt("max_cost")?.toLong(),
         )
         val targets = generateSequence(from) { it.plusDays(1) }.takeWhile { it <= to }.flatMap { day -> meals.map { day to it } }.toList()
-        return planner.plan(state, targets, constraints).flatMap { planned ->
+        val plan = planner.plan(state, targets, constraints)
+        val keptBreakfast = targets.any { it.second == Meal.BREAKFAST } && plan.none { it.meal == Meal.BREAKFAST }
+        return plan.flatMap { planned ->
             commands.swapsTo(state.plans.getValue(PlannerEngine.key(planned.date, planned.meal)), planned.recipeIds, planned.date, planned.meal)
-        }
+        } to (if (keptBreakfast) "Chưa có món sáng hợp ${if (state.diet.isEmpty) "điều kiện này" else "hồ sơ ăn uống (${state.diet.describe()})"}, nên bữa sáng giữ như cũ." else null)
     }
 
     /**
