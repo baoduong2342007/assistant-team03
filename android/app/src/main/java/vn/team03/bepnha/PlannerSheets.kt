@@ -112,7 +112,7 @@ import java.time.LocalTime
         item { SheetTitle("Đổi món", vm) }
         item { Text("Chọn món thay cho ${current.name.lowercase(PlannerEngine.locale)}. Danh sách đi chợ và lịch nấu sẽ tự cập nhật.", color = KitchenMuted) }
         items(choices, key = { it.id }) { recipe ->
-            OutlinedCard(onClick = { vm.swap(index, recipe.id) }, modifier = Modifier.fillMaxWidth().testTag("choose-${recipe.id}"),
+            OutlinedCard(onClick = { vm.swap(index, recipe.id) }, modifier = Modifier.fillMaxWidth().animateItem().testTag("choose-${recipe.id}"),
                 shape = MaterialTheme.shapes.large, border = BorderStroke(1.dp, KitchenLine),
                 colors = CardDefaults.outlinedCardColors(containerColor = KitchenSurface)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {

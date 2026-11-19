@@ -56,7 +56,7 @@ data class TodayUi(
             }
         }
         items(ui.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
-            Box(Modifier.padding(horizontal = 16.dp)) {
+            Box(Modifier.padding(horizontal = 16.dp).animateItem().staggeredEntrance(index)) {
                 RecipeCardContent(recipe, recipe.id in ui.favorites, { onRecipe(recipe.id) },
                     { onFavorite(recipe.id) }, { onSwap(index) })
             }

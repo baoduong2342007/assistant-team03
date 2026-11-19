@@ -34,7 +34,12 @@ import vn.team03.bepnha.voice.rememberMicPermission
     Column(Modifier.fillMaxSize().testTag("cook-along")) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("${session.meal.title} · ${PlannerEngine.fullDate(session.date)}", color = KitchenMuted)
-            LinearProgressIndicator(progress = { (session.index + 1f) / session.steps.size }, modifier = Modifier.fillMaxWidth())
+            val animatedProgress by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = (session.index + 1f) / session.steps.size,
+                animationSpec = iosSpring(),
+                label = "cookProgress"
+            )
+            LinearProgressIndicator(progress = { animatedProgress }, modifier = Modifier.fillMaxWidth())
             Text("Bước ${session.index + 1} / ${session.steps.size}", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.testTag("cook-step-count"))
             Text(step.title, style = MaterialTheme.typography.headlineSmall, color = KitchenGreen,

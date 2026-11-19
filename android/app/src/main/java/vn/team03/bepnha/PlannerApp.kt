@@ -2,6 +2,8 @@
 package vn.team03.bepnha
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -30,6 +33,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -74,6 +78,7 @@ import kotlinx.coroutines.isActive
     }
     val cooking = vm.cookAlong != null
     val timer = if (vm.assistantVisible || cooking) null else vm.timerUi()
+    val sheetOpen = vm.sheet != null
     BackHandler(enabled = vm.sheet == null && (cooking || vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
     KitchenFrame(
         title = if (cooking) "Nấu cùng tôi" else if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
@@ -81,6 +86,7 @@ import kotlinx.coroutines.isActive
         assistant = vm.assistantVisible || cooking,
         showBack = cooking || vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
         hideNavigation = imeOpen,
+        sheetOpen = sheetOpen,
         timer = timer,
         extraTimers = if (!vm.assistantVisible && !cooking && vm.state.timers.size > 1) ({ TimerBar(vm) }) else null,
         onBack = { vm.back() }, onTab = vm::navigate, onAssistant = vm::openAssistant,
@@ -88,15 +94,48 @@ import kotlinx.coroutines.isActive
         onFavorites = { vm.navigate(Screen.FAVORITES) }, onCancelTimer = { timer?.let { vm.cancelTimer(it.id) } },
         snackbarHost = { SnackbarHost(snackbar) },
     ) {
-        screenStates.SaveableStateProvider(if (cooking) "cook-along" else if (vm.assistantVisible) "assistant" else vm.screen.name) {
-            if (cooking) CookAlongScreen(vm) else if (vm.assistantVisible) AssistantScreen(vm) else when (vm.screen) {
-                Screen.TODAY -> TodayScreen(vm)
-                Screen.PLAN -> WeekScreen(vm)
-                Screen.SHOPPING -> ShoppingScreen(vm, actions)
-                Screen.COOK -> CookScreen(vm, actions)
-                Screen.ASK -> AskScreen(vm, actions)
-                Screen.FAMILY -> FamilyScreen(vm, actions)
-                Screen.FAVORITES -> FavoritesScreen(vm)
+        val currentDest: AppScreenDestination = when {
+            cooking -> AppScreenDestination.CookAlong
+            vm.assistantVisible -> AppScreenDestination.Assistant
+            else -> AppScreenDestination.Normal(vm.screen)
+        }
+        AnimatedContent(
+            targetState = currentDest,
+            transitionSpec = {
+                if (targetState is AppScreenDestination.Assistant || targetState is AppScreenDestination.CookAlong) {
+                    (slideInVertically(animationSpec = iosOffsetSpring()) { it } + fadeIn()).togetherWith(
+                        slideOutVertically(animationSpec = iosOffsetSpring()) { it } + fadeOut()
+                    )
+                } else if (initialState is AppScreenDestination.Assistant || initialState is AppScreenDestination.CookAlong) {
+                    (slideInVertically(animationSpec = iosOffsetSpring()) { it / 4 } + fadeIn()).togetherWith(
+                        slideOutVertically(animationSpec = iosOffsetSpring()) { it } + fadeOut()
+                    )
+                } else {
+                    val targetNormal = (targetState as? AppScreenDestination.Normal)?.screen?.ordinal ?: 0
+                    val initialNormal = (initialState as? AppScreenDestination.Normal)?.screen?.ordinal ?: 0
+                    val isForward = targetNormal >= initialNormal
+                    val slideOffset = 250
+                    val enter = slideInHorizontally(animationSpec = iosOffsetSpring()) { if (isForward) slideOffset else -slideOffset } + fadeIn()
+                    val exit = slideOutHorizontally(animationSpec = iosOffsetSpring()) { if (isForward) -slideOffset else slideOffset } + fadeOut()
+                    enter.togetherWith(exit)
+                }
+            },
+            label = "screenTransition"
+        ) { dest ->
+            screenStates.SaveableStateProvider(dest.key) {
+                when (dest) {
+                    AppScreenDestination.CookAlong -> CookAlongScreen(vm)
+                    AppScreenDestination.Assistant -> AssistantScreen(vm)
+                    is AppScreenDestination.Normal -> when (dest.screen) {
+                        Screen.TODAY -> TodayScreen(vm)
+                        Screen.PLAN -> WeekScreen(vm)
+                        Screen.SHOPPING -> ShoppingScreen(vm, actions)
+                        Screen.COOK -> CookScreen(vm, actions)
+                        Screen.ASK -> AskScreen(vm, actions)
+                        Screen.FAMILY -> FamilyScreen(vm, actions)
+                        Screen.FAVORITES -> FavoritesScreen(vm)
+                    }
+                }
             }
         }
     }
@@ -112,21 +151,48 @@ import kotlinx.coroutines.isActive
     }
 }
 
+sealed class AppScreenDestination(val key: String) {
+    data object CookAlong : AppScreenDestination("cook-along")
+    data object Assistant : AppScreenDestination("assistant")
+    data class Normal(val screen: Screen) : AppScreenDestination(screen.name)
+}
+
 /** The same scaffold is used by device screens and full-screen design previews. */
 @Composable fun KitchenFrame(
     title: String, selected: Screen = Screen.TODAY, assistant: Boolean = false,
-    showBack: Boolean = false, hideNavigation: Boolean = false, timer: KitchenTimerUi? = null,
+    showBack: Boolean = false, hideNavigation: Boolean = false, sheetOpen: Boolean = false, timer: KitchenTimerUi? = null,
     onBack: () -> Unit = {}, onTab: (Screen) -> Unit = {}, onAssistant: () -> Unit = {},
     onFamily: () -> Unit = {}, onReminder: () -> Unit = {}, onFavorites: () -> Unit = {},
     onCancelTimer: () -> Unit = {}, extraTimers: (@Composable () -> Unit)? = null, snackbarHost: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
+    val contentScale by animateFloatAsState(
+        targetValue = if (sheetOpen) 0.94f else 1f,
+        animationSpec = iosSpring(),
+        label = "sheetBackdropScale"
+    )
+    val contentCorner by animateDpAsState(
+        targetValue = if (sheetOpen) 24.dp else 0.dp,
+        animationSpec = iosSpring(),
+        label = "sheetBackdropCorner"
+    )
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val compactKeyboard = assistant && maxHeight < 480.dp && WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Scaffold(modifier = Modifier.testTag("native-root"), containerColor = KitchenPaper,
         topBar = {
-            if (!compactKeyboard) Surface(color = KitchenPaper) {
+            if (!compactKeyboard) Surface(
+                color = KitchenPaper,
+                modifier = Modifier.fillMaxWidth().drawBehind {
+                    drawLine(
+                        color = KitchenLine,
+                        start = Offset(0f, size.height),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+            ) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     if (showBack) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Quay lại") }
@@ -149,7 +215,10 @@ import kotlinx.coroutines.isActive
         },
         bottomBar = {
             if (!assistant && !hideNavigation) {
-                Surface(color = Color.White) {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 3.dp,
+                ) {
                     Column(Modifier.navigationBarsPadding()) {
                         if (extraTimers != null) extraTimers() else timer?.let { KitchenTimerSummary(it, onCancelTimer) }
                         KitchenTonalButton(onClick = onAssistant,
@@ -162,7 +231,18 @@ import kotlinx.coroutines.isActive
         },
         snackbarHost = snackbarHost,
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) { content() }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .graphicsLayer {
+                    scaleX = contentScale
+                    scaleY = contentScale
+                    clip = sheetOpen
+                    shape = RoundedCornerShape(contentCorner)
+                }
+        ) { content() }
     }
     }
 }
@@ -228,10 +308,16 @@ import kotlinx.coroutines.isActive
             val selected = day == vm.state.date
             val dishes = vm.engine.menu(vm.state, day)
             val label = if (day == vm.today) "Hôm nay" else "${PlannerEngine.weekdayShort(day)} · ${PlannerEngine.shortDate(day)}"
+            val bgColor by animateColorAsState(if (selected) KitchenGreen else KitchenSurface, animationSpec = iosSpring(), label = "dateBg")
+            val borderColor by animateColorAsState(if (selected) KitchenGreen else KitchenLine, animationSpec = iosSpring(), label = "dateBorder")
+            val labelColor by animateColorAsState(if (selected) KitchenGold else KitchenMuted, animationSpec = iosSpring(), label = "dateLabel")
+            val titleColor by animateColorAsState(if (selected) Color.White else KitchenInk, animationSpec = iosSpring(), label = "dateTitle")
             Column(
-                modifier = Modifier.width((116 * fontScale).dp).clip(MaterialTheme.shapes.medium)
-                    .background(if (selected) KitchenGreen else KitchenSurface)
-                    .border(1.dp, if (selected) KitchenGreen else KitchenLine, MaterialTheme.shapes.medium)
+                modifier = Modifier.width((116 * fontScale).dp)
+                    .animateItem()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(bgColor)
+                    .border(1.dp, borderColor, MaterialTheme.shapes.medium)
                     .selectable(selected = selected, role = Role.Tab, onClick = { vm.selectDate(day) })
                     .testTag("date-$day")
                     .semantics { contentDescription = "${PlannerEngine.fullDate(day)}: ${dishes.joinToString { it.name }}" }
@@ -239,10 +325,10 @@ import kotlinx.coroutines.isActive
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1,
-                    color = if (selected) KitchenGold else KitchenMuted)
+                    color = labelColor)
                 Text(dishes.joinToString(" ") { it.emoji }, fontSize = 18.sp, lineHeight = 26.sp, maxLines = 1, softWrap = false)
                 Text(dishes.first().name, style = MaterialTheme.typography.labelLarge, minLines = 2, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis, color = if (selected) Color.White else KitchenInk)
+                    overflow = TextOverflow.Ellipsis, color = titleColor)
             }
         }
     }
@@ -277,7 +363,7 @@ import kotlinx.coroutines.isActive
             }
         }
         items(vm.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
-            Box(Modifier.padding(horizontal = 20.dp)) { RecipeCard(vm, recipe, index) }
+            Box(Modifier.padding(horizontal = 20.dp).animateItem().staggeredEntrance(index)) { RecipeCard(vm, recipe, index) }
         }
     }
 }
@@ -319,7 +405,7 @@ import kotlinx.coroutines.isActive
 }
 
 @Composable fun RecipeCard(vm: PlannerViewModel, recipe: Recipe, index: Int? = null) {
-    KitchenCard(Modifier.testTag("recipe-${recipe.id}")) {
+    KitchenCard(Modifier.testTag("recipe-${recipe.id}").animateContentSize(iosSizeSpring())) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RecipePortrait(recipe, 76.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -331,8 +417,14 @@ import kotlinx.coroutines.isActive
                 }
             }
             val saved = recipe.id in vm.state.favorites
+            val favScale by animateFloatAsState(
+                targetValue = if (saved) 1.1f else 1.0f,
+                animationSpec = iosBouncySpring(),
+                label = "favScale"
+            )
             FilledTonalIconButton(
                 onClick = { vm.toggleFavorite(recipe.id) },
+                modifier = Modifier.graphicsLayer { scaleX = favScale; scaleY = favScale },
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = if (saved) KitchenPeach else KitchenPaper,
                     contentColor = if (saved) KitchenTerracotta else KitchenMuted,

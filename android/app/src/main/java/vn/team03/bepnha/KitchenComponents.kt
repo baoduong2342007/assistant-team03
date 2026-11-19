@@ -1,5 +1,8 @@
 package vn.team03.bepnha
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,6 +21,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.selection.selectable
@@ -121,7 +127,7 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     }
 }
 
-/** Segmented control: one row of equally wide, accessible tabs. */
+/** Segmented control: sliding indicator pill with fluid iOS spring physics. */
 @Composable fun KitchenSegmented(
     options: List<String>,
     selected: Int,
@@ -129,18 +135,76 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     modifier: Modifier = Modifier,
     tag: (Int) -> String? = { null },
 ) {
-    Surface(modifier = modifier, color = KitchenSurface, shape = MaterialTheme.shapes.medium,
-        border = androidx.compose.foundation.BorderStroke(1.dp, KitchenLine)) {
-        Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            options.forEachIndexed { index, label ->
-                val active = index == selected
-                Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(MaterialTheme.shapes.small)
-                    .background(if (active) KitchenPeach else Color.Transparent)
-                    .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
-                    .let { base -> tag(index)?.let { base.testTag(it) } ?: base }
-                    .padding(horizontal = 6.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1,
-                        color = if (active) KitchenTerracotta else KitchenMuted)
+    val haptic = LocalHapticFeedback.current
+    Surface(
+        modifier = modifier,
+        color = KitchenSurface,
+        shape = MaterialTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(1.dp, KitchenLine)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .padding(4.dp)
+                .selectableGroup()
+        ) {
+            val count = options.size.coerceAtLeast(1)
+            val spacing = 4.dp
+            val totalSpacing = spacing * (count - 1)
+            val segmentWidth = (maxWidth - totalSpacing) / count
+
+            val targetOffset = (segmentWidth + spacing) * selected.coerceIn(0, count - 1)
+            val animatedOffset by animateDpAsState(
+                targetValue = targetOffset,
+                animationSpec = iosSpring(),
+                label = "segmentedPillOffset"
+            )
+
+            Box(
+                Modifier
+                    .offset(x = animatedOffset)
+                    .width(segmentWidth)
+                    .heightIn(min = 44.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(KitchenPeach)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                options.forEachIndexed { index, label ->
+                    val active = index == selected
+                    val textColor by animateColorAsState(
+                        targetValue = if (active) KitchenTerracotta else KitchenMuted,
+                        animationSpec = iosSpring(),
+                        label = "segmentedTextColor"
+                    )
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 44.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .selectable(
+                                selected = active,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (!active) {
+                                        try { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Exception) { }
+                                        onSelect(index)
+                                    }
+                                }
+                            )
+                            .let { base -> tag(index)?.let { base.testTag(it) } ?: base }
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            color = textColor
+                        )
+                    }
                 }
             }
         }
@@ -163,39 +227,82 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     }
 }
 
-/** Stable, equally sized tabs. Labels determine height; no text scaling override. */
+/** Stable, equally sized tabs with iOS icon bounce and fluid color transitions. */
 @Composable fun KitchenNavigation(selected: Screen, onSelect: (Screen) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column {
             HorizontalDivider(color = KitchenLine)
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup()) {
                 listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK).forEach { screen ->
+                    val active = selected == screen
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (active) 1.0f else 0.92f,
+                        animationSpec = iosBouncySpring(),
+                        label = "tabIconScale"
+                    )
+                    val iconColor by animateColorAsState(
+                        targetValue = if (active) KitchenGreen else KitchenMuted,
+                        animationSpec = iosSpring(),
+                        label = "tabIconColor"
+                    )
+                    val pillColor by animateColorAsState(
+                        targetValue = if (active) KitchenSoft else Color.Transparent,
+                        animationSpec = iosSpring(),
+                        label = "tabPillColor"
+                    )
+                    val textColor by animateColorAsState(
+                        targetValue = if (active) KitchenGreen else KitchenMuted,
+                        animationSpec = iosSpring(),
+                        label = "tabTextColor"
+                    )
+
                     Column(
                         Modifier.weight(1f).fillMaxHeight()
-                            .selectable(selected == screen, role = Role.Tab, onClick = { onSelect(screen) })
+                            .selectable(
+                                selected = active,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (!active) {
+                                        try { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Exception) { }
+                                        onSelect(screen)
+                                    }
+                                }
+                            )
                             .testTag("tab-${screen.name.lowercase()}")
                             .padding(horizontal = 4.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Surface(
-                            color = if (selected == screen) KitchenSoft else MaterialTheme.colorScheme.surface,
+                            color = pillColor,
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Box(Modifier.size(width = 56.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier
+                                    .size(width = 56.dp, height = 32.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
                                 when (screen) {
-                                    Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = KitchenGreen)
-                                    Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = KitchenGreen)
-                                    Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = KitchenGreen)
-                                    Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE)
-                                    else -> Icon(Icons.Outlined.PlayArrow, null, tint = KitchenGreen)
+                                    Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = iconColor)
+                                    Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = iconColor)
+                                    Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = iconColor)
+                                    Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE, tint = iconColor)
+                                    else -> Icon(Icons.Outlined.PlayArrow, null, tint = iconColor)
                                 }
                             }
                         }
-                        Text(screen.title, textAlign = TextAlign.Center,
+                        Text(
+                            screen.title,
+                            textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected == screen) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected == screen) KitchenGreen else KitchenMuted)
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                            color = textColor
+                        )
                     }
                 }
             }
@@ -237,8 +344,12 @@ data class KitchenTimerUi(val label: String, val remaining: String, val id: Long
     Surface(color = KitchenSoft, contentColor = KitchenInk) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(timer.label, style = MaterialTheme.typography.bodySmall)
-            Text(timer.remaining, Modifier.testTag("timer-countdown"),
-                style = MaterialTheme.typography.headlineSmall, color = KitchenGreen)
+            RollingTickerText(
+                text = timer.remaining,
+                style = MaterialTheme.typography.headlineSmall,
+                color = KitchenGreen,
+                modifier = Modifier.testTag("timer-countdown")
+            )
             TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Dừng hẹn giờ") }
         }
     }

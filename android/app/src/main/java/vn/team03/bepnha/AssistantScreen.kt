@@ -1,5 +1,6 @@
 package vn.team03.bepnha
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -199,7 +201,10 @@ data class AssistantMealCard(
                         )
                     }
                     items(ui.messages, key = { it.id }) { message ->
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(
+                            modifier = Modifier.animateItem(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             AssistantMessage(message)
                             if (message.id == ui.mealSuggestionMessageId) {
                                 ui.mealSuggestions.forEach { meal -> MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) } }
@@ -304,6 +309,17 @@ data class AssistantMealCard(
 
 /** The large microphone is the main way to talk; typing stays available below it. */
 @Composable private fun VoiceBar(ui: AssistantUiState, compact: Boolean, onMic: () -> Unit, onReadAgain: () -> Unit, onStopSpeaking: () -> Unit) {
+    val pulseTransition = rememberInfiniteTransition(label = "micPulse")
+    val pulseScale by pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (ui.listening) 1.04f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (ui.listening) {
@@ -318,9 +334,14 @@ data class AssistantMealCard(
                 ui.proposal.isNotEmpty() -> "Bấm rồi nói “đồng ý” hoặc “không”"
                 else -> "Bấm để nói"
             }
-            val button = Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("assistant-mic").semantics {
-                contentDescription = if (ui.listening) "Dừng nghe" else "Nói với trợ lý"
-            }
+            val button = Modifier.fillMaxWidth().heightIn(min = 72.dp)
+                .graphicsLayer {
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                }
+                .testTag("assistant-mic").semantics {
+                    contentDescription = if (ui.listening) "Dừng nghe" else "Nói với trợ lý"
+                }
             if (ui.listening) KitchenOutlinedButton(onClick = onMic, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
             else KitchenButton(onClick = onMic, enabled = !ui.busy, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
             if (!ui.micGranted && !compact) {
