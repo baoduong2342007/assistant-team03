@@ -1,11 +1,14 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package vn.team03.bepnha
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -73,44 +76,75 @@ import kotlinx.coroutines.isActive
         }
     }
     val cooking = vm.cookAlong != null
+    val page = when {
+        cooking -> PlannerPage.Cooking
+        vm.assistantVisible -> PlannerPage.Chat
+        else -> PlannerPage.ScreenPage(vm.screen)
+    }
+    val activeSheet = vm.sheet?.let { SheetPresentation(vm.sheetVersion, it) }
+    var closingSheet by remember(page, vm.state.key, vm.notificationVersion) {
+        mutableStateOf<SheetPresentation?>(null)
+    }
+    if (activeSheet != null) SideEffect { closingSheet = activeSheet }
+    val shownSheet = activeSheet ?: closingSheet
+    val menu = rememberSaveable(vm.notificationVersion) { mutableStateOf(false) }
     val timer = if (vm.assistantVisible || cooking) null else vm.timerUi()
-    BackHandler(enabled = vm.sheet == null && (cooking || vm.assistantVisible || vm.screen != Screen.TODAY)) { vm.back() }
     KitchenFrame(
         title = if (cooking) "Nấu cùng tôi" else if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
         selected = vm.screen,
         assistant = vm.assistantVisible || cooking,
         showBack = cooking || vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
         hideNavigation = imeOpen,
+        menu = menu,
+        padContent = false,
         timer = timer,
         extraTimers = if (!vm.assistantVisible && !cooking && vm.state.timers.size > 1) ({ TimerBar(vm) }) else null,
         onBack = { vm.back() }, onTab = vm::navigate, onAssistant = vm::openAssistant,
         onFamily = { vm.navigate(Screen.FAMILY) }, onReminder = vm::openReminders,
         onFavorites = { vm.navigate(Screen.FAVORITES) }, onCancelTimer = { timer?.let { vm.cancelTimer(it.id) } },
         snackbarHost = { SnackbarHost(snackbar) },
-    ) {
-        screenStates.SaveableStateProvider(if (cooking) "cook-along" else if (vm.assistantVisible) "assistant" else vm.screen.name) {
-            if (cooking) CookAlongScreen(vm) else if (vm.assistantVisible) AssistantScreen(vm) else when (vm.screen) {
-                Screen.TODAY -> TodayScreen(vm)
-                Screen.PLAN -> WeekScreen(vm)
-                Screen.SHOPPING -> ShoppingScreen(vm, actions)
-                Screen.COOK -> CookScreen(vm, actions)
-                Screen.ASK -> AskScreen(vm, actions)
-                Screen.FAMILY -> FamilyScreen(vm, actions)
-                Screen.FAVORITES -> FavoritesScreen(vm)
+    ) { padding ->
+        PlannerMotionHost(page, vm.backDestination(), shownSheet == null && !imeOpen && !menu.value,
+            onBack = { vm.back() }, screenStates = screenStates, contentPadding = padding) { destination, active ->
+            when (destination) {
+                PlannerPage.Cooking -> CookAlongScreen(vm, active)
+                PlannerPage.Chat -> AssistantScreen(vm, active)
+                is PlannerPage.ScreenPage -> when (destination.screen) {
+                    Screen.TODAY -> TodayScreen(vm)
+                    Screen.PLAN -> WeekScreen(vm)
+                    Screen.SHOPPING -> ShoppingScreen(vm, actions)
+                    Screen.COOK -> CookScreen(vm, actions)
+                    Screen.ASK -> AskScreen(vm, actions)
+                    Screen.FAMILY -> FamilyScreen(vm, actions)
+                    Screen.FAVORITES -> FavoritesScreen(vm)
+                }
             }
         }
     }
-    vm.sheet?.let { sheet ->
-        ModalBottomSheet(onDismissRequest = vm::dismissSheet, containerColor = KitchenSurface, sheetMaxWidth = 680.dp,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            when (sheet) {
-                is PlannerSheet.RecipeDetail -> RecipeSheet(vm, sheet.id, actions)
-                is PlannerSheet.Swap -> SwapSheet(vm, sheet.index)
-                PlannerSheet.Reminder -> ReminderSheet(vm, actions)
+    if (shownSheet != null) key(shownSheet.version) {
+        val open = activeSheet == shownSheet
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        LaunchedEffect(open) {
+            if (!open) {
+                sheetState.hide()
+                if (closingSheet == shownSheet) closingSheet = null
+            }
+        }
+        ModalBottomSheet(onDismissRequest = {
+            if (vm.sheetVersion == shownSheet.version && vm.sheet != null) vm.dismissSheet()
+        }, containerColor = KitchenSurface, sheetMaxWidth = 680.dp, sheetState = sheetState) {
+            Column(Modifier.inactiveContent(!open)) {
+                when (val sheet = shownSheet.content) {
+                    is PlannerSheet.RecipeDetail -> RecipeSheet(vm, sheet.id, actions)
+                    is PlannerSheet.Swap -> SwapSheet(vm, sheet.index)
+                    PlannerSheet.Reminder -> ReminderSheet(vm, actions)
+                }
             }
         }
     }
 }
+
+private data class SheetPresentation(val version: Int, val content: PlannerSheet)
 
 /** The same scaffold is used by device screens and full-screen design previews. */
 @Composable fun KitchenFrame(
@@ -119,9 +153,10 @@ import kotlinx.coroutines.isActive
     onBack: () -> Unit = {}, onTab: (Screen) -> Unit = {}, onAssistant: () -> Unit = {},
     onFamily: () -> Unit = {}, onReminder: () -> Unit = {}, onFavorites: () -> Unit = {},
     onCancelTimer: () -> Unit = {}, extraTimers: (@Composable () -> Unit)? = null, snackbarHost: @Composable () -> Unit = {},
-    content: @Composable () -> Unit,
+    menu: MutableState<Boolean> = rememberSaveable { mutableStateOf(false) },
+    padContent: Boolean = true,
+    content: @Composable (PaddingValues) -> Unit,
 ) {
-    var menu by rememberSaveable { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val compactKeyboard = assistant && maxHeight < 480.dp && WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Scaffold(modifier = Modifier.testTag("native-root"), containerColor = KitchenPaper,
@@ -134,13 +169,13 @@ import kotlinx.coroutines.isActive
                         fontFamily = if (title == "Bếp Nhà") androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.SansSerif,
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { heading() }, color = KitchenGreen)
                     if (!assistant) Box {
-                        TextButton(onClick = { menu = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Gia đình") }, onClick = { menu = false; onFamily() },
+                        TextButton(onClick = { menu.value = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
+                        DropdownMenu(expanded = menu.value, onDismissRequest = { menu.value = false }) {
+                            DropdownMenuItem(text = { Text("Gia đình") }, onClick = { menu.value = false; onFamily() },
                                 modifier = Modifier.heightIn(min = 56.dp).semantics { contentDescription = "Thông tin gia đình" })
-                            DropdownMenuItem(text = { Text("Nhắc nấu") }, onClick = { menu = false; onReminder() },
+                            DropdownMenuItem(text = { Text("Nhắc nấu") }, onClick = { menu.value = false; onReminder() },
                                 modifier = Modifier.heightIn(min = 56.dp))
-                            DropdownMenuItem(text = { Text("Món đã lưu") }, onClick = { menu = false; onFavorites() },
+                            DropdownMenuItem(text = { Text("Món đã lưu") }, onClick = { menu.value = false; onFavorites() },
                                 modifier = Modifier.heightIn(min = 56.dp))
                         }
                     }
@@ -162,7 +197,11 @@ import kotlinx.coroutines.isActive
         },
         snackbarHost = snackbarHost,
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) { content() }
+        if (padContent) {
+            Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) { content(padding) }
+        } else {
+            content(padding)
+        }
     }
     }
 }
@@ -277,17 +316,21 @@ import kotlinx.coroutines.isActive
             }
         }
         items(vm.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
-            Box(Modifier.padding(horizontal = 20.dp)) { RecipeCard(vm, recipe, index) }
+            Box(Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
+                .padding(horizontal = 20.dp)) { RecipeCard(vm, recipe, index) }
         }
     }
 }
 
 @Composable private fun MealOverview(vm: PlannerViewModel, modifier: Modifier = Modifier) {
-    val cost = PlannerEngine.money(vm.engine.cost(vm.menu, vm.state.profile.people)).replace(' ', '\u00A0')
-    val duration = "${vm.engine.minutes(vm.menu)} phút"
+    val menu = vm.menu
+    val cost = PlannerEngine.money(vm.engine.cost(menu, vm.state.profile.people)).replace(' ', '\u00A0')
+    val duration = "${vm.engine.minutes(menu)} phút"
     Surface(modifier.fillMaxWidth(), color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
         Column {
-            MealPhoto(vm.menu, Modifier.fillMaxWidth().height(144.dp))
+            KitchenContentTransition(menu, "meal photo", Modifier.fillMaxWidth().height(144.dp)) { recipes ->
+                MealPhoto(recipes, Modifier.fillMaxSize())
+            }
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val dividerColor = KitchenOnGreen.copy(alpha = 0.27f)
@@ -314,12 +357,17 @@ import kotlinx.coroutines.isActive
 @Composable private fun MealMetric(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
-        Text(value, style = MaterialTheme.typography.titleLarge)
+        KitchenContentTransition(value, "meal metric") { metric ->
+            Text(metric, style = MaterialTheme.typography.titleLarge)
+        }
     }
 }
 
 @Composable fun RecipeCard(vm: PlannerViewModel, recipe: Recipe, index: Int? = null) {
-    KitchenCard(Modifier.testTag("recipe-${recipe.id}")) {
+    val openInteraction = remember { MutableInteractionSource() }
+    val swapInteraction = remember { MutableInteractionSource() }
+    val saveInteraction = remember { MutableInteractionSource() }
+    KitchenCard(Modifier.testTag("recipe-${recipe.id}").pressCompression(openInteraction, swapInteraction, saveInteraction)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             RecipePortrait(recipe, 76.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -333,18 +381,22 @@ import kotlinx.coroutines.isActive
             val saved = recipe.id in vm.state.favorites
             FilledTonalIconButton(
                 onClick = { vm.toggleFavorite(recipe.id) },
+                interactionSource = saveInteraction,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = if (saved) KitchenPeach else KitchenPaper,
                     contentColor = if (saved) KitchenTerracotta else KitchenMuted,
                 ),
             ) {
-                Icon(if (saved) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
-                    if (saved) "Bỏ lưu ${recipe.name}" else "Lưu ${recipe.name}", modifier = Modifier.size(20.dp))
+                KitchenContentTransition(saved, "favorite icon") { selected ->
+                    Icon(if (selected) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                        if (selected) "Bỏ lưu ${recipe.name}" else "Lưu ${recipe.name}", modifier = Modifier.size(20.dp))
+                }
             }
         }
         HorizontalDivider(color = KitchenLine)
         val openRecipe: @Composable (Modifier) -> Unit = { modifier ->
             TextButton(onClick = { vm.openRecipe(recipe.id) },
+                interactionSource = openInteraction,
                 modifier = modifier.heightIn(min = 48.dp).testTag("open-${recipe.id}")) {
                 Text("Xem công thức")
             }
@@ -355,6 +407,7 @@ import kotlinx.coroutines.isActive
             KitchenActions(first = openRecipe, second = { modifier ->
                 OutlinedButton(
                     onClick = { vm.openSwap(index) },
+                    interactionSource = swapInteraction,
                     modifier = modifier.heightIn(min = 48.dp).testTag("swap-${recipe.id}")
                         .semantics { contentDescription = "Đổi món ${recipe.name}" },
                     border = BorderStroke(1.dp, KitchenLine),
@@ -423,19 +476,23 @@ import kotlinx.coroutines.isActive
                     }
                 }
                 HorizontalDivider(color = KitchenLine)
-                menu.forEach { recipe ->
-                    Row(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
-                            .clickable(role = Role.Button) { vm.openRecipe(recipe.id) }.heightIn(min = 52.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        RecipePortrait(recipe, 46.dp)
-                        Column(Modifier.weight(1f)) {
-                            Text(recipe.name, style = MaterialTheme.typography.labelLarge)
-                            Text(recipe.kind.label, style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                KitchenContentTransition(menu, "weekly dishes", Modifier.fillMaxWidth()) { dishes ->
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        dishes.forEach { recipe ->
+                            Row(
+                                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
+                                    .clickable(role = Role.Button) { vm.openRecipe(recipe.id) }.heightIn(min = 52.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                RecipePortrait(recipe, 46.dp)
+                                Column(Modifier.weight(1f)) {
+                                    Text(recipe.name, style = MaterialTheme.typography.labelLarge)
+                                    Text(recipe.kind.label, style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                                }
+                                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = KitchenMuted)
+                            }
                         }
-                        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = KitchenMuted)
                     }
                 }
                 HorizontalDivider(color = KitchenLine)
@@ -465,6 +522,11 @@ import kotlinx.coroutines.isActive
         }
         item { ShoppingMealPicker(vm) }
         item {
+            val progress = animateFloatAsState(
+                if (ingredients.isEmpty()) 0f else count.toFloat() / ingredients.size,
+                tween(ComponentMotionMillis),
+                label = "shopping progress",
+            )
             Surface(color = KitchenSoft, contentColor = KitchenGreen, shape = MaterialTheme.shapes.extraLarge) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -480,7 +542,7 @@ import kotlinx.coroutines.isActive
                         }
                     }
                     LinearProgressIndicator(
-                        progress = { if (ingredients.isEmpty()) 0f else count.toFloat() / ingredients.size },
+                        progress = { progress.value },
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                         color = KitchenGreen,
                         trackColor = KitchenGreen.copy(alpha = 0.14f),
@@ -498,7 +560,8 @@ import kotlinx.coroutines.isActive
         ingredients.groupBy { it.group }.forEach { (group, groupItems) ->
             item(key = "group-$group") {
                 OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
+                        .fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     border = BorderStroke(1.dp, KitchenLine),
                     colors = CardDefaults.outlinedCardColors(containerColor = KitchenSurface),
@@ -506,20 +569,27 @@ import kotlinx.coroutines.isActive
                     Text(group, Modifier.fillMaxWidth().background(KitchenPeach).padding(horizontal = 16.dp, vertical = 11.dp)
                         .semantics { heading() }, style = MaterialTheme.typography.titleMedium, color = KitchenTerracotta)
                     groupItems.forEachIndexed { index, item ->
-                        val done = item.key in checked
-                        Row(
-                            Modifier.fillMaxWidth().background(if (done) KitchenSoft else KitchenSurface)
-                                .toggleable(value = done, role = Role.Checkbox, onValueChange = { vm.checkIngredient(item.key) })
-                                .testTag("ingredient-${item.name}").heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Checkbox(checked = done, onCheckedChange = null)
-                            Text(item.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                                textDecoration = if (done) TextDecoration.LineThrough else null,
-                                color = if (done) KitchenMuted else KitchenInk)
-                            Text("${PlannerEngine.quantity(item.amount)} ${item.unit}",
-                                style = MaterialTheme.typography.labelMedium, color = KitchenGreen)
+                        key(item.key) {
+                            val done = item.key in checked
+                            val rowColor = animateColorAsState(
+                                if (done) KitchenSoft else KitchenSurface,
+                                tween(ComponentMotionMillis),
+                                label = "ingredient background",
+                            )
+                            Row(
+                                Modifier.fillMaxWidth().drawBehind { drawRect(rowColor.value) }
+                                    .toggleable(value = done, role = Role.Checkbox, onValueChange = { vm.checkIngredient(item.key) })
+                                    .testTag("ingredient-${item.name}").heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Checkbox(checked = done, onCheckedChange = null)
+                                Text(item.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                                    textDecoration = if (done) TextDecoration.LineThrough else null,
+                                    color = if (done) KitchenMuted else KitchenInk)
+                                Text("${PlannerEngine.quantity(item.amount)} ${item.unit}",
+                                    style = MaterialTheme.typography.labelMedium, color = KitchenGreen)
+                            }
                         }
                         if (index < groupItems.lastIndex) HorizontalDivider(color = KitchenLine)
                     }
@@ -566,6 +636,11 @@ import kotlinx.coroutines.isActive
     val completed = tasks.count { it.key in done }
     LazyColumn(Modifier.fillMaxSize().testTag("cook-list"), contentPadding = PaddingValues(20.dp)) {
         item {
+            val progress = animateFloatAsState(
+                completed.toFloat() / tasks.size,
+                tween(ComponentMotionMillis),
+                label = "cooking task progress",
+            )
             SectionHeading("Lịch nấu", "${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)}")
             Spacer(Modifier.height(14.dp))
             Surface(color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
@@ -577,7 +652,7 @@ import kotlinx.coroutines.isActive
                     Text("Dọn cơm lúc ${vm.state.profile.time(vm.state.meal)}", style = MaterialTheme.typography.headlineSmall)
                     Text("Khoảng ${vm.engine.minutes(vm.menu)} phút với ${if (vm.state.meal.tray) "2 vùng nấu" else "1 vùng nấu"}", style = MaterialTheme.typography.bodyMedium, color = KitchenOnGreen)
                     LinearProgressIndicator(
-                        progress = { completed.toFloat() / tasks.size },
+                        progress = { progress.value },
                         modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                         color = KitchenGold,
                         trackColor = Color.White.copy(alpha = 0.2f),
@@ -615,8 +690,15 @@ import kotlinx.coroutines.isActive
         itemsIndexed(tasks, key = { _, task -> task.key }) { index, task ->
             val finished = task.key in done
             val marker = if (finished) KitchenGreen else KitchenTerracotta
+            val markerColor = animateColorAsState(marker, tween(ComponentMotionMillis), label = "cooking task marker")
+            val timeColor = animateColorAsState(
+                if (finished) KitchenSoft else KitchenPeach,
+                tween(ComponentMotionMillis),
+                label = "cooking task badge",
+            )
             Box(
-                Modifier.fillMaxWidth().drawBehind {
+                Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
+                    .fillMaxWidth().drawBehind {
                     val inset = 5.dp.toPx()
                     val x = if (layoutDirection == LayoutDirection.Ltr) inset else size.width - inset
                     val y = 40.dp.toPx()
@@ -626,13 +708,13 @@ import kotlinx.coroutines.isActive
                         end = Offset(x, if (index == tasks.lastIndex) y else size.height),
                         strokeWidth = 2.dp.toPx(),
                     )
-                    drawCircle(marker, radius = 4.dp.toPx(), center = Offset(x, y))
+                    drawCircle(markerColor.value, radius = 4.dp.toPx(), center = Offset(x, y))
                 }.padding(start = 19.dp, bottom = 12.dp),
             ) {
                 KitchenCard(Modifier.testTag("task-${task.key}")) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = if (finished) KitchenSoft else KitchenPeach,
+                            color = timeColor.value,
                             contentColor = marker,
                             shape = MaterialTheme.shapes.extraSmall,
                         ) {
@@ -677,13 +759,19 @@ import kotlinx.coroutines.isActive
 @Composable fun FavoritesScreen(vm: PlannerViewModel) {
     val favorites = vm.state.favorites.mapNotNull(vm.engine.recipes::get)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (favorites.isEmpty()) item { KitchenCard {
-            Icon(Icons.Outlined.FavoriteBorder, null, modifier = Modifier.size(40.dp), tint = KitchenGreen)
-            Text("Chưa có món đã lưu", style = MaterialTheme.typography.titleMedium)
-            Text("Chạm vào trái tim bên cạnh món bạn muốn tìm lại.", color = KitchenMuted)
-            Button(onClick = { vm.navigate(Screen.TODAY) }) { Text("Xem thực đơn") }
-        } }
-        items(favorites, key = { it.id }) { recipe -> RecipeCard(vm, recipe) }
+        if (favorites.isEmpty()) item(key = "empty-favorites") {
+            KitchenCard(Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)) {
+                Icon(Icons.Outlined.FavoriteBorder, null, modifier = Modifier.size(40.dp), tint = KitchenGreen)
+                Text("Chưa có món đã lưu", style = MaterialTheme.typography.titleMedium)
+                Text("Chạm vào trái tim bên cạnh món bạn muốn tìm lại.", color = KitchenMuted)
+                Button(onClick = { vm.navigate(Screen.TODAY) }) { Text("Xem thực đơn") }
+            }
+        }
+        items(favorites, key = { it.id }) { recipe ->
+            Box(Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)) {
+                RecipeCard(vm, recipe)
+            }
+        }
     }
 }
 
@@ -696,7 +784,11 @@ import kotlinx.coroutines.isActive
         else LazyRow(Modifier.fillMaxWidth().testTag("timer-bar"), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             itemsIndexed(timers, key = { _, timer -> timer.id }) { index, timer ->
-                TimerChip(vm, timer, Modifier.width(184.dp).clip(MaterialTheme.shapes.small).background(Color.White.copy(alpha = 0.1f)), index == 0)
+                TimerChip(vm, timer,
+                    Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
+                        .width(184.dp).clip(MaterialTheme.shapes.small).background(Color.White.copy(alpha = 0.1f)),
+                    first = index == 0,
+                )
             }
         }
     }

@@ -105,7 +105,7 @@ import java.time.LocalTime
 }
 
 @Composable fun SwapSheet(vm: PlannerViewModel, index: Int) {
-    val current = vm.menu[index]
+    val current = remember(index) { vm.menu.getOrNull(index) } ?: return
     // Dishes that fit the family's diet profile come first; the others say why they do not fit.
     val choices = vm.engine.recipes.values.filter { it.kind == current.kind && it.id != current.id }
     LazyColumn(Modifier.fillMaxWidth().testTag("swap-list"), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
