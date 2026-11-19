@@ -1,11 +1,14 @@
 package vn.team03.bepnha
 
+import android.content.Intent
 import android.view.View
 import android.view.ViewGroup
 import android.graphics.Bitmap
 import java.io.File
+import androidx.activity.BackEventCompat
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
@@ -102,6 +105,93 @@ class NativeAppTest {
         compose.onNodeWithTag("swap-pork").assertIsDisplayed()
     }
 
+    @Test fun rapidTabChangesRetargetAndRestoreHomeScroll() {
+        val vm = ViewModelProvider(compose.activity)[PlannerViewModel::class.java]
+        val timerId = compose.runOnIdle {
+            vm.startTimer(5, "Nấu cơm")
+            vm.state.timers.single().id
+        }
+        onToday("swap-pork").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        try {
+            for (tab in listOf("shopping", "cook", "plan", "today")) {
+                compose.onNodeWithTag("tab-$tab").performClick()
+                compose.mainClock.advanceTimeBy(48)
+            }
+            compose.mainClock.advanceTimeBy(500)
+            compose.onNodeWithTag("tab-today").assertIsSelected()
+            compose.onNodeWithTag("shopping-list").assertDoesNotExist()
+            compose.onNodeWithTag("swap-pork").assertIsDisplayed()
+            compose.runOnIdle { assertEquals(timerId, vm.state.timers.single().id) }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun predictiveBackCancellationKeepsChatAndCommitRestoresRecipe() {
+        val vm = ViewModelProvider(compose.activity)[PlannerViewModel::class.java]
+        compose.runOnIdle {
+            vm.openRecipe("pork")
+            vm.openAssistant()
+            vm.assistantQuestion = "Giữ bản nháp"
+        }
+        val chat = compose.onNodeWithTag("assistant-screen").assertIsDisplayed()
+        val startingLeft = chat.getUnclippedBoundsInRoot().left
+
+        fun startBack() {
+            compose.runOnIdle {
+                val dispatcher = compose.activity.onBackPressedDispatcher
+                dispatcher.dispatchOnBackStarted(BackEventCompat(0f, 200f, 0f, BackEventCompat.EDGE_LEFT))
+                dispatcher.dispatchOnBackProgressed(BackEventCompat(150f, 200f, 0.6f, BackEventCompat.EDGE_LEFT))
+            }
+            chat.assertIsDisplayed()
+            assertTrue(chat.getUnclippedBoundsInRoot().left > startingLeft)
+        }
+
+        startBack()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.dispatchOnBackCancelled() }
+        compose.onNodeWithTag("assistant-input").assertTextContains("Giữ bản nháp")
+        assertEquals(startingLeft, chat.getUnclippedBoundsInRoot().left)
+        compose.runOnIdle { assertNull(vm.sheet) }
+
+        startBack()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.onNodeWithText("Công thức").assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(PlannerSheet.RecipeDetail("pork"), vm.sheet)
+            assertEquals("Giữ bản nháp", vm.assistantQuestion)
+        }
+    }
+
+    @Test fun notificationSupersedesClosingSwapSheet() {
+        val vm = ViewModelProvider(compose.activity)[PlannerViewModel::class.java]
+        onToday("swap-pork").performClick()
+        compose.onNodeWithTag("swap-list").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithContentDescription("Đóng").performClick()
+            compose.mainClock.advanceTimeBy(48)
+            compose.runOnIdle {
+                vm.openNotification(Intent()
+                    .putExtra("date", PlannerEngine.today().toString())
+                    .putExtra("meal", Meal.BREAKFAST.value))
+            }
+            compose.mainClock.autoAdvance = true
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithTag("cook-list").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("swap-list").assertDoesNotExist()
+            compose.runOnIdle {
+                assertEquals(Meal.BREAKFAST, vm.state.meal)
+                assertNull(vm.sheet)
+                vm.openReminders()
+            }
+            compose.onNodeWithTag("meal-time").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
     @Test fun ingredientRowIsOneAccessibleCheckboxAndKeepsItsState() {
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("shopping-list").performScrollToNode(hasTestTag("ingredient-Thịt ba chỉ"))
@@ -109,6 +199,26 @@ class NativeAppTest {
         compose.onNodeWithTag("tab-cook").performClick()
         compose.onNodeWithTag("tab-shopping").performClick()
         compose.onNodeWithTag("ingredient-Thịt ba chỉ").performScrollTo().assertIsOn().performClick().assertIsOff()
+    }
+
+    @Test fun rapidAskPanelSwitchesKeepFridgeScrollAndExposeOnlyTheSelectedPanel() {
+        compose.onNodeWithTag("tab-ask").performClick()
+        compose.onNodeWithTag("fridge-Trứng").performClick()
+        compose.onNodeWithTag("fridge-list").performScrollToNode(hasTestTag("tray-0"))
+        compose.onNodeWithTag("tray-0").assertIsDisplayed()
+        compose.mainClock.autoAdvance = false
+        try {
+            for (panel in listOf("ask-timer", "ask-fridge", "ask-timer", "ask-fridge")) {
+                compose.onNodeWithTag(panel).performClick()
+                compose.mainClock.advanceTimeBy(48)
+            }
+            compose.mainClock.advanceTimeBy(250)
+            compose.onNodeWithTag("ask-fridge").assertIsSelected()
+            compose.onNodeWithTag("timer-list").assertDoesNotExist()
+            compose.onNodeWithTag("tray-0").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
     }
 
     @Test fun fridgeSuggestsAMealAndChatChangesTomorrowsDinner() {

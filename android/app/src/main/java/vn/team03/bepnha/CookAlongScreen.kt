@@ -1,5 +1,7 @@
 package vn.team03.bepnha
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,29 +20,44 @@ import vn.team03.bepnha.voice.VoiceState
 import vn.team03.bepnha.voice.rememberMicPermission
 
 /** "Nấu cùng tôi": one big step at a time, read aloud, with voice commands and timers. */
-@Composable fun CookAlongScreen(vm: PlannerViewModel) {
-    val session = vm.cookAlong ?: return
+@Composable fun CookAlongScreen(vm: PlannerViewModel, active: Boolean = true) {
+    var lastSession by remember { mutableStateOf<CookAlong?>(null) }
+    val current = vm.cookAlong
+    if (current != null) SideEffect { lastSession = current }
+    val session = current ?: lastSession ?: return
     val voice = remember(vm) { vm.voice }
     val heard by voice.state.collectAsState()
     val mic = rememberMicPermission { granted -> if (granted) vm.startCookListening() }
     val listening = heard is VoiceState.Listening
     // The phone should not lock while hands are busy cooking.
     val view = LocalView.current
-    DisposableEffect(view) {
+    if (active) DisposableEffect(view) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
     val step = session.step
+    val progress = animateFloatAsState(
+        (session.index + 1f) / session.steps.size,
+        tween(ComponentMotionMillis),
+        label = "cook step progress",
+    )
     Column(Modifier.fillMaxSize().testTag("cook-along")) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("${session.meal.title} · ${PlannerEngine.fullDate(session.date)}", color = KitchenMuted)
-            LinearProgressIndicator(progress = { (session.index + 1f) / session.steps.size }, modifier = Modifier.fillMaxWidth())
+            LinearProgressIndicator(progress = { progress.value }, modifier = Modifier.fillMaxWidth())
             Text("Bước ${session.index + 1} / ${session.steps.size}", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.testTag("cook-step-count"))
-            Text(step.title, style = MaterialTheme.typography.headlineSmall, color = KitchenGreen,
-                modifier = Modifier.semantics { heading() })
-            Text(step.text, style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.testTag("cook-step-text").semantics { liveRegion = LiveRegionMode.Polite })
+            KitchenContentTransition(
+                session, "cook step", Modifier.fillMaxWidth(),
+                direction = { from, to -> to.index.compareTo(from.index) },
+            ) { shown ->
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(shown.step.title, style = MaterialTheme.typography.headlineSmall, color = KitchenGreen,
+                        modifier = Modifier.semantics { heading() })
+                    Text(shown.step.text, style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.testTag("cook-step-text").semantics { liveRegion = LiveRegionMode.Polite })
+                }
+            }
             step.timerMinutes?.let { minutes ->
                 KitchenTonalButton(onClick = { vm.cookTimer(minutes) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("cook-timer")) { Text("Hẹn $minutes phút") }

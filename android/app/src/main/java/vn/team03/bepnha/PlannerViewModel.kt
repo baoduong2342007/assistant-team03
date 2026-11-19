@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -31,6 +32,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     var state by mutableStateOf(storage.load(today)); private set
     var screen by mutableStateOf(Screen.TODAY); private set
     var sheet by mutableStateOf<PlannerSheet?>(null); private set
+    internal var sheetVersion by mutableIntStateOf(0); private set
+    internal var notificationVersion by mutableIntStateOf(0); private set
     var now by mutableLongStateOf(System.currentTimeMillis()); private set
     var message by mutableStateOf<String?>(null); private set
     var notifications by mutableStateOf(ReminderStore.canNotify(application)); private set
@@ -256,9 +259,13 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
     fun selectDate(date: LocalDate) { if (date in days) update(state.copy(date = date)) }
     fun selectMeal(meal: Meal) { update(state.copy(meal = meal)) }
-    fun openRecipe(id: String) { if (id in engine.recipes) sheet = PlannerSheet.RecipeDetail(id) }
-    fun openSwap(index: Int) { sheet = PlannerSheet.Swap(index) }
-    fun openReminders() { sheet = PlannerSheet.Reminder }
+    fun openRecipe(id: String) { if (id in engine.recipes) presentSheet(PlannerSheet.RecipeDetail(id)) }
+    fun openSwap(index: Int) { presentSheet(PlannerSheet.Swap(index)) }
+    fun openReminders() { presentSheet(PlannerSheet.Reminder) }
+    private fun presentSheet(content: PlannerSheet) {
+        sheetVersion++
+        sheet = content
+    }
     fun openAsk(tab: AskTab) { askTab = tab; screen = Screen.ASK }
     fun selectAskTab(tab: AskTab) { if (tab == AskTab.CHAT) openAssistant() else askTab = tab }
     fun openAssistant() {
@@ -834,10 +841,18 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun openNotification(intent: Intent) {
         val date = runCatching { LocalDate.parse(intent.getStringExtra("date")) }.getOrNull() ?: return
         val meal = Meal.from(intent.getStringExtra("meal").orEmpty()) ?: return
+        notificationVersion++
         if (date in days) update(state.copy(date = date, meal = meal))
         if (assistantVisible) finishAssistant(restoreRecipe = false)
         exitCookAlong()
         sheet = null; screen = if (intent.getStringExtra("screen") == "shopping") Screen.SHOPPING else Screen.COOK
+    }
+    internal fun backDestination(): PlannerPage? = when {
+        sheet != null -> null
+        cookAlong != null && assistantVisible -> PlannerPage.Chat
+        cookAlong != null || assistantVisible -> PlannerPage.ScreenPage(screen)
+        screen != Screen.TODAY -> PlannerPage.ScreenPage(Screen.TODAY)
+        else -> null
     }
     fun back(): Boolean {
         if (sheet != null) { sheet = null; return true }

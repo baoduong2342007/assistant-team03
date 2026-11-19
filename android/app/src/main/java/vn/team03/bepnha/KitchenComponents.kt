@@ -1,5 +1,6 @@
 package vn.team03.bepnha
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,6 +13,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -29,6 +34,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.DateRange
@@ -131,11 +137,19 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
 ) {
     Surface(modifier = modifier, color = KitchenSurface, shape = MaterialTheme.shapes.medium,
         border = androidx.compose.foundation.BorderStroke(1.dp, KitchenLine)) {
-        Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        val indicator = animateFloatAsState(selected.toFloat(), selectionSpring, label = "segment selection")
+        Row(Modifier.padding(4.dp).drawBehind {
+            if (selected in options.indices) {
+                val gap = 4.dp.toPx()
+                val width = ((size.width - gap * (options.size - 1)) / options.size).coerceAtLeast(0f)
+                val start = indicator.value.coerceIn(0f, options.lastIndex.toFloat()) * (width + gap)
+                val left = if (layoutDirection == LayoutDirection.Ltr) start else size.width - width - start
+                drawRoundRect(KitchenPeach, Offset(left, 0f), Size(width, size.height), CornerRadius(10.dp.toPx()))
+            }
+        }.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             options.forEachIndexed { index, label ->
                 val active = index == selected
                 Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(MaterialTheme.shapes.small)
-                    .background(if (active) KitchenPeach else Color.Transparent)
                     .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
                     .let { base -> tag(index)?.let { base.testTag(it) } ?: base }
                     .padding(horizontal = 6.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
@@ -165,11 +179,22 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
 
 /** Stable, equally sized tabs. Labels determine height; no text scaling override. */
 @Composable fun KitchenNavigation(selected: Screen, onSelect: (Screen) -> Unit) {
+    val tabs = remember { listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK) }
+    val selectedIndex = tabs.indexOf(selected)
+    val indicator = animateFloatAsState(selectedIndex.coerceAtLeast(0).toFloat(), selectionSpring, label = "tab selection")
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column {
             HorizontalDivider(color = KitchenLine)
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup()) {
-                listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK).forEach { screen ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).drawBehind {
+                if (selectedIndex >= 0) {
+                    val slot = size.width / tabs.size
+                    val width = minOf(56.dp.toPx(), slot - 8.dp.toPx()).coerceAtLeast(0f)
+                    val start = slot * indicator.value.coerceIn(0f, tabs.lastIndex.toFloat()) + (slot - width) / 2
+                    val left = if (layoutDirection == LayoutDirection.Ltr) start else size.width - width - start
+                    drawRoundRect(KitchenSoft, Offset(left, 8.dp.toPx()), Size(width, 32.dp.toPx()), CornerRadius(12.dp.toPx()))
+                }
+            }.selectableGroup()) {
+                tabs.forEach { screen ->
                     Column(
                         Modifier.weight(1f).fillMaxHeight()
                             .selectable(selected == screen, role = Role.Tab, onClick = { onSelect(screen) })
@@ -178,18 +203,13 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Surface(
-                            color = if (selected == screen) KitchenSoft else MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Box(Modifier.size(width = 56.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-                                when (screen) {
-                                    Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = KitchenGreen)
-                                    Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = KitchenGreen)
-                                    Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = KitchenGreen)
-                                    Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE)
-                                    else -> Icon(Icons.Outlined.PlayArrow, null, tint = KitchenGreen)
-                                }
+                        Box(Modifier.size(width = 56.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+                            when (screen) {
+                                Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = KitchenGreen)
+                                Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = KitchenGreen)
+                                Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = KitchenGreen)
+                                Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE)
+                                else -> Icon(Icons.Outlined.PlayArrow, null, tint = KitchenGreen)
                             }
                         }
                         Text(screen.title, textAlign = TextAlign.Center,
