@@ -21,6 +21,7 @@ class AgentUiTest {
         override fun before() {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             context.getSharedPreferences("bep_nha_planner_v2", 0).edit().clear().commit()
+            context.getSharedPreferences(PlannerStorage.WELCOME_PREFS, 0).edit().putBoolean("seen", true).commit()
             context.getSharedPreferences("bep_nha_chat", 0).edit().clear().commit()
             ReminderStore.synchronize(context, "[]")
         }

@@ -54,6 +54,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 @Composable fun BepNhaApp(vm: PlannerViewModel, actions: NativeActions) {
+    if (vm.showWelcome) { WelcomeFlow(vm); return }
     val snackbar = remember { SnackbarHostState() }
     val owner = LocalLifecycleOwner.current
     val screenStates = rememberSaveableStateHolder()

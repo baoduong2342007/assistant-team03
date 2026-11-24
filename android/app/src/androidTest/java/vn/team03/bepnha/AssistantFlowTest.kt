@@ -23,6 +23,8 @@ class AssistantFlowTest {
         override fun before() {
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
                 .getSharedPreferences("bep_nha_chat", 0).edit().clear().commit()
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+                .getSharedPreferences(PlannerStorage.WELCOME_PREFS, 0).edit().putBoolean("seen", true).commit()
         }
     }
     @get:Rule val chain: org.junit.rules.TestRule = org.junit.rules.RuleChain.outerRule(resetChat).around(compose)

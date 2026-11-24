@@ -30,6 +30,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     private val storage = PlannerStorage(application, engine)
     var today by mutableStateOf(PlannerEngine.today()); private set
     var state by mutableStateOf(storage.load(today)); private set
+    var showWelcome by mutableStateOf(!storage.welcomeSeen()); private set
     var screen by mutableStateOf(Screen.TODAY); private set
     var sheet by mutableStateOf<PlannerSheet?>(null); private set
     internal var sheetVersion by mutableIntStateOf(0); private set
@@ -811,6 +812,16 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         update(state.copy(profile = FamilyProfile(name.trim().take(35).ifBlank { "Nhà mình" }, people.coerceIn(1, 12), lunch, dinner, breakfast),
             checked = if (changedPeople) emptyMap() else state.checked))
         message = "Đã lưu thông tin gia đình và cập nhật định lượng."
+    }
+    /** Ends the first-run welcome; a family name and size are saved when the family set them up. */
+    fun finishWelcome(name: String? = null, people: Int? = null) {
+        if (name != null || people != null) {
+            val size = (people ?: state.profile.people).coerceIn(1, 12)
+            update(state.copy(profile = state.profile.copy(name = name?.trim()?.take(35)?.ifBlank { null } ?: state.profile.name, people = size),
+                checked = if (size != state.profile.people) emptyMap() else state.checked))
+        }
+        storage.markWelcomeSeen()
+        showWelcome = false
     }
     fun saveReminder(time: LocalTime, enabled: Boolean) {
         update(state.copy(profile = state.profile.with(state.meal, time),

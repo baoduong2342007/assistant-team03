@@ -40,6 +40,17 @@ class RecipeRepository(context: Context) {
 /** Native persistence; the Android app never reads a web page or browser localStorage. */
 class PlannerStorage(context: Context, private val engine: PlannerEngine) {
     private val preferences = context.getSharedPreferences("bep_nha_planner_v2", Context.MODE_PRIVATE)
+    private val welcome = context.getSharedPreferences(WELCOME_PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * The first-run welcome is shown until the family finishes it. Families who used the app before the welcome existed
+     * skip it: that is decided once, on the first launch with this version, because the app saves state as soon as it opens.
+     */
+    fun welcomeSeen(): Boolean {
+        if (!welcome.contains("seen")) welcome.edit().putBoolean("seen", preferences.contains("state")).commit()
+        return welcome.getBoolean("seen", false)
+    }
+    fun markWelcomeSeen() { welcome.edit().putBoolean("seen", true).apply() }
 
     fun load(today: LocalDate): PlannerState = runCatching {
         val root = JSONObject(preferences.getString("state", "{}") ?: "{}")
@@ -112,6 +123,8 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
     }
 
     companion object {
+        /** Separate from the planner state so clearing a plan never replays the welcome. */
+        const val WELCOME_PREFS = "bep_nha_welcome"
         fun alarmJson(alarms: List<NativeAlarm>): String = JSONArray().apply {
             alarms.forEach { alarm -> put(JSONObject().put("id", alarm.id).put("at", alarm.at)
                 .put("title", alarm.title).put("body", alarm.body).put("date", alarm.date.toString())

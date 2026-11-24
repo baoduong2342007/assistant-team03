@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         }, ::listen, ::shareText)
         setContent {
             BepNhaTheme {
-                val darkHeader = planner.screen == Screen.TODAY && !planner.assistantVisible && planner.cookAlong == null
+                val darkHeader = planner.showWelcome || (planner.screen == Screen.TODAY && !planner.assistantVisible && planner.cookAlong == null)
                 androidx.compose.runtime.SideEffect {
                     androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !darkHeader
                     if (Build.VERSION.SDK_INT < 35) {
