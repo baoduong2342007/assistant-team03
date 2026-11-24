@@ -52,6 +52,14 @@ Mở thư mục `android/` trong Android Studio. Dùng JDK 17, SDK Platform 36 v
 
 Windows dùng `gradlew.bat`. APK nằm ở `app/build/outputs/apk/debug/app-debug.apk`. Không cần Node, npm, máy chủ web hay khóa API để build/chạy bản Android.
 
+Trên Windows, chạy kiểm thử local với JDK 17 hoặc 21 đã đặt trong `JAVA_HOME`:
+
+```powershell
+.\scripts\check-local.ps1
+```
+
+Script chạy unit test, build APK rồi build APK kiểm thử giao diện và chạy lint. Nó giới hạn Gradle ở một worker, kiểm tra RAM còn trống trước mỗi lượt và dừng nếu emulator đang chạy. Sau khi sửa lỗi, dùng `-Phase Unit`, `-Phase Build` hoặc `-Phase Verify` để chạy lại lượt tương ứng. Thêm `-Offline` khi các dependency đã có trong cache.
+
 Kiểm thử giao diện cần máy ảo riêng vì bộ kiểm thử xóa dữ liệu thử nghiệm Bếp Nhà trước mỗi ca:
 
 ```bash

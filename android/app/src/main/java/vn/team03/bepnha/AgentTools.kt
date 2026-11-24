@@ -61,7 +61,7 @@ object AgentTools {
             ), optional = listOf("query", "kind", "include_ingredients", "exclude_ingredients", "max_minutes", "max_cost", "tags", "ignore_profile")),
         ToolSpec("get_recipe", "Xem đầy đủ một công thức: nguyên liệu theo khẩu phần gia đình, các bước và mẹo.",
             mapOf("recipe_id" to ToolParam("string"))),
-        ToolSpec("get_shopping_list", "Xem danh sách đi chợ của một bữa hoặc cả ngày, gồm key và trạng thái đã có.",
+        ToolSpec("get_shopping_list", "Xem danh sách đi chợ của một bữa hoặc cả ngày. Dùng totals cho số lượng đã gộp và trạng thái đã có; items là chi tiết theo bữa.",
             mapOf("date" to date, "meal" to meal), optional = listOf("meal")),
         ToolSpec("get_cooking_plan", "Xem lịch nấu của một bữa: các bước, giờ bắt đầu, key và trạng thái đã xong.",
             mapOf("date" to date, "meal" to meal)),
@@ -96,6 +96,10 @@ object AgentTools {
 
 /** Runs read-only tools against a planner state. Never changes state. */
 class AgentReadTools(private val engine: PlannerEngine, private val rules: MealPlanning) {
+    private val searchableNames = engine.recipes.mapValues { (_, recipe) ->
+        (listOf(recipe.name) + recipe.ingredients.map { it.name }).map(MealPlanning::normalize)
+    }
+
     fun run(name: String, args: JSONObject, state: PlannerState, today: LocalDate): JSONObject = when (name) {
         "get_meals" -> {
             val from = args.optDate("from") ?: today; val to = args.optDate("to") ?: today.plusDays(6)
@@ -120,7 +124,7 @@ class AgentReadTools(private val engine: PlannerEngine, private val rules: MealP
             val found = engine.recipes.values.filter { recipe ->
                 val ingredients = recipe.ingredients.map { it.name }
                 (kind == null || AgentTools.kindName(recipe.kind) == kind) &&
-                    (query == null || MealPlanning.normalize(recipe.name).contains(query) || ingredients.any { MealPlanning.normalize(it).contains(query) }) &&
+                    (query == null || searchableNames.getValue(recipe.id).any { it.contains(query) }) &&
                     include.all { it in ingredients } && exclude.none { it in ingredients } &&
                     (maxMinutes == null || recipe.minutes <= maxMinutes) && (maxCost == null || recipe.cost <= maxCost) &&
                     recipe.tags.containsAll(tags) && diet.allows(recipe)
@@ -144,11 +148,17 @@ class AgentReadTools(private val engine: PlannerEngine, private val rules: MealP
         "get_shopping_list" -> {
             val day = requireWindow(args.getString("date"), today)
             val meals = args.optString("meal").takeIf { it.isNotBlank() }?.let { listOf(requireNotNull(Meal.from(it)) { "meal phải là breakfast, lunch hoặc dinner." }) } ?: engine.meals
+            val selected = meals.toSet()
+            val checked = engine.checkedForShopping(state, day, selected)
+            val totals = engine.ingredients(engine.shoppingMenu(state, day, selected), state.profile.people)
             JSONObject().put("date", day.toString()).put("items", JSONArray(meals.flatMap { meal ->
                 engine.ingredients(engine.menu(state, day, meal), state.profile.people).map {
                     JSONObject().put("meal", meal.value).put("key", it.key).put("name", it.name)
                         .put("amount", it.amount).put("unit", it.unit).put("checked", it.key in engine.checkedFor(state, day, meal))
                 }
+            })).put("totals", JSONArray(totals.map {
+                JSONObject().put("key", it.key).put("name", it.name).put("amount", it.amount)
+                    .put("unit", it.unit).put("checked", it.key in checked)
             }))
         }
         "get_cooking_plan" -> {

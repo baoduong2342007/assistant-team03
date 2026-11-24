@@ -246,6 +246,7 @@ class PlannerEngine(
         val text = words(item)
         aliases[text]?.let { return it }
         if (knownNames.any { hasWord(it, text) }) return listOf(text)
+        MealPlanning.catalogNamesForAlias(text).filter { it in knownNames }.takeIf { it.isNotEmpty() }?.let { return it }
         val parts = text.split(' ').filter { it !in fillerWords }
         // "thịt" alone is too vague inside a longer phrase: "thịt bò" must not become pork.
         val found = (2 downTo 1).flatMap { size -> parts.windowed(size).map { it.joinToString(" ") }

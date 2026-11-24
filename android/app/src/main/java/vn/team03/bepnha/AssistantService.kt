@@ -1,6 +1,7 @@
 package vn.team03.bepnha
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -40,6 +41,7 @@ class AssistantService(
     private val engine: PlannerEngine,
     private val provider: AssistantProvider?,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val turnTimeoutMillis: Long = BuildConfig.ASSISTANT_TIMEOUT_MS,
 ) {
     companion object {
         const val MAX_MODEL_CALLS = 4
@@ -51,27 +53,33 @@ class AssistantService(
     private val commands = AssistantCommands(engine)
     private val reads = AgentReadTools(engine, rules)
     private val planner = MealPlanner(engine)
+    private val catalogJson by lazy { AgentTools.catalogIndex(engine).toString() }
 
-    suspend fun ask(question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
+    suspend fun ask(question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply =
+        ask(question, history, context, null)
+
+    internal suspend fun ask(question: String, history: List<AssistantChatMessage>, context: JSONObject, snapshot: PlannerState?): AssistantReply {
         require(question.isNotBlank() && question.length <= 1000 && context.toString().length <= 100_000)
         val recent = history.takeLast(20)
         if (MealPlanning.isComparison(question)) compare(context)?.let { return it }
-        if (provider == null) return localTurn(question, recent, context, AssistantFailureKind.UNCONFIGURED)
+        val state by lazy { snapshot ?: AssistantGateway.stateFrom(engine, context) }
+        if (provider == null) return localTurn(question, recent, context, AssistantFailureKind.UNCONFIGURED) { state }
         return try {
-            agent(provider, question, recent, context)
+            withTimeoutOrNull(turnTimeoutMillis) { agent(provider, question, recent, context, state) }
+                ?: localTurn(question, recent, context, AssistantFailureKind.TIMEOUT) { state }
         } catch (e: CancellationException) { throw e
         } catch (e: AssistantFailure) {
             if (!e.kind.localFallback) throw e
-            localTurn(question, recent, context, e.kind)
+            localTurn(question, recent, context, e.kind) { state }
         } catch (_: IllegalArgumentException) { throw AssistantFailure(AssistantFailureKind.INVALID)
         } catch (_: IllegalStateException) { throw AssistantFailure(AssistantFailureKind.INVALID)
         } catch (_: org.json.JSONException) { throw AssistantFailure(AssistantFailureKind.INVALID) }
     }
 
-    private fun localTurn(question: String, history: List<AssistantChatMessage>, context: JSONObject, kind: AssistantFailureKind): AssistantReply {
+    private fun localTurn(question: String, history: List<AssistantChatMessage>, context: JSONObject, kind: AssistantFailureKind, state: () -> PlannerState): AssistantReply {
         val scope = rules.scope(question, context, rules.previousQuestion(history))
         val reply = rules.clarification(question, history, context, scope)?.let { AssistantReply(it, emptyList()) }
-            ?: local(question, history, context, scope)
+            ?: local(question, history, context, scope, state)
         return reply.copy(source = AssistantSource.LOCAL, notice = kind.explanation)
     }
 
@@ -80,13 +88,12 @@ class AssistantService(
         data class Retry(val error: String, val advisory: Boolean = false) : Outcome
     }
 
-    private suspend fun agent(provider: AssistantProvider, question: String, history: List<AssistantChatMessage>, context: JSONObject): AssistantReply {
-        val state = AssistantGateway.stateFrom(engine, context)
+    private suspend fun agent(provider: AssistantProvider, question: String, history: List<AssistantChatMessage>, context: JSONObject, state: PlannerState): AssistantReply {
         val today = MealPlanning.parseDay(context.getString("today"))
         val scope = runCatching { rules.scope(question, context, rules.previousQuestion(history)) }.getOrDefault(MenuScope())
         val payload = JSONObject().put("question", question).put("context", context)
             .put("history", JSONArray(history.map { JSONObject().put("role", it.role).put("text", it.text) }))
-            .put("catalog", AgentTools.catalogIndex(engine))
+            .put("catalog", JSONArray(catalogJson))
             // A hint only: the agent may plan several meals; it asks when the target is unclear.
             .put("menu_scope", JSONObject().put("date", scope.day?.toString() ?: JSONObject.NULL)
                 .put("meal", scope.meal?.value ?: JSONObject.NULL).put("clarification", scope.clarification ?: JSONObject.NULL))
@@ -284,7 +291,7 @@ class AssistantService(
             suggestionConstraints = constraints)
     }
 
-    private fun local(question: String, history: List<AssistantChatMessage>, context: JSONObject, scope: MenuScope): AssistantReply {
+    private fun local(question: String, history: List<AssistantChatMessage>, context: JSONObject, scope: MenuScope, state: () -> PlannerState): AssistantReply {
         val request = "${rules.previousQuestion(history)} $question".trim()
         val text = MealPlanning.normalize(request)
         if (Regex("""\b(?:ngan sach|calo|dinh duong|di ung|an kieng|duoi \d+ phut)\b""").containsMatchIn(text))
@@ -298,7 +305,7 @@ class AssistantService(
             if (localExtraIntents.any { Regex("\\b(?:$it)\\b").containsMatchIn(text) })
                 return AssistantReply("Yêu cầu này có thêm thao tác ngoài đổi món mà trợ lý trên máy chưa xử lý chắc chắn. Bạn hãy tách yêu cầu hoặc dùng các màn hình của ứng dụng.", emptyList())
             val meal = requireNotNull(scope.meal)
-            val diet = AssistantGateway.stateFrom(engine, context).diet
+            val diet = state().diet
             val dishes = named.values.map(engine.recipes::getValue)
             if (dishes.any { (it.kind == RecipeKind.BREAKFAST) == meal.tray })
                 return AssistantReply("Món bạn nêu thuộc nhóm của bữa khác. Bạn muốn chọn bữa nào?", emptyList())
@@ -312,7 +319,7 @@ class AssistantService(
         if (Regex("""\b(?:doi|thay)\b""").containsMatchIn(text))
             return AssistantReply("Bạn cho mình tên đầy đủ của món muốn thay vào nhé. Bạn cũng có thể chọn món trực tiếp trong Thực đơn.", emptyList())
         if (MealPlanning.menuRequest.containsMatchIn(text) || Regex("""\b(?:chi co|chi con|moi mua|tranh|khong dung|khong mua them)\b""").containsMatchIn(text))
-            return suggest(scope, rules.constraints(userMessages(question, history, context)), AssistantGateway.stateFrom(engine, context).diet, context.getInt("people"))
+            return suggest(scope, rules.constraints(userMessages(question, history, context)), state().diet, context.getInt("people"))
         val focused = engine.recipes[context.optString("recipe_id")]
         if (focused != null && "mon nay" in text) {
             val answer = if ("nguyen lieu" in text) focused.ingredients.joinToString("\n") {
@@ -320,7 +327,7 @@ class AssistantService(
             } else focused.steps.mapIndexed { i, step -> "${i + 1}. $step" }.joinToString("\n\n")
             return AssistantReply("${focused.name}\n\n$answer", emptyList(), recipeIds = listOf(focused.id))
         }
-        val current = AssistantGateway.stateFrom(engine, context)
+        val current = state()
         val answer = engine.answer(question, current, MealPlanning.parseDay(context.getString("today")))
         if (Regex("""^(?:hay |giup minh )?(?:hen|dat gio|dem nguoc)\b""").containsMatchIn(text)) {
             answer.timerMinutes?.let { minutes ->

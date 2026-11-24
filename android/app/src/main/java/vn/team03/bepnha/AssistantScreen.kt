@@ -145,6 +145,7 @@ data class AssistantMealCard(
         confirmButton = { TextButton(onClick = { confirmClear = false; onClearHistory() }, modifier = Modifier.testTag("assistant-clear-confirm")) { Text("Xóa") } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Giữ lại") } })
     val scroll = rememberLazyListState()
+    val motion = rememberMotionEnabled()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
     var previousCount by rememberSaveable { mutableIntStateOf(ui.messages.size) }
     var newMessages by rememberSaveable { mutableStateOf(false) }
@@ -165,7 +166,7 @@ data class AssistantMealCard(
         if (!added && !ui.busy && ui.proposal.isEmpty() && ui.error == null && ui.revisionTarget == null) return@LaunchedEffect
         withFrameNanos { }
         if (follow && scroll.layoutInfo.totalItemsCount > 0) {
-            scroll.animateScrollToItem(scroll.layoutInfo.totalItemsCount - 1)
+            scroll.scrollToItem(scroll.layoutInfo.totalItemsCount - 1)
             followingLatest = true
             newMessages = false
         } else if (added || ui.proposal.isNotEmpty() || ui.error != null || ui.revisionTarget != null) newMessages = true
@@ -173,7 +174,8 @@ data class AssistantMealCard(
     LaunchedEffect(jumpToEnd) {
         if (!active) return@LaunchedEffect
         if (jumpToEnd > 0 && scroll.layoutInfo.totalItemsCount > 0) {
-            scroll.animateScrollToItem(scroll.layoutInfo.totalItemsCount - 1)
+            val last = scroll.layoutInfo.totalItemsCount - 1
+            if (motion) scroll.animateScrollToItem(last) else scroll.scrollToItem(last)
             followingLatest = true
             newMessages = false
         }
@@ -257,7 +259,7 @@ data class AssistantMealCard(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Text("Đang chuẩn bị câu trả lời…", style = MaterialTheme.typography.bodySmall,
+                            Text("Bếp Nhà đang chuẩn bị câu trả lời…", style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         }
                     }
@@ -281,14 +283,18 @@ data class AssistantMealCard(
                                 }
                                 Text("Chỉ áp dụng sau khi bạn xác nhận.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                                 KitchenButton(onClick = onConfirm,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) { Text("Xác nhận thay đổi") }
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) {
+                                    Text(if (ui.proposalMeals.isNotEmpty() && ui.proposalOther.isEmpty()) "Đổi món" else "Xác nhận thay đổi")
+                                }
                                 if (ui.canEditProposal) {
                                     KitchenOutlinedButton(onClick = onEdit,
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-edit")) {
                                         Text("Sửa đề xuất")
                                     }
                                 }
-                                KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Hủy") }
+                                KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                    Text(if (ui.proposalMeals.isNotEmpty() && ui.proposalOther.isEmpty()) "Giữ món cũ" else "Hủy")
+                                }
                             }
                         }
                     }

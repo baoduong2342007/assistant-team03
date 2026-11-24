@@ -43,6 +43,14 @@ class MealPlanning(private val recipes: Map<String, Recipe>) {
             "Bông cải trắng" to listOf("súp lơ trắng"), "Đậu que" to listOf("đậu cô ve"),
             "Giá đỗ" to listOf("giá đậu"), "Rau lang" to listOf("rau khoai lang", "ngọn khoai lang"),
         )
+        private val catalogNamesByAlias by lazy {
+            aliases.entries.flatMap { (name, variants) -> variants.map { normalize(it) to normalize(name) } }
+                .groupBy({ it.first }, { it.second })
+        }
+
+        internal fun catalogNamesForAlias(normalized: String): List<String> =
+            catalogNamesByAlias[normalized].orEmpty()
+
         fun isComparison(question: String): Boolean {
             val text = normalize(question)
             return Regex("""\bmam\b""").containsMatchIn(text) && Regex("""\b(?:so sanh|khac|giong)\b""").containsMatchIn(text) &&

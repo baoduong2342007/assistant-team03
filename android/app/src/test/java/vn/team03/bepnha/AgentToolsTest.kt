@@ -38,6 +38,23 @@ class AgentToolsTest {
         assertTrue(whole.length() > meal.length())
     }
 
+    @Test fun wholeDayShoppingTotalsMatchPlannerAndItsChecklist() {
+        val engine = AssistantTestCatalog.engine
+        val meals = engine.meals.toSet()
+        val base = AssistantTestCatalog.state()
+        val ingredients = engine.ingredients(engine.shoppingMenu(base, day, meals), base.profile.people)
+        val checkedKey = ingredients.first().key
+        val state = base.copy(checked = mapOf(PlannerEngine.shopKey(day) to setOf(checkedKey)))
+        val totals = reads.run("get_shopping_list", JSONObject().put("date", day.toString()), state, day).getJSONArray("totals")
+        assertEquals(ingredients.size, totals.length())
+        ingredients.forEachIndexed { index, ingredient ->
+            val item = totals.getJSONObject(index)
+            assertEquals(ingredient.key, item.getString("key"))
+            assertEquals(ingredient.amount, item.getDouble("amount"), 0.0)
+            assertEquals(ingredient.key == checkedKey, item.getBoolean("checked"))
+        }
+    }
+
     @Test fun readToolsRejectDaysOutsideTheWindowAndUnknownTools() {
         assertThrows(IllegalArgumentException::class.java) {
             reads.run("get_cooking_plan", JSONObject().put("date", day.plusDays(9).toString()).put("meal", "dinner"), AssistantTestCatalog.state(), day)

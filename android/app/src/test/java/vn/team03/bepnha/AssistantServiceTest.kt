@@ -1,6 +1,7 @@
 package vn.team03.bepnha
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -77,6 +78,21 @@ class AssistantServiceTest {
                 .ask("Tủ lạnh có trứng, tối mai nấu gì?", emptyList(), AssistantTestCatalog.context())
             fail()
         } catch (_: CancellationException) { }
+    }
+
+    @Test fun stalledToolRoundFallsBackWithoutApplyingAChange() = runBlocking {
+        var calls = 0
+        val provider = AssistantProvider.reply { results ->
+            calls++
+            if (results.isEmpty()) call("get_recipe", JSONObject().put("recipe_id", "sour"))
+            else awaitCancellation()
+        }
+        val service = AssistantService(engine, provider, turnTimeoutMillis = 1_000)
+        val reply = service.ask("Tối mai đổi món canh thành canh chua cá", emptyList(), AssistantTestCatalog.context())
+        assertEquals(2, calls)
+        assertEquals(AssistantSource.LOCAL, reply.source)
+        assertEquals(AssistantFailureKind.TIMEOUT.explanation, reply.notice)
+        assertEquals(listOf(AssistantTestCatalog.swap()), reply.actions)
     }
 
     @Test fun localClarificationPreservesContext() = runBlocking {
