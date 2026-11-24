@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -67,36 +70,46 @@ import androidx.compose.ui.unit.dp
     val columns = if (LocalDensity.current.fontScale > 1.3f) 1 else 2
     val selectCategory: (String?) -> Unit = { value -> category = value; keyboard?.hide(); scope.launch { scroll.scrollToItem(0) } }
     val browseAll = { showAll = true; category = null; keyboard?.hide(); scope.launch { scroll.scrollToItem(0) }; Unit }
-    LazyColumn(Modifier.fillMaxSize().testTag("today-list"), state = scroll, contentPadding = PaddingValues(top = 14.dp, bottom = 28.dp),
+    LazyColumn(Modifier.fillMaxSize().testTag("today-list"), state = scroll, contentPadding = PaddingValues(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item("intro") {
-            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedTextField(value = query, onValueChange = { query = it.take(100) },
-                    modifier = Modifier.fillMaxWidth().focusRequester(searchFocus).testTag("today-search"), singleLine = true,
-                    shape = RoundedCornerShape(14.dp), placeholder = { Text("Tìm món hoặc nguyên liệu…", style = MaterialTheme.typography.bodyMedium) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null, tint = KitchenMuted) },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Outlined.Close, "Xóa tìm kiếm") }
-                            Box {
-                                FilledTonalIconButton(onClick = { filters = true },
-                                    modifier = Modifier.padding(end = 6.dp).testTag("today-filters"), shape = RoundedCornerShape(10.dp),
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color(0xFFD7EAB7), contentColor = KitchenGreen)) {
-                                    Icon(Icons.Outlined.Settings, "Lọc nhóm món")
+            // The green header continues behind the top half of the search card, so the card straddles its rounded edge.
+            Box(Modifier.fillMaxWidth()) {
+                Box(Modifier.fillMaxWidth().height(32.dp)
+                    .background(KitchenGreen, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)))
+                Surface(shape = RoundedCornerShape(16.dp), color = Color.White, shadowElevation = 6.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth()) {
+                    Row(Modifier.heightIn(min = 60.dp).padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Search, null, Modifier.size(26.dp), tint = SearchHint)
+                        Spacer(Modifier.width(12.dp))
+                        BasicTextField(value = query, onValueChange = { query = it.take(100) },
+                            modifier = Modifier.weight(1f).focusRequester(searchFocus).testTag("today-search"), singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = KitchenInk), cursorBrush = SolidColor(KitchenGreen),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                            decorationBox = { field ->
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    if (query.isEmpty()) Text("Tìm món hoặc nguyên liệu", style = MaterialTheme.typography.bodyLarge,
+                                        color = SearchHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    field()
                                 }
-                                DropdownMenu(expanded = filters, onDismissRequest = { filters = false }) {
-                                    DropdownMenuItem(text = { Text("Tất cả công thức") }, onClick = { browseAll(); filters = false })
-                                    RecipeKind.entries.forEach { kind ->
-                                        DropdownMenuItem(text = { Text(kind.label) }, onClick = { selectCategory(kind.name); filters = false })
-                                    }
+                            })
+                        if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Outlined.Close, "Xóa tìm kiếm", tint = KitchenMuted) }
+                        Box {
+                            Surface(onClick = { filters = true }, shape = RoundedCornerShape(12.dp), color = SearchFilter,
+                                modifier = Modifier.size(48.dp).testTag("today-filters").semantics { contentDescription = "Lọc nhóm món" }) {
+                                Box(contentAlignment = Alignment.Center) { KitchenIcon(KitchenGlyph.SLIDERS, Modifier.size(26.dp), Color.White) }
+                            }
+                            DropdownMenu(expanded = filters, onDismissRequest = { filters = false }) {
+                                DropdownMenuItem(text = { Text("Tất cả công thức") }, onClick = { browseAll(); filters = false })
+                                RecipeKind.entries.forEach { kind ->
+                                    DropdownMenuItem(text = { Text(kind.label) }, onClick = { selectCategory(kind.name); filters = false })
                                 }
                             }
                         }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = KitchenLine.copy(alpha = 0.6f),
-                        focusedBorderColor = KitchenGreen, unfocusedContainerColor = KitchenSurface, focusedContainerColor = KitchenSurface),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }))
+                    }
+                }
             }
         }
         if (browsing) {
@@ -119,8 +132,8 @@ import androidx.compose.ui.unit.dp
                         Box(Modifier.weight(1f)) {
                             TextButton(onClick = { mealMenu = true }, contentPadding = PaddingValues(0.dp),
                                 modifier = Modifier.testTag("today-meal-picker")) {
-                                Text("Thực đơn ${vm.state.meal.title.lowercase(PlannerEngine.locale)}", style = MaterialTheme.typography.titleMedium, color = KitchenGreen)
-                                Text(" ▾", color = KitchenGreen)
+                                Text("Thực đơn ${vm.state.meal.title.lowercase(PlannerEngine.locale)}", style = MaterialTheme.typography.titleLarge, color = KitchenInk)
+                                Text(" ▾", style = MaterialTheme.typography.titleLarge, color = KitchenGreen)
                             }
                             DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
                                 Meal.entries.forEach { meal ->
@@ -130,11 +143,11 @@ import androidx.compose.ui.unit.dp
                             }
                         }
                         TextButton(onClick = { vm.navigate(Screen.PLAN) }, contentPadding = PaddingValues(4.dp)) {
-                            Text("Cả tuần ›", style = MaterialTheme.typography.labelMedium)
+                            Text("Cả tuần ›", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
-                TodayDateStrip(vm)
+                KitchenDateStrip(vm)
             }
             items(vm.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
                 Box(Modifier.padding(horizontal = 20.dp)) { TodayMealRow(vm, recipe, index) }
@@ -160,7 +173,11 @@ import androidx.compose.ui.unit.dp
     }
 }
 
-@Composable private fun TodayDateStrip(vm: PlannerViewModel) {
+private val SearchHint = Color(0xFF9A9A9A)
+/** Light-green filter key; dark enough that its white glyph keeps 3:1 contrast. */
+private val SearchFilter = Color(0xFF689F38)
+
+@Composable fun KitchenDateStrip(vm: PlannerViewModel) {
     val scroll = androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(vm.state.date) {
         val index = vm.days.indexOf(vm.state.date)
@@ -190,15 +207,15 @@ import androidx.compose.ui.unit.dp
 @Composable private fun TodayMealRow(vm: PlannerViewModel, recipe: Recipe, index: Int) {
     val saved = recipe.id in vm.state.favorites
     Column(Modifier.testTag("recipe-${recipe.id}")) {
-        Surface(onClick = { vm.openRecipe(recipe.id) }, color = Color.White, shape = RoundedCornerShape(14.dp),
-            shadowElevation = 2.dp, border = BorderStroke(1.dp, KitchenLine.copy(alpha = 0.45f)),
+        Surface(onClick = { vm.openRecipe(recipe.id) }, color = Color.White, shape = KitchenCardShape,
+            border = BorderStroke(1.dp, KitchenCardBorder),
             modifier = Modifier.fillMaxWidth().testTag("open-${recipe.id}")) {
             Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                RecipePhoto(recipe, Modifier.size(76.dp).clip(RoundedCornerShape(10.dp)))
+                RecipePhoto(recipe, Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(recipe.name, style = MaterialTheme.typography.titleSmall, color = KitchenGreen)
+                    Text(recipe.name, style = MaterialTheme.typography.titleSmall, color = KitchenInk)
                     Surface(color = Color(0xFFEBF4DC), shape = RoundedCornerShape(5.dp)) {
-                        Text(recipe.kind.label, Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = KitchenGreen)
+                        Text(recipe.kind.label, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium, color = KitchenGreen)
                     }
                     Text("${recipe.minutes} phút · ${vm.state.profile.people} người", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                 }
@@ -221,12 +238,12 @@ import androidx.compose.ui.unit.dp
         val kinds = listOf<RecipeKind?>(null) + RecipeKind.entries
         items(kinds, key = { it?.name ?: "all" }) { kind ->
             val active = category == kind?.name
-            Surface(onClick = { onCategory(kind?.name) }, shape = RoundedCornerShape(10.dp), shadowElevation = 2.dp,
-                color = Color.White, border = BorderStroke(1.dp, if (active) KitchenGreen else KitchenLine.copy(alpha = 0.5f)),
+            Surface(onClick = { onCategory(kind?.name) }, shape = RoundedCornerShape(14.dp),
+                color = Color.White, border = BorderStroke(if (active) 1.5.dp else 1.dp, if (active) KitchenGreen else KitchenCardBorder),
                 modifier = Modifier.width(if (LocalDensity.current.fontScale > 1.3f) 110.dp else 82.dp)
                     .testTag("today-category-${kind?.name ?: "all"}").semantics { selected = active }) {
                 Column(Modifier.padding(5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    catalog.firstOrNull { kind == null || it.kind == kind }?.let { RecipePhoto(it, Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(7.dp))) }
+                    catalog.firstOrNull { kind == null || it.kind == kind }?.let { RecipePhoto(it, Modifier.fillMaxWidth().height(74.dp).clip(RoundedCornerShape(10.dp))) }
                     Text(kind?.label ?: "Tất cả", style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, color = KitchenGreen)
                 }
             }
@@ -236,8 +253,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable private fun TodayDiscoveryCard(vm: PlannerViewModel, recipe: Recipe) {
     val saved = recipe.id in vm.state.favorites
-    Surface(onClick = { vm.openRecipe(recipe.id) }, color = Color.White, shape = RoundedCornerShape(16.dp),
-        shadowElevation = 2.dp, border = BorderStroke(1.dp, KitchenLine.copy(alpha = 0.5f)), modifier = Modifier.fillMaxWidth()) {
+    Surface(onClick = { vm.openRecipe(recipe.id) }, color = Color.White, shape = KitchenCardShape,
+        border = BorderStroke(1.dp, KitchenCardBorder), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Box {
                 RecipePhoto(recipe, Modifier.fillMaxWidth().aspectRatio(1.05f).clip(RoundedCornerShape(12.dp)))
@@ -247,9 +264,9 @@ import androidx.compose.ui.unit.dp
                         if (saved) "Bỏ lưu ${recipe.name}" else "Lưu ${recipe.name}", Modifier.size(20.dp))
                 }
             }
-            Text(recipe.name, style = MaterialTheme.typography.titleSmall, color = KitchenGreen)
+            Text(recipe.name, style = MaterialTheme.typography.titleSmall, color = KitchenInk)
             Surface(color = Color(0xFFEBF4DC), shape = RoundedCornerShape(5.dp)) {
-                Text(recipe.kind.label, Modifier.padding(horizontal = 7.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = KitchenGreen)
+                Text(recipe.kind.label, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium, color = KitchenGreen)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 KitchenIcon(KitchenGlyph.CLOCK, Modifier.size(14.dp), KitchenMuted)

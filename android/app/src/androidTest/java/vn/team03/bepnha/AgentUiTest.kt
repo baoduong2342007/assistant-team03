@@ -30,7 +30,7 @@ class AgentUiTest {
 
     @Test fun cookAlongStepsForwardAndBackAndMarksTasksDone() {
         compose.onNodeWithTag("tab-cook").performClick()
-        compose.onNodeWithTag("start-cook-along").performScrollTo().performClick()
+        compose.onNodeWithTag("start-cook-along").performClick()
         compose.onNodeWithTag("cook-along").assertIsDisplayed()
         compose.onNodeWithTag("cook-step-count").assertTextContains("Bước 1 /", substring = true)
         val firstTask = compose.runOnIdle { vm().cookAlong!!.step.taskKey }

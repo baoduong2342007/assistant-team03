@@ -165,7 +165,8 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
     Scaffold(modifier = Modifier.testTag("native-root"), containerColor = if (homeName != null) Color.White else KitchenPaper,
         topBar = {
             if (!compactKeyboard) Surface(color = if (homeName != null) KitchenGreen else if (assistant) KitchenSurface else KitchenPaper,
-                shape = if (homeName != null) RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp) else RoundedCornerShape(0.dp)) {
+                // Home: the dashboard draws the header's rounded bottom behind its search card.
+                shape = RoundedCornerShape(0.dp)) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     if (showBack) IconButton(onClick = onBack,
@@ -176,16 +177,17 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 12.dp).testTag("home-greeting")) {
                             val hour = java.time.LocalTime.now().hour
                             Text((when (hour) { in 5..10 -> "Chào buổi sáng"; in 11..13 -> "Chào buổi trưa"; in 14..17 -> "Chào buổi chiều"; else -> "Chào buổi tối" }) + ", $homeName",
-                                style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
-                            Spacer(Modifier.height(10.dp))
-                            Text("Cùng chuẩn bị ${homeMeal.lowercase(PlannerEngine.locale)}", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                                style = MaterialTheme.typography.bodyMedium, color = KitchenOnGreen)
+                            Spacer(Modifier.height(4.dp))
+                            Text("Cùng chuẩn bị ${homeMeal.lowercase(PlannerEngine.locale)}", style = KitchenHeroTitle, color = Color.White)
                         }
                         IconButton(onClick = onReminder, colors = IconButtonDefaults.iconButtonColors(containerColor = KitchenSurface)) {
                             Icon(Icons.Outlined.Notifications, "Nhắc nấu", tint = KitchenGreen)
                         }
                     } else {
                     Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleLarge,
+                    // Screen titles sit one step above the section headings (titleLarge) inside the screen.
+                    Text(title, style = if (assistant) MaterialTheme.typography.titleLarge else KitchenHeroTitle,
                         fontFamily = if (title == "Bếp Nhà") androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.SansSerif,
                         modifier = Modifier.semantics { heading() }, color = KitchenGreen)
                     if (title == "Hỏi Bếp Nhà") Text("Trợ lý cho bữa cơm nhà", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
@@ -194,7 +196,9 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
                     if (!assistant) Box {
                         if (homeName != null) IconButton(onClick = { menu.value = true }, modifier = Modifier.testTag("more-menu")) {
                             Icon(Icons.Outlined.MoreVert, "Thêm", tint = Color.White)
-                        } else TextButton(onClick = { menu.value = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
+                        } else IconButton(onClick = { menu.value = true }, modifier = Modifier.testTag("more-menu")) {
+                            Icon(Icons.Outlined.MoreVert, "Thêm", tint = KitchenInk)
+                        }
                         DropdownMenu(expanded = menu.value, onDismissRequest = { menu.value = false }) {
                             DropdownMenuItem(text = { Text("Tủ lạnh & gợi ý món") }, onClick = { menu.value = false; onPantry() },
                                 modifier = Modifier.heightIn(min = 56.dp).testTag("tab-ask"))
@@ -445,9 +449,9 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
     }
 }
 
-@Composable fun WeekScreen(vm: PlannerViewModel) {
-    LazyColumn(Modifier.fillMaxSize().testTag("week-list"), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { SectionHeading("Thực đơn tuần này") }
+/** The whole week for one meal; the "Cả tuần" tab of [WeekScreen]. */
+@Composable fun WeekOverview(vm: PlannerViewModel, modifier: Modifier = Modifier) {
+    LazyColumn(modifier.fillMaxSize().testTag("week-list"), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { MealSelector(vm) }
         items(vm.days, key = { it.toString() }) { day ->
             val menu = vm.engine.menu(vm.state, day)
@@ -496,251 +500,6 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
                         onClick = { vm.selectDate(day); vm.navigate(Screen.TODAY) },
                         contentPadding = PaddingValues(horizontal = 6.dp),
                     ) { Text("Xem và đổi món") }
-                }
-            }
-        }
-    }
-}
-
-@Composable fun ShoppingScreen(vm: PlannerViewModel, actions: NativeActions) {
-    val ingredients = vm.engine.ingredients(vm.shoppingMenu, vm.state.profile.people)
-    val checked = vm.checkedIngredients
-    val meals = vm.state.shoppingMeals
-    val count = ingredients.count { it.key in checked }
-    LazyColumn(Modifier.fillMaxSize().testTag("shopping-list"), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            SectionHeading("Danh sách đi chợ", "${PlannerEngine.fullDate(vm.state.date)} · ${vm.state.profile.people} người")
-        }
-        item { ShoppingMealPicker(vm) }
-        item {
-            val progress = animateFloatAsState(
-                if (ingredients.isEmpty()) 0f else count.toFloat() / ingredients.size,
-                tween(ComponentMotionMillis),
-                label = "shopping progress",
-            )
-            Surface(color = KitchenSoft, contentColor = KitchenGreen, shape = MaterialTheme.shapes.extraLarge) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(44.dp).background(KitchenGreen, MaterialTheme.shapes.small), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.ShoppingCart, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text("Đã chuẩn bị $count/${ingredients.size}", style = MaterialTheme.typography.titleLarge)
-                            Text("${if (meals.size == Meal.entries.size) "Cả ngày" else meals.sorted().joinToString(" + ") { it.short }} · " +
-                                "ước tính ${PlannerEngine.money(vm.engine.cost(vm.shoppingMenu, vm.state.profile.people)).replace(' ', '\u00A0')}",
-                                style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-                            Text("Tích cả nguyên liệu đã có ở nhà.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-                        }
-                    }
-                    LinearProgressIndicator(
-                        progress = { progress.value },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                        color = KitchenGreen,
-                        trackColor = KitchenGreen.copy(alpha = 0.14f),
-                        gapSize = 0.dp,
-                        drawStopIndicator = {},
-                    )
-                    OutlinedButton(
-                        onClick = { actions.copy(vm.shoppingText()) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        border = BorderStroke(1.dp, KitchenGreen.copy(alpha = 0.35f)),
-                    ) { Text("Sao chép danh sách") }
-                }
-            }
-        }
-        ingredients.groupBy { it.group }.forEach { (group, groupItems) ->
-            item(key = "group-$group") {
-                OutlinedCard(
-                    modifier = Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
-                        .fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    border = BorderStroke(1.dp, KitchenLine),
-                    colors = CardDefaults.outlinedCardColors(containerColor = KitchenSurface),
-                ) {
-                    Text(group, Modifier.fillMaxWidth().background(KitchenPeach).padding(horizontal = 16.dp, vertical = 11.dp)
-                        .semantics { heading() }, style = MaterialTheme.typography.titleMedium, color = KitchenTerracotta)
-                    groupItems.forEachIndexed { index, item ->
-                        key(item.key) {
-                            val done = item.key in checked
-                            val rowColor = animateColorAsState(
-                                if (done) KitchenSoft else KitchenSurface,
-                                tween(ComponentMotionMillis),
-                                label = "ingredient background",
-                            )
-                            Row(
-                                Modifier.fillMaxWidth().drawBehind { drawRect(rowColor.value) }
-                                    .toggleable(value = done, role = Role.Checkbox, onValueChange = { vm.checkIngredient(item.key) })
-                                    .testTag("ingredient-${item.name}").heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Checkbox(checked = done, onCheckedChange = null)
-                                Text(item.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                                    textDecoration = if (done) TextDecoration.LineThrough else null,
-                                    color = if (done) KitchenMuted else KitchenInk)
-                                Text("${PlannerEngine.quantity(item.amount)} ${item.unit}",
-                                    style = MaterialTheme.typography.labelMedium, color = KitchenGreen)
-                            }
-                        }
-                        if (index < groupItems.lastIndex) HorizontalDivider(color = KitchenLine)
-                    }
-                }
-            }
-        }
-        item {
-            Button(onClick = { vm.navigate(Screen.COOK) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                Text("Vào bếp")
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp))
-            }
-        }
-    }
-}
-
-/** Buy for one meal, lunch + dinner together, or the whole day in one trip. */
-@Composable private fun ShoppingMealPicker(vm: PlannerViewModel) {
-    val meals = vm.state.shoppingMeals
-    val wholeDay = meals.size == Meal.entries.size
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Mua cho bữa nào?", style = MaterialTheme.typography.titleMedium)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val colors = FilterChipDefaults.filterChipColors(selectedContainerColor = KitchenPeach,
-                selectedLabelColor = KitchenTerracotta, selectedLeadingIconColor = KitchenTerracotta, containerColor = KitchenSurface)
-            Meal.entries.forEach { meal ->
-                val selected = meal in meals
-                FilterChip(selected = selected, onClick = { vm.toggleShopMeal(meal) }, label = { Text(meal.title) },
-                    leadingIcon = if (selected) { { Icon(Icons.Outlined.Check, null, Modifier.size(18.dp)) } } else null,
-                    colors = colors, modifier = Modifier.testTag("shop-${meal.value}"))
-            }
-            FilterChip(selected = wholeDay, onClick = vm::shopWholeDay, label = { Text("Cả ngày") },
-                leadingIcon = if (wholeDay) { { Icon(Icons.Outlined.Check, null, Modifier.size(18.dp)) } } else null,
-                colors = colors, modifier = Modifier.testTag("shop-day"))
-        }
-        Text("Chọn nhiều bữa để mua một lần, nguyên liệu trùng sẽ được cộng dồn.",
-            style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-    }
-}
-
-@Composable fun CookScreen(vm: PlannerViewModel, actions: NativeActions) {
-    val tasks = vm.tasks
-    val done = vm.state.done[vm.state.key].orEmpty()
-    val completed = tasks.count { it.key in done }
-    LazyColumn(Modifier.fillMaxSize().testTag("cook-list"), contentPadding = PaddingValues(20.dp)) {
-        item {
-            val progress = animateFloatAsState(
-                completed.toFloat() / tasks.size,
-                tween(ComponentMotionMillis),
-                label = "cooking task progress",
-            )
-            SectionHeading("Lịch nấu", "${vm.state.meal.title} · ${PlannerEngine.fullDate(vm.state.date)}")
-            Spacer(Modifier.height(14.dp))
-            Surface(color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                        KitchenIcon(KitchenGlyph.CLOCK, tint = KitchenGold)
-                        Text("Bắt đầu lúc ${PlannerEngine.time(tasks.first().at)}", style = MaterialTheme.typography.labelLarge, color = KitchenGold)
-                    }
-                    Text("Dọn cơm lúc ${vm.state.profile.time(vm.state.meal)}", style = MaterialTheme.typography.headlineSmall)
-                    Text("Khoảng ${vm.engine.minutes(vm.menu)} phút với ${if (vm.state.meal.tray) "2 vùng nấu" else "1 vùng nấu"}", style = MaterialTheme.typography.bodyMedium, color = KitchenOnGreen)
-                    LinearProgressIndicator(
-                        progress = { progress.value },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                        color = KitchenGold,
-                        trackColor = Color.White.copy(alpha = 0.2f),
-                        gapSize = 0.dp,
-                        drawStopIndicator = {},
-                    )
-                    Text("Đã xong $completed/${tasks.size} việc", style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
-                    KitchenTonalButton(onClick = { vm.startCookAlong() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("start-cook-along")) {
-                        Text("Nấu cùng tôi: đọc to từng bước")
-                    }
-                    KitchenActions(
-                        first = { modifier ->
-                            OutlinedButton(
-                                onClick = vm::openReminders,
-                                border = BorderStroke(1.dp, KitchenOnGreen.copy(alpha = 0.55f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                modifier = modifier.heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            ) { Text("Chỉnh giờ") }
-                        },
-                        second = { modifier ->
-                            Button(
-                                onClick = { actions.calendar(tasks) },
-                                colors = ButtonDefaults.buttonColors(containerColor = KitchenGold, contentColor = KitchenGreen),
-                                modifier = modifier.heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            ) { Text("Thêm vào lịch") }
-                        },
-                    )
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-        }
-        itemsIndexed(tasks, key = { _, task -> task.key }) { index, task ->
-            val finished = task.key in done
-            val marker = if (finished) KitchenGreen else KitchenTerracotta
-            val markerColor = animateColorAsState(marker, tween(ComponentMotionMillis), label = "cooking task marker")
-            val timeColor = animateColorAsState(
-                if (finished) KitchenSoft else KitchenPeach,
-                tween(ComponentMotionMillis),
-                label = "cooking task badge",
-            )
-            Box(
-                Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
-                    .fillMaxWidth().drawBehind {
-                    val inset = 5.dp.toPx()
-                    val x = if (layoutDirection == LayoutDirection.Ltr) inset else size.width - inset
-                    val y = 40.dp.toPx()
-                    drawLine(
-                        KitchenLine,
-                        start = Offset(x, if (index == 0) y else 0f),
-                        end = Offset(x, if (index == tasks.lastIndex) y else size.height),
-                        strokeWidth = 2.dp.toPx(),
-                    )
-                    drawCircle(markerColor.value, radius = 4.dp.toPx(), center = Offset(x, y))
-                }.padding(start = 19.dp, bottom = 12.dp),
-            ) {
-                KitchenCard(Modifier.testTag("task-${task.key}")) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color = timeColor.value,
-                            contentColor = marker,
-                            shape = MaterialTheme.shapes.extraSmall,
-                        ) {
-                            Text(PlannerEngine.time(task.at), Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelLarge)
-                        }
-                        Spacer(Modifier.weight(1f))
-                        Checkbox(finished, onCheckedChange = { vm.checkTask(task.key) },
-                            modifier = Modifier.semantics { contentDescription = "Đã xong ${task.title}" })
-                    }
-                    Text(task.title, style = MaterialTheme.typography.titleMedium,
-                        textDecoration = if (finished) TextDecoration.LineThrough else null)
-                    Text(task.detail, style = MaterialTheme.typography.bodyMedium, color = KitchenMuted)
-                    val recipeId = task.recipeId
-                    val timer: @Composable (Modifier) -> Unit = { modifier ->
-                        OutlinedButton(
-                            onClick = {
-                                vm.startTimer(task.minutes, task.title)
-                                if (!vm.notifications) actions.notifications()
-                            },
-                            modifier = modifier.heightIn(min = 48.dp),
-                            border = BorderStroke(1.dp, KitchenLine),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        ) { Text("Hẹn ${task.minutes} phút") }
-                    }
-                    if (recipeId != null) {
-                        val recipe: @Composable (Modifier) -> Unit = { modifier ->
-                            TextButton(onClick = { vm.openRecipe(recipeId) }, modifier = modifier.heightIn(min = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) { Text("Xem từng bước") }
-                        }
-                        if (task.minutes > 0) KitchenActions(first = recipe, second = timer)
-                        else recipe(Modifier.fillMaxWidth())
-                    } else if (task.minutes > 0) {
-                        timer(Modifier.fillMaxWidth())
-                    }
                 }
             }
         }

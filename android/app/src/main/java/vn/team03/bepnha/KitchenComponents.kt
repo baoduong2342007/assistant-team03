@@ -49,7 +49,7 @@ import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.style.TextAlign
-enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE, ASSISTANT, POT }
+enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE, ASSISTANT, POT, SLIDERS }
 val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo must be provided by MainActivity") }
 
 /** Small native line illustrations; no icon-font or network dependency. */
@@ -99,6 +99,14 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                     path { moveTo(9f, 7f); cubicTo(9f, 3f, 15f, 3f, 15f, 7f); lineTo(15f, 11f); cubicTo(15f, 15f, 9f, 15f, 9f, 11f); close() }
                     path { moveTo(5.5f, 11f); cubicTo(5.5f, 19.5f, 18.5f, 19.5f, 18.5f, 11f); moveTo(12f, 17.5f); lineTo(12f, 21f); moveTo(8.5f, 21f); lineTo(15.5f, 21f) }
                 }
+                KitchenGlyph.SLIDERS -> {
+                    val bold = Stroke(width = 2f, cap = StrokeCap.Round)
+                    listOf(6f to 15f, 12f to 8f, 18f to 15f).forEach { (y, knob) ->
+                        drawLine(tint, Offset(3f, y), Offset(21f, y), strokeWidth = 2f, cap = StrokeCap.Round)
+                        drawCircle(tint, 2.6f, Offset(knob, y))
+                        drawCircle(tint, 2.6f, Offset(knob, y), style = bold)
+                    }
+                }
                 KitchenGlyph.FRIDGE -> {
                     path { moveTo(8f, 2f); lineTo(16f, 2f); cubicTo(17.2f, 2f, 18f, 2.8f, 18f, 4f); lineTo(18f, 20f); cubicTo(18f, 21.2f, 17.2f, 22f, 16f, 22f)
                         lineTo(8f, 22f); cubicTo(6.8f, 22f, 6f, 21.2f, 6f, 20f); lineTo(6f, 4f); cubicTo(6f, 2.8f, 6.8f, 2f, 8f, 2f); close() }
@@ -119,6 +127,14 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
 
 @Composable fun KitchenEyebrow(text: String, color: Color = KitchenMuted) {
     Text(text, fontSize = 11.sp, lineHeight = 17.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold, color = color)
+}
+
+/** A flat white panel; rows inside are separated with [KitchenRowDivider], never nested cards. */
+@Composable fun KitchenPanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().clip(KitchenCardShape).background(Color.White).border(1.dp, KitchenCardBorder, KitchenCardShape), content = content)
+}
+@Composable fun KitchenRowDivider(start: androidx.compose.ui.unit.Dp = 16.dp) {
+    HorizontalDivider(Modifier.padding(start = start), thickness = 1.dp, color = KitchenCardBorder)
 }
 
 @Composable fun KitchenSection(title: String, action: String? = null, onAction: () -> Unit = {}) {
