@@ -1,9 +1,13 @@
 package vn.team03.bepnha
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -17,6 +21,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -39,12 +45,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.style.TextAlign
-enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE }
+enum class KitchenGlyph { BOWL, CLOCK, PEOPLE, SPARKLE, MIC, FRIDGE, ASSISTANT, POT }
 val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo must be provided by MainActivity") }
 
 /** Small native line illustrations; no icon-font or network dependency. */
@@ -58,6 +63,18 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                     path { moveTo(3f, 11f); lineTo(21f, 11f); cubicTo(20f, 21f, 4f, 21f, 3f, 11f); moveTo(8f, 22f); lineTo(16f, 22f) }
                     listOf(7f, 12f, 17f).forEach { x -> path { moveTo(x, 7f); cubicTo(x - 3, 4f, x + 3, 3f, x, 1f) } }
                 }
+                KitchenGlyph.POT -> {
+                    path {
+                        moveTo(5f, 11f); lineTo(5f, 18f); cubicTo(5f, 20f, 6f, 21f, 8f, 21f)
+                        lineTo(16f, 21f); cubicTo(18f, 21f, 19f, 20f, 19f, 18f); lineTo(19f, 11f)
+                        moveTo(3f, 11f); lineTo(21f, 11f)
+                        moveTo(7f, 8f); lineTo(17f, 8f)
+                        moveTo(10f, 8f); lineTo(10f, 6f); lineTo(14f, 6f); lineTo(14f, 8f)
+                        moveTo(5f, 14f); lineTo(2f, 14f); lineTo(2f, 17f); lineTo(5f, 17f)
+                        moveTo(19f, 14f); lineTo(22f, 14f); lineTo(22f, 17f); lineTo(19f, 17f)
+                        moveTo(8f, 4f); lineTo(8f, 2f); moveTo(16f, 4f); lineTo(16f, 2f)
+                    }
+                }
                 KitchenGlyph.CLOCK -> {
                     drawCircle(tint, 9f, androidx.compose.ui.geometry.Offset(12f, 12f), style = stroke)
                     path { moveTo(12f, 6f); lineTo(12f, 12f); lineTo(16f, 14f) }
@@ -68,6 +85,15 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
                 }
                 KitchenGlyph.SPARKLE -> {
                     path { moveTo(10f, 3f); lineTo(12f, 9f); lineTo(18f, 11f); lineTo(12f, 13f); lineTo(10f, 19f); lineTo(8f, 13f); lineTo(2f, 11f); lineTo(8f, 9f); close(); moveTo(20f, 1f); lineTo(20f, 6f); moveTo(17.5f, 3.5f); lineTo(22.5f, 3.5f) }
+                }
+                KitchenGlyph.ASSISTANT -> {
+                    // The main star, rather than the combined bounds with its small accent, is centered at 12,12.
+                    path {
+                        moveTo(12f, 3.5f); lineTo(14.25f, 9.75f); lineTo(20.5f, 12f)
+                        lineTo(14.25f, 14.25f); lineTo(12f, 20.5f); lineTo(9.75f, 14.25f)
+                        lineTo(3.5f, 12f); lineTo(9.75f, 9.75f); close()
+                        moveTo(20f, 2f); lineTo(20f, 6f); moveTo(18f, 4f); lineTo(22f, 4f)
+                    }
                 }
                 KitchenGlyph.MIC -> {
                     path { moveTo(9f, 7f); cubicTo(9f, 3f, 15f, 3f, 15f, 7f); lineTo(15f, 11f); cubicTo(15f, 15f, 9f, 15f, 9f, 11f); close() }
@@ -177,45 +203,59 @@ val LocalMealPhoto = staticCompositionLocalOf<ImageBitmap> { error("Meal photo m
     }
 }
 
-/** Stable, equally sized tabs. Labels determine height; no text scaling override. */
-@Composable fun KitchenNavigation(selected: Screen, onSelect: (Screen) -> Unit) {
-    val tabs = remember { listOf(Screen.TODAY, Screen.PLAN, Screen.SHOPPING, Screen.COOK, Screen.ASK) }
-    val selectedIndex = tabs.indexOf(selected)
-    val indicator = animateFloatAsState(selectedIndex.coerceAtLeast(0).toFloat(), selectionSpring, label = "tab selection")
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Column {
-            HorizontalDivider(color = KitchenLine)
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).drawBehind {
-                if (selectedIndex >= 0) {
-                    val slot = size.width / tabs.size
-                    val width = minOf(56.dp.toPx(), slot - 8.dp.toPx()).coerceAtLeast(0f)
-                    val start = slot * indicator.value.coerceIn(0f, tabs.lastIndex.toFloat()) + (slot - width) / 2
-                    val left = if (layoutDirection == LayoutDirection.Ltr) start else size.width - width - start
-                    drawRoundRect(KitchenSoft, Offset(left, 8.dp.toPx()), Size(width, 32.dp.toPx()), CornerRadius(12.dp.toPx()))
-                }
-            }.selectableGroup()) {
-                tabs.forEach { screen ->
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight()
-                            .selectable(selected == screen, role = Role.Tab, onClick = { onSelect(screen) })
-                            .testTag("tab-${screen.name.lowercase()}")
-                            .padding(horizontal = 4.dp, vertical = 8.dp),
+/** Floating dock: four destinations surround the raised assistant action. Labels reflow at large text sizes. */
+@Composable fun KitchenNavigation(selected: Screen, onSelect: (Screen) -> Unit, onAssistant: () -> Unit = {}) {
+    val destinations = listOf(Screen.TODAY, Screen.PLAN, null, Screen.SHOPPING, Screen.COOK)
+    val shape = RoundedCornerShape(28.dp)
+    val largeText = LocalDensity.current.fontScale > 1.3f
+    Box(Modifier.fillMaxWidth().padding(horizontal = if (largeText) 4.dp else 12.dp).padding(top = 16.dp, bottom = 8.dp)) {
+        Box(Modifier.matchParentSize().padding(top = 18.dp).shadow(10.dp, shape)
+            .background(KitchenGreen, shape).border(BorderStroke(1.dp, KitchenOnGreen.copy(alpha = 0.12f)), shape))
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 4.dp).selectableGroup()) {
+            destinations.forEach { screen ->
+                if (screen == null) {
+                    Column(Modifier.weight(1f).padding(horizontal = 2.dp, vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        Box(Modifier.size(56.dp).shadow(8.dp, androidx.compose.foundation.shape.CircleShape)
+                            .background(Brush.radialGradient(listOf(KitchenGold, Color(0xFFD5A94D))), androidx.compose.foundation.shape.CircleShape)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onAssistant)
+                            .pressCompression(interaction).testTag("ask-assistant")
+                            .semantics { contentDescription = "Hỏi Bếp Nhà" }, contentAlignment = Alignment.Center) {
+                            KitchenIcon(KitchenGlyph.ASSISTANT, Modifier.size(30.dp), tint = KitchenGreen)
+                        }
+                        Text("Hỏi bếp", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center,
+                            color = KitchenGold, fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    val active = selected == screen
+                    val tint by androidx.compose.animation.animateColorAsState(
+                        if (active) KitchenGold else KitchenOnGreen, label = "dock tint")
+                    Column(Modifier.weight(1f).fillMaxHeight()
+                        .selectable(active, role = Role.Tab, onClick = { onSelect(screen) })
+                        .testTag("tab-${screen.name.lowercase()}")
+                        .padding(horizontal = if (largeText) 0.dp else 2.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Box(Modifier.size(width = 56.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-                            when (screen) {
-                                Screen.TODAY -> Icon(Icons.Outlined.Home, null, tint = KitchenGreen)
-                                Screen.PLAN -> Icon(Icons.Outlined.DateRange, null, tint = KitchenGreen)
-                                Screen.SHOPPING -> Icon(Icons.Outlined.ShoppingCart, null, tint = KitchenGreen)
-                                Screen.ASK -> KitchenIcon(KitchenGlyph.SPARKLE)
-                                else -> Icon(Icons.Outlined.PlayArrow, null, tint = KitchenGreen)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Box(Modifier.height(56.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+                            Box(Modifier.size(32.dp)
+                                .background(if (active) KitchenGold.copy(alpha = 0.12f) else Color.Transparent, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center) {
+                                if (screen == Screen.COOK) {
+                                    KitchenIcon(KitchenGlyph.POT, Modifier.size(23.dp), tint = tint)
+                                } else {
+                                    val icon = when (screen) {
+                                        Screen.TODAY -> Icons.Outlined.Home
+                                        Screen.PLAN -> Icons.Outlined.DateRange
+                                        else -> Icons.Outlined.ShoppingCart
+                                    }
+                                    Icon(icon, null, Modifier.size(23.dp), tint = tint)
+                                }
                             }
                         }
-                        Text(screen.title, textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected == screen) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected == screen) KitchenGreen else KitchenMuted)
+                        Text(screen.title, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = tint)
                     }
                 }
             }

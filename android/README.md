@@ -10,7 +10,7 @@ APK không cần đăng nhập ChatGPT và không phụ thuộc Android System W
 
 ## Những màn hình đã có
 
-- **Hôm nay:** chọn ngày/bữa, xem thực đơn tuần, chi phí và thời gian ước tính; đổi riêng từng món, lưu món yêu thích.
+- **Hôm nay:** phần chào nền xanh theo tên gia đình và bữa đang chọn; tìm công thức theo tên hoặc nguyên liệu (hỗ trợ không dấu), lọc nhóm món, lịch bảy ngày và danh sách món gọn với thao tác đổi/lưu. Bên dưới là thẻ nhóm món và lưới khám phá công thức, tổng quan chi phí/thời gian và lối vào Tủ lạnh. Chạm tên bữa để chọn sáng, trưa hoặc tối; chạm ngày để xem đúng thực đơn đã lưu.
 - **Thực đơn:** kế hoạch bảy ngày, bữa sáng có một món, bữa trưa và tối có món mặn, canh và rau. Lựa chọn đã lưu được giữ khi sang ngày mới.
 - **Công thức:** nguyên liệu theo số người, các bước bằng chữ và mẹo nấu; mở bằng bottom sheet native.
 - **Đi chợ:** chọn một bữa, nhiều bữa hoặc cả ngày, gộp nguyên liệu và đánh dấu những thứ đã có. Có thể sao chép hoặc chia sẻ danh sách.
@@ -88,7 +88,7 @@ Tham khảo: [Jetpack Compose](https://developer.android.com/develop/ui/compose)
 
 ## Trợ lý Gemini
 
-Xem [cấu hình Firebase Spark, App Check và kiểm thử](../docs/firebase-spark-demo.md). Nút **Hỏi Bếp Nhà** nằm ngay trên thanh điều hướng. Menu **Thêm** mở Gia đình, Nhắc nấu và Món đã lưu. Màn chat giữ ngữ cảnh bữa/ngày/số người phía trên, hội thoại ở giữa và ô nhập ở dưới. Gợi ý điền vào ô nhập để người dùng chỉnh trước khi gửi. Đổi thực đơn, hồ sơ ăn uống, khẩu phần và giờ ăn cần xác nhận. Các thao tác rủi ro thấp có thể áp dụng ngay và có Hoàn tác.
+Xem [cấu hình Firebase Spark, App Check và kiểm thử](../docs/firebase-spark-demo.md). Thanh điều hướng nổi bo tròn có bốn mục Hôm nay, Thực đơn, Đi chợ và Vào bếp; nút **Hỏi Bếp Nhà** hình tròn ở giữa mở chat trực tiếp. **Tủ lạnh & gợi ý món** mở từ menu **Thêm**. Menu **Thêm** mở Gia đình, Nhắc nấu và Món đã lưu. Màn chat giữ ngữ cảnh bữa/ngày/số người phía trên, hội thoại ở giữa và ô nhập ở dưới. Tin nhắn phân biệt hai phía bằng bong bóng xanh/trắng; thẻ gợi ý điền vào ô nhập, micro nằm ngay trong ô nhập và đọc lại nằm trong thanh tác vụ gọn. Màn chào có minh họa riêng và gợi ý dạng viên, chuyển sang hội thoại khi có câu hỏi đầu tiên. Menu ba chấm mở thao tác xóa lịch sử có xác nhận. Khi dùng chữ lớn hoặc mở bàn phím ngang, ngữ cảnh chuyển vào vùng cuộn để giữ ô nhập và nút gửi trong màn hình. Gợi ý điền vào ô nhập để người dùng chỉnh trước khi gửi. Đổi thực đơn, hồ sơ ăn uống, khẩu phần và giờ ăn cần xác nhận. Các thao tác rủi ro thấp có thể áp dụng ngay và có Hoàn tác.
 
 ### Kết nối Firebase vào chat
 

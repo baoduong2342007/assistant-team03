@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -92,6 +93,8 @@ import kotlinx.coroutines.isActive
     KitchenFrame(
         title = if (cooking) "Nấu cùng tôi" else if (vm.assistantVisible) "Hỏi Bếp Nhà" else if (vm.screen == Screen.TODAY) "Bếp Nhà" else vm.screen.title,
         selected = vm.screen,
+        homeName = if (!cooking && !vm.assistantVisible && vm.screen == Screen.TODAY) vm.state.profile.name else null,
+        homeMeal = vm.state.meal.title,
         assistant = vm.assistantVisible || cooking,
         showBack = cooking || vm.assistantVisible || vm.screen in listOf(Screen.FAMILY, Screen.FAVORITES),
         hideNavigation = imeOpen,
@@ -100,7 +103,7 @@ import kotlinx.coroutines.isActive
         timer = timer,
         extraTimers = if (!vm.assistantVisible && !cooking && vm.state.timers.size > 1) ({ TimerBar(vm) }) else null,
         onBack = { vm.back() }, onTab = vm::navigate, onAssistant = vm::openAssistant,
-        onFamily = { vm.navigate(Screen.FAMILY) }, onReminder = vm::openReminders,
+        onPantry = { vm.navigate(Screen.ASK) }, onFamily = { vm.navigate(Screen.FAMILY) }, onReminder = vm::openReminders,
         onFavorites = { vm.navigate(Screen.FAVORITES) }, onCancelTimer = { timer?.let { vm.cancelTimer(it.id) } },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
@@ -148,10 +151,10 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
 
 /** The same scaffold is used by device screens and full-screen design previews. */
 @Composable fun KitchenFrame(
-    title: String, selected: Screen = Screen.TODAY, assistant: Boolean = false,
+    title: String, selected: Screen = Screen.TODAY, assistant: Boolean = false, homeName: String? = null, homeMeal: String = "bữa ăn",
     showBack: Boolean = false, hideNavigation: Boolean = false, timer: KitchenTimerUi? = null,
     onBack: () -> Unit = {}, onTab: (Screen) -> Unit = {}, onAssistant: () -> Unit = {},
-    onFamily: () -> Unit = {}, onReminder: () -> Unit = {}, onFavorites: () -> Unit = {},
+    onPantry: () -> Unit = {}, onFamily: () -> Unit = {}, onReminder: () -> Unit = {}, onFavorites: () -> Unit = {},
     onCancelTimer: () -> Unit = {}, extraTimers: (@Composable () -> Unit)? = null, snackbarHost: @Composable () -> Unit = {},
     menu: MutableState<Boolean> = rememberSaveable { mutableStateOf(false) },
     padContent: Boolean = true,
@@ -159,18 +162,42 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val compactKeyboard = assistant && maxHeight < 480.dp && WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    Scaffold(modifier = Modifier.testTag("native-root"), containerColor = KitchenPaper,
+    Scaffold(modifier = Modifier.testTag("native-root"), containerColor = if (homeName != null) Color.White else KitchenPaper,
         topBar = {
-            if (!compactKeyboard) Surface(color = KitchenPaper) {
+            if (!compactKeyboard) Surface(color = if (homeName != null) KitchenGreen else if (assistant) KitchenSurface else KitchenPaper,
+                shape = if (homeName != null) RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp) else RoundedCornerShape(0.dp)) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    if (showBack) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Quay lại") }
+                    if (showBack) IconButton(onClick = onBack,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = if (assistant) KitchenSoft.copy(alpha = 0.6f) else Color.Transparent)) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Quay lại", Modifier.size(20.dp))
+                    }
+                    if (homeName != null) {
+                        Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 12.dp).testTag("home-greeting")) {
+                            val hour = java.time.LocalTime.now().hour
+                            Text((when (hour) { in 5..10 -> "Chào buổi sáng"; in 11..13 -> "Chào buổi trưa"; in 14..17 -> "Chào buổi chiều"; else -> "Chào buổi tối" }) + ", $homeName",
+                                style = MaterialTheme.typography.bodySmall, color = KitchenOnGreen)
+                            Spacer(Modifier.height(10.dp))
+                            Text("Cùng chuẩn bị ${homeMeal.lowercase(PlannerEngine.locale)}", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                        }
+                        IconButton(onClick = onReminder, colors = IconButtonDefaults.iconButtonColors(containerColor = KitchenSurface)) {
+                            Icon(Icons.Outlined.Notifications, "Nhắc nấu", tint = KitchenGreen)
+                        }
+                    } else {
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge,
                         fontFamily = if (title == "Bếp Nhà") androidx.compose.ui.text.font.FontFamily.Serif else androidx.compose.ui.text.font.FontFamily.SansSerif,
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { heading() }, color = KitchenGreen)
+                        modifier = Modifier.semantics { heading() }, color = KitchenGreen)
+                    if (title == "Hỏi Bếp Nhà") Text("Trợ lý cho bữa cơm nhà", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                    }
+                    }
                     if (!assistant) Box {
-                        TextButton(onClick = { menu.value = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
+                        if (homeName != null) IconButton(onClick = { menu.value = true }, modifier = Modifier.testTag("more-menu")) {
+                            Icon(Icons.Outlined.MoreVert, "Thêm", tint = Color.White)
+                        } else TextButton(onClick = { menu.value = true }, modifier = Modifier.heightIn(min = 48.dp).testTag("more-menu")) { Text("Thêm") }
                         DropdownMenu(expanded = menu.value, onDismissRequest = { menu.value = false }) {
+                            DropdownMenuItem(text = { Text("Tủ lạnh & gợi ý món") }, onClick = { menu.value = false; onPantry() },
+                                modifier = Modifier.heightIn(min = 56.dp).testTag("tab-ask"))
                             DropdownMenuItem(text = { Text("Gia đình") }, onClick = { menu.value = false; onFamily() },
                                 modifier = Modifier.heightIn(min = 56.dp).semantics { contentDescription = "Thông tin gia đình" })
                             DropdownMenuItem(text = { Text("Nhắc nấu") }, onClick = { menu.value = false; onReminder() },
@@ -184,13 +211,10 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
         },
         bottomBar = {
             if (!assistant && !hideNavigation) {
-                Surface(color = Color.White) {
+                Surface(color = KitchenPaper) {
                     Column(Modifier.navigationBarsPadding()) {
                         if (extraTimers != null) extraTimers() else timer?.let { KitchenTimerSummary(it, onCancelTimer) }
-                        KitchenTonalButton(onClick = onAssistant,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                                .heightIn(min = 56.dp).testTag("ask-assistant")) { Text("Hỏi Bếp Nhà") }
-                        KitchenNavigation(selected, onTab)
+                        KitchenNavigation(selected, onTab, onAssistant)
                     }
                 }
             }
@@ -287,42 +311,9 @@ private data class SheetPresentation(val version: Int, val content: PlannerSheet
     }
 }
 
-@Composable fun TodayScreen(vm: PlannerViewModel) {
-    LazyColumn(
-        Modifier.fillMaxSize().testTag("today-list"),
-        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "greeting") {
-            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                KitchenEyebrow(PlannerEngine.fullDate(vm.state.date).uppercase(PlannerEngine.locale), KitchenTerracotta)
-                SectionHeading("Nhà mình ăn gì?")
-            }
-        }
-        item(key = "meal") { Box(Modifier.padding(horizontal = 20.dp)) { MealSelector(vm) } }
-        item(key = "dates") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.padding(horizontal = 20.dp)) {
-                    KitchenSection("Thực đơn cả tuần", "Chi tiết") { vm.navigate(Screen.PLAN) }
-                }
-                WeekStrip(vm)
-            }
-        }
-        item(key = "overview") { MealOverview(vm, Modifier.padding(horizontal = 20.dp)) }
-        item(key = "fridge") { Box(Modifier.padding(horizontal = 20.dp)) { FridgePromo(vm) } }
-        item(key = "menu-heading") {
-            Box(Modifier.padding(horizontal = 20.dp)) {
-                KitchenSection(if (vm.state.meal.tray) "Các món trong bữa" else "Món cho bữa sáng")
-            }
-        }
-        items(vm.menu.withIndex().toList(), key = { it.value.id }) { (index, recipe) ->
-            Box(Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)
-                .padding(horizontal = 20.dp)) { RecipeCard(vm, recipe, index) }
-        }
-    }
-}
+@Composable fun TodayScreen(vm: PlannerViewModel) { TodayDashboard(vm) }
 
-@Composable private fun MealOverview(vm: PlannerViewModel, modifier: Modifier = Modifier) {
+@Composable fun MealOverview(vm: PlannerViewModel, modifier: Modifier = Modifier) {
     val menu = vm.menu
     val cost = PlannerEngine.money(vm.engine.cost(menu, vm.state.profile.people)).replace(' ', '\u00A0')
     val duration = "${vm.engine.minutes(menu)} phút"

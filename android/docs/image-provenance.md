@@ -168,3 +168,14 @@ Bottom right: a plate of boiled Vietnamese water spinach leaves with long hollow
 ```text
 Use case photorealistic-natural. A 1536 x 1024 photographic asset sheet with 6 equal, square, full-bleed cells in a precise 3-column by 2-row grid. Hard straight boundaries at x=512 and 1024, y=512. Independent authentic Vietnamese food photos in simple white ceramic on light oak, natural window light, camera about 55 degrees above, soup centered within its square with margin. Left column both rows: canh chua cá basa, clear golden Vietnamese sweet-sour soup with thick white basa fish steaks, sliced okra, red tomato, golden pineapple chunks and herbs. Middle column both rows: canh khổ qua nhồi thịt, clear broth with thick bright green ridged bitter melon cylinders, visibly filled with cooked ground pork and chopped scallion. Right column both rows: canh trứng cà chua, light clear tomato broth with white and yellow ribbons of egg, bright red tomato wedges and green scallion. Top row is the primary composition; bottom row offers a second independent framing for the same dish. No labels, lettering, hands, cutlery or logo.
 ```
+
+
+### Hình chào trợ lý — 24/11/2026
+
+Tệp: `app/src/main/res/drawable-nodpi/assistant_hero.webp`. Minh họa trang trí do công cụ `image_gen` tích hợp tạo; không phải ảnh món ăn thực tế. Xuất WebP chất lượng 90, đóng gói trong APK, không tải từ mạng khi mở chat.
+
+Prompt cuối:
+
+```text
+Use case: stylized-concept. Asset type: square hero illustration for a premium Vietnamese cooking assistant mobile app, NOT a screenshot or mockup. Primary request: an elegant flowing translucent silk-like ribbon of emerald green and warm gold light floating above a small ivory ceramic bowl of fresh Vietnamese ingredients, surrounded by a few floating cherry tomatoes, leafy herbs, a carrot and garlic. Sculptural luminous mesh ribbon with graceful S curve, refined appetizing 3D food illustration. Centered composition, full object visible with generous padding on all sides, subtle soft shadow, soft warm ivory background exactly #FFFCF7 blending at edges. Warm golden highlights, forest green accents, tasteful magical cooking atmosphere. No text, no lettering, no UI, no logos, no border. Save generated image as a file if possible.
+```

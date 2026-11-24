@@ -94,7 +94,7 @@ class AgentUiTest {
         }
         compose.waitUntil(5000) { !vm().assistantBusy }
         val before = compose.runOnIdle { vm().state }
-        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-clear"))
+        compose.onNodeWithTag("assistant-options").performClick()
         compose.onNodeWithTag("assistant-clear").performClick()
         compose.onNodeWithTag("assistant-clear-confirm").performClick()
         compose.runOnIdle {

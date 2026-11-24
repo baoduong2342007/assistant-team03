@@ -34,6 +34,34 @@ class PhoneAccessibilityTest {
         }
     }
 
+    @Test fun chatVoiceActionsLeaveRoomForConversationAndComposer() {
+        val answering = mutableStateOf(false)
+        var micTaps = 0
+        compose.setContent {
+            Phone(width = 360.dp, height = 800.dp, fontScale = 1f) {
+                KitchenFrame("Hỏi Bếp Nhà", assistant = true, showBack = true) {
+                    AssistantContent(AssistantUiState("Bữa tối cho 4 người", "Thứ Ba, 24 tháng 11",
+                        configured = true, voiceAvailable = true,
+                        suggestions = listOf("Gợi ý món từ tủ lạnh", "Món nào nấu trong 20 phút?", "Nấu món nào trước?"),
+                        messages = if (!answering.value) emptyList() else listOf(
+                            AssistantChatMessage("user", "Mình có trứng và cà chua, nấu gì nhanh?", id = "question"),
+                            AssistantChatMessage("assistant", "Bạn có thể làm trứng sốt cà chua trong khoảng 15 phút.\n\nXào cà chua cho mềm, thêm trứng đã đánh tan rồi đảo nhẹ. Ăn cùng cơm nóng và rau luộc là có một bữa tối gọn nhẹ.",
+                                source = AssistantSource.AI, id = "answer"))),
+                        onMic = { micTaps++ })
+                }
+            }
+        }
+        compose.onNodeWithTag("assistant-mic").assertIsDisplayed().performClick()
+        assertEquals(1, micTaps)
+        compose.onNodeWithTag("assistant-input").assertIsDisplayed()
+        assertWithinRoot("assistant-send")
+        capture("phone-chat-polished-welcome.png")
+        compose.runOnIdle { answering.value = true }
+        compose.onNodeWithText("Mình có trứng và cà chua, nấu gì nhanh?").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-read-again").assertIsDisplayed()
+        capture("phone-chat-polished-answer.png")
+    }
+
     @Test fun fourTabsAndAssistantStayReadableAndTappableAt200Percent() {
         compose.setContent { Phone { KitchenFrame("Bếp Nhà") { } } }
         compose.onNodeWithTag("ask-assistant").assertIsDisplayed().assertHeightIsAtLeast(56.dp)
