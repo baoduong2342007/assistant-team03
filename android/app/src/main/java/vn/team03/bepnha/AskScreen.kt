@@ -2,6 +2,8 @@
 package vn.team03.bepnha
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,17 +39,20 @@ private val fridgeStaples = listOf("Thịt heo", "Thịt gà", "Cá", "Tôm", "T
 
 /** "Hỏi Bếp Nhà": the fridge-to-meal feature, a chat that can change the menu, and several timers. */
 @Composable fun AskScreen(vm: PlannerViewModel, actions: NativeActions) {
+    val panels = rememberSaveableStateHolder()
     Column(Modifier.fillMaxSize().testTag("ask-screen")) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading("Hỏi Bếp Nhà", "Gợi ý từ ${vm.engine.recipes.size} công thức có sẵn, dùng được khi không có mạng.")
             KitchenSegmented(AskTab.entries.map { it.title }, vm.askTab.ordinal, { vm.selectAskTab(AskTab.entries[it]) },
                 Modifier.fillMaxWidth(), tag = { "ask-${AskTab.entries[it].name.lowercase()}" })
         }
-        Box(Modifier.weight(1f)) {
-            when (vm.askTab) {
-                AskTab.FRIDGE -> FridgePanel(vm, actions)
-                AskTab.CHAT -> Unit
-                AskTab.TIMER -> TimerPanel(vm, actions)
+        KitchenContentTransition(vm.askTab, "kitchen panels", Modifier.weight(1f).fillMaxWidth()) { tab ->
+            panels.SaveableStateProvider(tab.name) {
+                when (tab) {
+                    AskTab.FRIDGE -> FridgePanel(vm, actions)
+                    AskTab.CHAT -> Unit
+                    AskTab.TIMER -> TimerPanel(vm, actions)
+                }
             }
         }
     }
@@ -127,7 +133,9 @@ private val fridgeStaples = listOf("Thịt heo", "Thịt gà", "Cá", "Tôm", "T
                     "Bạn thử chọn thêm thịt, cá, trứng hoặc rau.")
             }
             else -> itemsIndexed(trays, key = { _, tray -> tray.ids.joinToString() }) { index, tray ->
-                TrayCard(vm, tray, index, vm.state.date, vm.fridgeMeal, vm.fridgeItems)
+                Box(Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null)) {
+                    TrayCard(vm, tray, index, vm.state.date, vm.fridgeMeal, vm.fridgeItems)
+                }
             }
         }
     }
@@ -194,7 +202,8 @@ private val chatExamples = listOf("Ngày mai tôi muốn ăn cá", "Tủ lạnh 
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item(key = "running") {
             Surface(color = KitchenGreen, contentColor = Color.White, shape = MaterialTheme.shapes.extraLarge) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().animateContentSize(tween(ComponentMotionMillis)).padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                         KitchenIcon(KitchenGlyph.CLOCK, tint = KitchenGold)
                         Text(if (running.isEmpty()) "Chưa có đồng hồ nào" else "Đang hẹn ${running.size}/${PlannerEngine.MAX_TIMERS} đồng hồ",

@@ -149,6 +149,12 @@ class PlannerEngineTest {
         assertEquals(setOf(Meal.DINNER), s.copy(shopMeals = emptySet()).shoppingMeals)
     }
 
+    @Test fun fridgeRecognizesRegionalAliasesFromTheChatCatalog() {
+        val catalog = AssistantTestCatalog.engine
+        val recipe = catalog.recipes.values.first { dish -> dish.ingredients.any { it.name == "Khổ qua" } }
+        assertEquals(listOf("mướp đắng"), catalog.covered(recipe, listOf("mướp đắng")))
+    }
+
     @Test fun fridgeIngredientsBecomeCompleteTraysCentredOnThatIngredient() {
         val trays = engine.suggestTrays(listOf("thịt heo"), Meal.DINNER)
         assertEquals(3, trays.size)

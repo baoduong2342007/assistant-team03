@@ -1,5 +1,6 @@
 package vn.team03.bepnha
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,12 +68,13 @@ data class AssistantMealCard(
     val missing: List<String>,
 )
 
-@Composable fun AssistantScreen(vm: PlannerViewModel) {
+@Composable fun AssistantScreen(vm: PlannerViewModel, active: Boolean = true) {
     val voice = remember(vm) { vm.voice }
     val heard by voice.state.collectAsState()
     val speech by voice.speech.collectAsState()
     val mic = rememberMicPermission { granted -> if (granted) vm.startListening() }
-    val meals =vm.assistantMealSuggestions.map { suggestion ->
+    val recipeNames = remember(vm) { vm.engine.recipes.mapValues { it.value.name } }
+    val meals = vm.assistantMealSuggestions.map { suggestion ->
         val menu = suggestion.recipeIds.map(vm.engine.recipes::getValue)
         val (available, missing) = vm.engine.ingredients(menu, vm.state.profile.people)
             .partition { it.key in suggestion.pantryKeys }
@@ -94,7 +96,7 @@ data class AssistantMealCard(
             failedMessageId = vm.failedMessageId, canRetry = vm.canRetryAssistant,
             proposal = vm.assistantProposal?.descriptions.orEmpty(),
             configured = vm.assistantConfigured, suggestions = vm.assistantSuggestions(),
-            recipeNames = vm.engine.recipes.mapValues { it.value.name }, timer = vm.timerUi(),
+            recipeNames = recipeNames, timer = vm.timerUi(),
             mealSuggestions = meals, canEditProposal = vm.assistantProposal?.canReviseMenu == true,
             mealSuggestionMessageId = vm.assistantMealMessageId,
             revisionTarget = vm.assistantRevisionTarget,
@@ -120,6 +122,7 @@ data class AssistantMealCard(
         onCancel = vm::cancelAssistantProposal, onCancelTimer = { vm.timerUi()?.let { vm.cancelTimer(it.id) } },
         onChooseMeal = vm::chooseAssistantMeal, onEdit = vm::editAssistantProposal,
         onDropMeal = { vm.dropProposalMeal(it.date, it.meal) }, onUndo = vm::undoAssistant,
+        active = active,
     )
 }
 
@@ -133,40 +136,46 @@ data class AssistantMealCard(
     onDropMeal: (ProposalMealUi) -> Unit = {}, onUndo: () -> Unit = {},
     onMic: () -> Unit = {}, onReadAgain: () -> Unit = {}, onStopSpeaking: () -> Unit = {},
     onClearHistory: () -> Unit = {},
+    active: Boolean = true,
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
-    if (confirmClear) AlertDialog(onDismissRequest = { confirmClear = false },
+    if (confirmClear && active) AlertDialog(onDismissRequest = { confirmClear = false },
         title = { Text("Xóa lịch sử trò chuyện?") },
         text = { Text("Các tin nhắn sẽ bị xóa khỏi máy. Thực đơn và dữ liệu nhà mình vẫn giữ nguyên.") },
         confirmButton = { TextButton(onClick = { confirmClear = false; onClearHistory() }, modifier = Modifier.testTag("assistant-clear-confirm")) { Text("Xóa") } },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Giữ lại") } })
     val scroll = rememberLazyListState()
+    val motion = rememberMotionEnabled()
     var followingLatest by rememberSaveable { mutableStateOf(true) }
     var previousCount by rememberSaveable { mutableIntStateOf(ui.messages.size) }
     var newMessages by rememberSaveable { mutableStateOf(false) }
     var jumpToEnd by remember { mutableIntStateOf(0) }
     val canSend = !ui.busy && ui.proposal.isEmpty()
-    LaunchedEffect(scroll) {
+    LaunchedEffect(scroll, active) {
+        if (!active) return@LaunchedEffect
         snapshotFlow { scroll.isScrollInProgress to scroll.canScrollForward }.collect { (moving, more) ->
             if (moving) followingLatest = !more
             if (!more) newMessages = false
         }
     }
-    LaunchedEffect(ui.messages.size, ui.busy, ui.proposal, ui.error, ui.revisionTarget) {
+    LaunchedEffect(ui.messages.size, ui.busy, ui.proposal, ui.error, ui.revisionTarget, active) {
+        if (!active) return@LaunchedEffect
         val added = ui.messages.size > previousCount
         val follow = followingLatest || (added && ui.messages.lastOrNull()?.role == "user")
         previousCount = ui.messages.size
         if (!added && !ui.busy && ui.proposal.isEmpty() && ui.error == null && ui.revisionTarget == null) return@LaunchedEffect
         withFrameNanos { }
         if (follow && scroll.layoutInfo.totalItemsCount > 0) {
-            scroll.animateScrollToItem(scroll.layoutInfo.totalItemsCount - 1)
+            scroll.scrollToItem(scroll.layoutInfo.totalItemsCount - 1)
             followingLatest = true
             newMessages = false
         } else if (added || ui.proposal.isNotEmpty() || ui.error != null || ui.revisionTarget != null) newMessages = true
     }
     LaunchedEffect(jumpToEnd) {
+        if (!active) return@LaunchedEffect
         if (jumpToEnd > 0 && scroll.layoutInfo.totalItemsCount > 0) {
-            scroll.animateScrollToItem(scroll.layoutInfo.totalItemsCount - 1)
+            val last = scroll.layoutInfo.totalItemsCount - 1
+            if (motion) scroll.animateScrollToItem(last) else scroll.scrollToItem(last)
             followingLatest = true
             newMessages = false
         }
@@ -199,7 +208,10 @@ data class AssistantMealCard(
                         )
                     }
                     items(ui.messages, key = { it.id }) { message ->
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(
+                            Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null, placementSpec = null),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             AssistantMessage(message)
                             if (message.id == ui.mealSuggestionMessageId) {
                                 ui.mealSuggestions.forEach { meal -> MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) } }
@@ -241,15 +253,20 @@ data class AssistantMealCard(
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-clear")) { Text("Xóa lịch sử trò chuyện") }
                     }
                     if (ui.busy) item("busy") {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null, placementSpec = null),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Text("Đang chuẩn bị câu trả lời…", style = MaterialTheme.typography.bodySmall,
+                            Text("Bếp Nhà đang chuẩn bị câu trả lời…", style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         }
                     }
                     if (ui.proposal.isNotEmpty()) item("proposal") {
                         OutlinedCard(
-                            Modifier.fillMaxWidth().testTag("assistant-preview"),
+                            Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null, placementSpec = null)
+                                .fillMaxWidth().testTag("assistant-preview"),
                             border = BorderStroke(1.dp, KitchenGreen),
                             colors = CardDefaults.outlinedCardColors(containerColor = KitchenSoft),
                         ) {
@@ -266,14 +283,18 @@ data class AssistantMealCard(
                                 }
                                 Text("Chỉ áp dụng sau khi bạn xác nhận.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
                                 KitchenButton(onClick = onConfirm,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) { Text("Xác nhận thay đổi") }
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-confirm")) {
+                                    Text(if (ui.proposalMeals.isNotEmpty() && ui.proposalOther.isEmpty()) "Đổi món" else "Xác nhận thay đổi")
+                                }
                                 if (ui.canEditProposal) {
                                     KitchenOutlinedButton(onClick = onEdit,
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-edit")) {
                                         Text("Sửa đề xuất")
                                     }
                                 }
-                                KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("Hủy") }
+                                KitchenOutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                                    Text(if (ui.proposalMeals.isNotEmpty() && ui.proposalOther.isEmpty()) "Giữ món cũ" else "Hủy")
+                                }
                             }
                         }
                     }

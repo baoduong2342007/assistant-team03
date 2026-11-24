@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -31,6 +32,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     var state by mutableStateOf(storage.load(today)); private set
     var screen by mutableStateOf(Screen.TODAY); private set
     var sheet by mutableStateOf<PlannerSheet?>(null); private set
+    internal var sheetVersion by mutableIntStateOf(0); private set
+    internal var notificationVersion by mutableIntStateOf(0); private set
     var now by mutableLongStateOf(System.currentTimeMillis()); private set
     var message by mutableStateOf<String?>(null); private set
     var notifications by mutableStateOf(ReminderStore.canNotify(application)); private set
@@ -72,7 +75,19 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     private var lastMenuChanges = emptyList<AssistantAction>()
     private var assistantOrigin = Screen.TODAY
     private var returnRecipeId: String? = null
-    private data class Turn(val prompt: String, val history: List<AssistantChatMessage>, val base: PlannerState, val context: org.json.JSONObject, val messageId: String)
+    private data class Turn(
+        val prompt: String,
+        val history: List<AssistantChatMessage>,
+        val base: PlannerState,
+        val today: LocalDate,
+        val origin: Screen,
+        val recipeId: String?,
+        val pendingChanges: List<AssistantAction>,
+        val lastChanges: List<AssistantAction>,
+        val suggestions: MealSuggestions?,
+        val comparing: Boolean,
+        val messageId: String,
+    )
     private var generation = 0L
     private var activeJob: Job? = null
     private var activeTurn: Turn? = null
@@ -82,7 +97,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     val assistantConfigured get() = BuildConfig.DEBUG && BuildConfig.FIREBASE_CONFIGURED
     val canRetryAssistant get() = failedMessageId != null && !assistantBusy && assistantProposal == null
     private val assistantService = AssistantService(engine, if (assistantConfigured) FirebaseAssistantProvider(application) else null)
-    internal var assistantTransport: suspend (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply = assistantService::ask
+    internal var assistantTransport: (suspend (String, List<AssistantChatMessage>, org.json.JSONObject) -> AssistantReply)? = null
     private val commands = AssistantCommands(engine)
     private val updates = Channel<Pair<PlannerState, String?>>(Channel.UNLIMITED)
     private val undo = AssistantUndo()
@@ -256,9 +271,13 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
     fun selectDate(date: LocalDate) { if (date in days) update(state.copy(date = date)) }
     fun selectMeal(meal: Meal) { update(state.copy(meal = meal)) }
-    fun openRecipe(id: String) { if (id in engine.recipes) sheet = PlannerSheet.RecipeDetail(id) }
-    fun openSwap(index: Int) { sheet = PlannerSheet.Swap(index) }
-    fun openReminders() { sheet = PlannerSheet.Reminder }
+    fun openRecipe(id: String) { if (id in engine.recipes) presentSheet(PlannerSheet.RecipeDetail(id)) }
+    fun openSwap(index: Int) { presentSheet(PlannerSheet.Swap(index)) }
+    fun openReminders() { presentSheet(PlannerSheet.Reminder) }
+    private fun presentSheet(content: PlannerSheet) {
+        sheetVersion++
+        sheet = content
+    }
     fun openAsk(tab: AskTab) { askTab = tab; screen = Screen.ASK }
     fun selectAskTab(tab: AskTab) { if (tab == AskTab.CHAT) openAssistant() else askTab = tab }
     fun openAssistant() {
@@ -468,31 +487,35 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         unansweredMessageIds += user.id
         assistantHistory = assistantHistory + user
         assistantQuestion = ""
-        val context = AssistantGateway.snapshot(
-            engine, state, today, assistantOrigin, assistantRecipeId,
-            pendingMenuChanges = revisingProposal?.actions.orEmpty(),
-            lastMenuChanges = lastMenuChanges,
-        )
-        offeredMeals?.takeIf { it.base == state }?.options?.firstOrNull()?.let {
+        val comparing = MealPlanning.isComparison(prompt)
+        val turn = Turn(prompt, history, state, today, assistantOrigin, assistantRecipeId,
+            revisingProposal?.actions.orEmpty(), lastMenuChanges,
+            offeredMeals?.takeIf { it.base == state }, comparing, user.id)
+        if (!comparing) offeredMeals = null
+        startTurn(turn)
+    }
+
+    private fun turnContext(turn: Turn): org.json.JSONObject {
+        val context = AssistantGateway.snapshot(engine, turn.base, turn.today, turn.origin, turn.recipeId,
+            pendingMenuChanges = turn.pendingChanges, lastMenuChanges = turn.lastChanges)
+        val suggestions = turn.suggestions
+        suggestions?.options?.firstOrNull()?.let {
             context.put("suggested_meal", org.json.JSONObject().put("date", it.date.toString()).put("meal", it.meal.value))
         }
-        offeredMeals?.takeIf { it.base == state }?.constraints?.let {
+        suggestions?.constraints?.let {
             context.put("suggestion_constraints", org.json.JSONObject()
                 .put("pantry", org.json.JSONArray(it.pantry.toList())).put("excluded", org.json.JSONArray(it.excluded.toList())).put("only", it.only))
         }
-        if (MealPlanning.isComparison(prompt)) {
-            offeredMeals?.takeIf { it.base == state }?.let { batch ->
+        if (turn.comparing) {
+            suggestions?.let { batch ->
                 context.put("suggestion_turn_id", batch.requestId)
                 context.put("active_suggestions", org.json.JSONArray(batch.options.map { option ->
                     org.json.JSONObject().put("id", option.id).put("date", option.date.toString()).put("meal", option.meal.value)
                         .put("recipe_ids", org.json.JSONArray(option.recipeIds))
                 }))
             }
-        } else {
-            // Any new instruction can change constraints, even if the next reply fails or asks for clarification.
-            offeredMeals = null
         }
-        startTurn(Turn(prompt, history, state, context, user.id))
+        return context
     }
     fun retryAssistant() {
         val turn = failedTurn ?: return
@@ -512,7 +535,12 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         assistantError = null
         activeJob = viewModelScope.launch {
             try {
-                val reply = withContext(Dispatchers.IO) { assistantTransport(turn.prompt, turn.history, turn.context) }
+                val transport = assistantTransport
+                val reply = withContext(Dispatchers.IO) {
+                    val context = turnContext(turn)
+                    if (transport == null) assistantService.ask(turn.prompt, turn.history, context, turn.base)
+                    else transport(turn.prompt, turn.history, context)
+                }
                 if (token != generation || !assistantVisible) return@launch
                 require(state == turn.base) { "Bữa ăn đã thay đổi. Hãy gửi lại câu hỏi cho bữa đang chọn." }
                 val actions = revisingProposal?.let { commands.reviseMenu(it, reply.actions) } ?: reply.actions
@@ -834,10 +862,18 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun openNotification(intent: Intent) {
         val date = runCatching { LocalDate.parse(intent.getStringExtra("date")) }.getOrNull() ?: return
         val meal = Meal.from(intent.getStringExtra("meal").orEmpty()) ?: return
+        notificationVersion++
         if (date in days) update(state.copy(date = date, meal = meal))
         if (assistantVisible) finishAssistant(restoreRecipe = false)
         exitCookAlong()
         sheet = null; screen = if (intent.getStringExtra("screen") == "shopping") Screen.SHOPPING else Screen.COOK
+    }
+    internal fun backDestination(): PlannerPage? = when {
+        sheet != null -> null
+        cookAlong != null && assistantVisible -> PlannerPage.Chat
+        cookAlong != null || assistantVisible -> PlannerPage.ScreenPage(screen)
+        screen != Screen.TODAY -> PlannerPage.ScreenPage(Screen.TODAY)
+        else -> null
     }
     fun back(): Boolean {
         if (sheet != null) { sheet = null; return true }
