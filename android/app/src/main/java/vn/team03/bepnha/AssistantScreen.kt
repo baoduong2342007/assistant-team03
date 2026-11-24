@@ -2,11 +2,21 @@ package vn.team03.bepnha
 
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -150,6 +160,8 @@ data class AssistantMealCard(
     var previousCount by rememberSaveable { mutableIntStateOf(ui.messages.size) }
     var newMessages by rememberSaveable { mutableStateOf(false) }
     var jumpToEnd by remember { mutableIntStateOf(0) }
+    val welcome = ui.messages.all { it.id.startsWith("greeting-") } && !ui.busy &&
+        ui.proposal.isEmpty() && ui.error == null && ui.revisionTarget == null && ui.mealSuggestions.isEmpty()
     val canSend = !ui.busy && ui.proposal.isEmpty()
     LaunchedEffect(scroll, active) {
         if (!active) return@LaunchedEffect
@@ -180,34 +192,31 @@ data class AssistantMealCard(
             newMessages = false
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().imePadding().testTag("assistant-screen")) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(KitchenSurface).imePadding().testTag("assistant-screen")) {
         val compact = maxHeight < 360.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f ||
             (ui.timer != null && maxHeight < 640.dp)
         val cramped = maxHeight < 240.dp
-        val inlineComposer = maxHeight < 360.dp && maxWidth >= 480.dp
+        val inlineComposer = (maxHeight < 360.dp && maxWidth >= 480.dp) || (!compact && maxWidth >= 340.dp)
+        val heroSize = if (compact) 160.dp else (maxHeight * 0.43f).coerceIn(200.dp, 300.dp)
         Column(Modifier.fillMaxSize()) {
             if (!compact) {
-                AssistantContext(ui)
+                AssistantContext(ui, onClear = { confirmClear = true })
                 ui.timer?.let { KitchenTimer(it, onCancelTimer) }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
                     Modifier.fillMaxSize().testTag("assistant-history"), state = scroll,
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
                     if (compact) {
-                        item("context") { AssistantContext(ui) }
+                        item("context") { AssistantContext(ui, compact = true, onClear = { confirmClear = true }) }
                         ui.timer?.let { timer -> item("timer") { KitchenTimer(timer, onCancelTimer) } }
                     }
-                    item("connection") {
-                        Text(
-                            if (ui.configured) "Khi dùng AI, câu hỏi và ngữ cảnh bữa ăn được gửi đến máy chủ. Hãy xem lại các gợi ý."
-                            else "Đang dùng trợ lý trên máy với ${ui.recipeNames.size} công thức có sẵn. Bạn có thể tra cứu, gợi ý mâm và đề xuất đổi món.",
-                            style = MaterialTheme.typography.bodySmall, color = KitchenMuted,
-                        )
+                    if (welcome) item("welcome") {
+                        AssistantWelcome(ui.suggestions, canSend, onQuestion, heroSize)
                     }
-                    items(ui.messages, key = { it.id }) { message ->
+                    items(if (welcome) emptyList() else ui.messages, key = { it.id }) { message ->
                         Column(
                             Modifier.animateItem(fadeInSpec = tween(ComponentMotionMillis), fadeOutSpec = null, placementSpec = null),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -216,19 +225,23 @@ data class AssistantMealCard(
                             if (message.id == ui.mealSuggestionMessageId) {
                                 ui.mealSuggestions.forEach { meal -> MealSuggestionCard(meal, canSend) { onChooseMeal(meal.id) } }
                             }
-                            message.recipeIds.filter { it in ui.recipeNames }.forEach { id ->
-                                KitchenOutlinedButton(onClick = { onRecipe(id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                                    Text("Xem ${ui.recipeNames.getValue(id)}")
+                            val recipes = message.recipeIds.filter { it in ui.recipeNames }
+                            if (recipes.isNotEmpty()) FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                recipes.forEach { id ->
+                                    OutlinedButton(onClick = { onRecipe(id) }, shape = RoundedCornerShape(14.dp),
+                                        border = BorderStroke(1.dp, KitchenLine),
+                                        modifier = Modifier.heightIn(min = 48.dp)) {
+                                        Text("Xem ${ui.recipeNames.getValue(id)}", style = MaterialTheme.typography.labelLarge)
+                                    }
                                 }
                             }
                             if (ui.failedMessageId == message.id && ui.error != null) {
                                 AssistantError(ui.error, ui.canRetry, onRetry, onOffline)
                             }
                         }
-                    }
-                    // The greeting is not a question, so suggestions stay until the user asks something.
-                    if (ui.messages.none { it.role == "user" }) item("welcome") {
-                        AssistantWelcome(ui.suggestions, canSend, onQuestion)
                     }
                     if (ui.mealSuggestions.isNotEmpty() && ui.mealSuggestionMessageId == null) item("meal-suggestions") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -247,10 +260,6 @@ data class AssistantMealCard(
                                 }
                             }
                         }
-                    }
-                    if (ui.canClearHistory) item("clear-history") {
-                        TextButton(onClick = { confirmClear = true },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-clear")) { Text("Xóa lịch sử trò chuyện") }
                     }
                     if (ui.busy) item("busy") {
                         Row(
@@ -314,45 +323,42 @@ data class AssistantMealCard(
                 KitchenTonalButton(onClick = { jumpToEnd++ },
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp).heightIn(min = 48.dp)) { Text("Tin nhắn mới") }
             }
-            if (ui.voiceAvailable && !cramped) VoiceBar(ui, compact, onMic, onReadAgain, onStopSpeaking)
-            // With the large microphone above, typing is secondary: keep the text box and Gửi on one row.
+            if (ui.voiceAvailable && !cramped && (ui.listening || ui.voiceNotice != null || ui.speaking || !welcome))
+                VoiceBar(ui, compact, onReadAgain, onStopSpeaking)
+            // Use one composer row on regular phones; stack actions when large text needs more room.
             AssistantComposer(ui, compact, cramped = cramped,
-                inline = inlineComposer || (ui.voiceAvailable && !cramped),
-                onQuestion = onQuestion, onSend = onSend, onProposal = { jumpToEnd++ })
+                inline = inlineComposer,
+                onQuestion = onQuestion, onSend = onSend, onMic = onMic, onProposal = { jumpToEnd++ })
         }
     }
 }
 
-/** The large microphone is the main way to talk; typing stays available below it. */
-@Composable private fun VoiceBar(ui: AssistantUiState, compact: Boolean, onMic: () -> Unit, onReadAgain: () -> Unit, onStopSpeaking: () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+/** Voice actions stay within reach without taking over the conversation. */
+@Composable private fun VoiceBar(ui: AssistantUiState, compact: Boolean, onReadAgain: () -> Unit, onStopSpeaking: () -> Unit) {
+    Surface(color = KitchenSurface) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (ui.listening) {
-                Text(ui.partial.ifBlank { "Đang nghe…" }, style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.fillMaxWidth().testTag("assistant-partial").semantics { liveRegion = LiveRegionMode.Polite })
+                Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
+                    Text(ui.partial.ifBlank { "Đang nghe bạn nói…" },
+                        Modifier.fillMaxWidth().padding(14.dp).testTag("assistant-partial")
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                        style = MaterialTheme.typography.bodyMedium)
+                }
             }
             ui.voiceNotice?.let {
-                Text(it, color = KitchenMuted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                Text(it, color = KitchenMuted, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             }
-            val label = when {
-                ui.listening -> "Đang nghe… Bấm để dừng"
-                ui.proposal.isNotEmpty() -> "Bấm rồi nói “đồng ý” hoặc “không”"
-                else -> "Bấm để nói"
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (ui.speaking) {
+                    TextButton(onClick = onStopSpeaking,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("assistant-stop-speaking")) { Text("Dừng đọc") }
+                } else if (!compact && ui.messages.any { it.role == "assistant" }) {
+                    TextButton(onClick = onReadAgain,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("assistant-read-again")) { Text("Đọc lại câu trả lời") }
+                }
             }
-            val button = Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("assistant-mic").semantics {
-                contentDescription = if (ui.listening) "Dừng nghe" else "Nói với trợ lý"
-            }
-            if (ui.listening) KitchenOutlinedButton(onClick = onMic, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
-            else KitchenButton(onClick = onMic, enabled = !ui.busy, modifier = button) { Text(label, style = MaterialTheme.typography.titleMedium) }
-            if (!ui.micGranted && !compact) {
-                Text("Lần đầu bấm, điện thoại sẽ hỏi quyền dùng micro để nghe bạn nói.",
-                    style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-            }
-            if (ui.speaking) {
-                TextButton(onClick = onStopSpeaking, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-stop-speaking")) { Text("Dừng đọc") }
-            } else if (!compact && ui.messages.any { it.role == "assistant" }) {
-                TextButton(onClick = onReadAgain, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("assistant-read-again")) { Text("Đọc lại câu trả lời") }
-            }
+
         }
     }
 }
@@ -402,7 +408,7 @@ data class AssistantMealCard(
 
 @Composable private fun AssistantComposer(
     ui: AssistantUiState, compact: Boolean, cramped: Boolean, inline: Boolean,
-    onQuestion: (String) -> Unit, onSend: () -> Unit, onProposal: () -> Unit,
+    onQuestion: (String) -> Unit, onSend: () -> Unit, onMic: () -> Unit, onProposal: () -> Unit,
 ) {
     val canSend = !ui.busy && ui.proposal.isEmpty() && ui.question.isNotBlank()
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -415,12 +421,23 @@ data class AssistantMealCard(
     val input: @Composable (Modifier) -> Unit = { modifier ->
         OutlinedTextField(
             value = ui.question, onValueChange = { onQuestion(it.take(1000)) },
-            label = if (cramped) null else { { Text("Câu hỏi của bạn") } },
+            shape = RoundedCornerShape(28.dp),
+            trailingIcon = if (ui.voiceAvailable) ({
+                IconButton(onClick = onMic, enabled = !ui.busy,
+                    modifier = Modifier.testTag("assistant-mic")) {
+                    KitchenIcon(KitchenGlyph.MIC, tint = if (ui.listening) KitchenTerracotta else KitchenGreen,
+                        modifier = Modifier.semantics { contentDescription = if (ui.listening) "Dừng nghe" else "Nói với trợ lý" })
+                }
+            }) else null,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
+                unfocusedBorderColor = KitchenLine, focusedBorderColor = KitchenGreen,
+            ),
             placeholder = {
                 Text(when {
                     cramped -> "Câu hỏi của bạn"
                     ui.revisionTarget != null -> "Bạn muốn đổi món nào?"
-                    else -> "Ví dụ: Món nào nấu nhanh?"
+                    else -> "Hỏi Bếp Nhà…"
                 })
             },
             modifier = modifier.testTag("assistant-input").semantics { contentDescription = "Câu hỏi của bạn" },
@@ -436,6 +453,10 @@ data class AssistantMealCard(
                 contentDescription = "Gửi câu hỏi"
             }) {
             Text("Gửi")
+            if (!compact) {
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp))
+            }
         }
     }
     Surface(color = MaterialTheme.colorScheme.surface) {
@@ -445,7 +466,7 @@ data class AssistantMealCard(
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 input(Modifier.weight(1f))
-                send(Modifier.widthIn(min = 96.dp, max = 160.dp))
+                send(Modifier.widthIn(min = 80.dp, max = 128.dp))
             }
         } else {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -460,47 +481,115 @@ data class AssistantMealCard(
     }
 }
 
-@Composable private fun AssistantContext(ui: AssistantUiState) {
-    Surface(color = KitchenSoft) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(ui.context, style = MaterialTheme.typography.titleSmall, color = KitchenGreen)
-            Text(ui.date, style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-            ui.recipe?.let { Text("Đang hỏi về: $it", style = MaterialTheme.typography.bodySmall) }
+@Composable private fun AssistantContext(ui: AssistantUiState, compact: Boolean = false, onClear: () -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = if (compact) 0.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 4.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("assistant-source-info")) {
+                KitchenIcon(KitchenGlyph.BOWL, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(ui.context, style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+                Spacer(Modifier.width(8.dp))
+                Text(if (expanded) "−" else "+", color = KitchenMuted)
+            }
+            if (ui.canClearHistory) AssistantHistoryMenu(onClear)
+            else IconButton(onClick = { expanded = !expanded }) {
+                Icon(Icons.Outlined.MoreVert, "Thông tin trợ lý", tint = KitchenMuted)
+            }
+        }
+        if (expanded) Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(ui.date, style = MaterialTheme.typography.labelLarge, color = KitchenGreen)
+                ui.recipe?.let { Text("Đang hỏi về: $it", style = MaterialTheme.typography.bodySmall) }
+                Text(if (ui.configured) "Khi dùng AI, câu hỏi và ngữ cảnh bữa ăn được gửi đến máy chủ. Hãy xem lại các gợi ý."
+                    else "Đang dùng trợ lý trên máy với ${ui.recipeNames.size} công thức có sẵn. Bạn có thể tra cứu, gợi ý mâm và đề xuất đổi món.",
+                    style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+            }
         }
     }
 }
 
-@Composable private fun AssistantWelcome(suggestions: List<String>, enabled: Boolean, onSelect: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Bạn cần chuẩn bị gì cho bữa này?", style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.semantics { heading() })
-        Text("Hỏi cách nấu, tìm món thay thế hoặc xem nguyên liệu.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-        Text("Chọn gợi ý để sửa trước khi gửi", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
-        suggestions.take(3).forEach { suggestion ->
-            KitchenOutlinedButton(onClick = { onSelect(suggestion) }, enabled = enabled,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(suggestion, Modifier.weight(1f)) }
+@Composable private fun AssistantHistoryMenu(onClear: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.testTag("assistant-options")) {
+            Icon(Icons.Outlined.MoreVert, contentDescription = "Tùy chọn trò chuyện", tint = KitchenMuted)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("Xóa lịch sử trò chuyện") },
+                onClick = { expanded = false; onClear() }, modifier = Modifier.testTag("assistant-clear"))
+        }
+    }
+}
+
+@Composable private fun AssistantWelcome(
+    suggestions: List<String>, enabled: Boolean, onSelect: (String) -> Unit,
+    heroSize: androidx.compose.ui.unit.Dp,
+) {
+    val prompts = (suggestions + "Còn thiếu nguyên liệu gì?").distinct().take(4)
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Image(painterResource(R.drawable.assistant_hero), contentDescription = null,
+            modifier = Modifier.size(heroSize).testTag("assistant-hero"), contentScale = ContentScale.Fit)
+        Text("Hôm nay bạn muốn ăn gì?", style = MaterialTheme.typography.titleLarge,
+            color = KitchenGreen, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
+        Text("Để Bếp Nhà cùng bạn chuẩn bị.", style = MaterialTheme.typography.bodyMedium,
+            color = KitchenMuted, textAlign = TextAlign.Center)
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(4.dp), maxItemsInEachRow = 2) {
+            prompts.forEachIndexed { index, prompt ->
+                val label = when {
+                    prompt.contains("tủ lạnh", ignoreCase = true) -> "Từ tủ lạnh"
+                    prompt.contains("thiếu nguyên liệu", ignoreCase = true) -> "Đi chợ"
+                    prompt.contains("nấu món nào trước", ignoreCase = true) -> "Thứ tự nấu"
+                    prompt.contains("20 phút", ignoreCase = true) -> "Nấu nhanh"
+                    prompt.length <= 18 -> prompt
+                    prompt.contains("tuần") -> "Lên thực đơn"
+                    prompt.contains("nguyên liệu", ignoreCase = true) -> "Nguyên liệu cần có"
+                    prompt.contains("canh") -> "Gợi ý món canh"
+                    else -> "Gợi ý nấu ăn"
+                }
+                val glyph = when (index) { 0 -> KitchenGlyph.BOWL; 1 -> KitchenGlyph.CLOCK; 2 -> KitchenGlyph.SPARKLE; else -> KitchenGlyph.FRIDGE }
+                FilledTonalButton(onClick = { onSelect(prompt) }, enabled = enabled,
+                    shape = CircleShape, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = KitchenSoft.copy(alpha = 0.65f), contentColor = KitchenGreen)) {
+                    KitchenIcon(glyph, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(label, style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
     }
 }
 
 @Composable private fun AssistantMessage(message: AssistantChatMessage) {
     val user = message.role == "user"
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start,
+    Column(Modifier.fillMaxWidth().padding(start = if (user) 28.dp else 0.dp, end = if (user) 0.dp else 12.dp),
+        horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (user) "Bạn" else when (message.source) {
-            AssistantSource.LOCAL -> "Tra cứu trên máy"
-            AssistantSource.SYSTEM -> "Bếp Nhà"
-            AssistantSource.AI -> "Trợ lý Bếp Nhà"
-        }, style = MaterialTheme.typography.labelMedium, color = KitchenMuted)
-        if (user) {
-            Surface(color = KitchenSoft, shape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)) {
-                SelectionContainer { Text(message.text, Modifier.padding(16.dp)) }
-            }
-        } else {
-            message.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = KitchenMuted) }
-            SelectionContainer {
-                Text(message.text, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!user) KitchenIcon(KitchenGlyph.SPARKLE, Modifier.size(16.dp))
+            Text(if (user) "Bạn" else when (message.source) {
+                AssistantSource.LOCAL -> "Tra cứu trên máy"
+                AssistantSource.SYSTEM -> "Bếp Nhà"
+                AssistantSource.AI -> "Trợ lý Bếp Nhà"
+            }, style = MaterialTheme.typography.labelMedium, color = KitchenMuted)
+        }
+        Surface(
+            color = if (user) KitchenGreen else Color.White,
+            contentColor = if (user) Color.White else KitchenInk,
+            shape = if (user) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp) else RoundedCornerShape(6.dp, 20.dp, 20.dp, 20.dp),
+            border = if (user) null else BorderStroke(1.dp, KitchenLine.copy(alpha = 0.7f)),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                message.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                    color = if (user) KitchenOnGreen else KitchenMuted) }
+                SelectionContainer {
+                    Text(message.text, style = MaterialTheme.typography.bodyLarge,
+                        modifier = if (user) Modifier else Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
             }
         }
     }

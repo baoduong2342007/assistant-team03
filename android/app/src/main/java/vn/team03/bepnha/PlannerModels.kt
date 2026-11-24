@@ -114,6 +114,8 @@ data class PlannerState(
     val shopping: ShoppingReminder = ShoppingReminder(),
     val voice: VoiceSettings = VoiceSettings(),
     val diet: DietProfile = DietProfile(),
+    /** Items the family added by hand to a day's shopping list, keyed by [PlannerEngine.shopKey]. */
+    val extras: Map<String, List<Ingredient>> = emptyMap(),
 ) {
     val key: String get() = PlannerEngine.key(date, meal)
     val shoppingMeals: Set<Meal> get() = shopMeals.ifEmpty { setOf(meal) }

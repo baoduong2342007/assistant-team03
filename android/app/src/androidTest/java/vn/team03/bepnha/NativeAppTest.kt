@@ -26,6 +26,7 @@ class NativeAppTest {
         override fun before() {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             context.getSharedPreferences("bep_nha_planner_v2", 0).edit().clear().commit()
+            context.getSharedPreferences(PlannerStorage.WELCOME_PREFS, 0).edit().putBoolean("seen", true).commit()
             ReminderStore.synchronize(context, "[]")
         }
     }
@@ -33,7 +34,7 @@ class NativeAppTest {
 
     @Test fun screenUsesActualComposeViews() {
         compose.onNodeWithTag("native-root").assertExists()
-        compose.onNodeWithText("Nhà mình ăn gì?").assertIsDisplayed()
+        compose.onNodeWithTag("home-greeting").assertIsDisplayed()
         compose.activityRule.scenario.onActivity { activity ->
             val views = mutableListOf<View>()
             fun collect(view: View) {
@@ -45,6 +46,22 @@ class NativeAppTest {
             assertFalse(views.any { it.javaClass.name.contains("WebView") })
         }
         capture("native-home.png")
+    }
+
+    @Test fun todaySearchFindsAccentFreeNamesAndOpensTheRecipe() {
+        compose.onNodeWithTag("today-search").performTextInput("dau hu sot ca chua")
+        compose.onNodeWithTag("today-list").performScrollToNode(hasTestTag("open-tofu"))
+        compose.onNodeWithTag("open-tofu").performClick()
+        compose.onNodeWithText("Cách nấu từng bước").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun todayCategoryAndEmptySearchCanReturnToTheMeal() {
+        onToday("today-category-SOUP").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithTag("today-search").performTextInput("zzzzkhongcomon")
+        compose.onNodeWithText("0 công thức").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Về thực đơn hôm nay").performClick()
+        onToday("open-pork").performClick()
+        compose.onNodeWithText("Cách nấu từng bước").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun changingTheMainDishUpdatesTheNativeMealCardAndPhoto() {
@@ -66,6 +83,7 @@ class NativeAppTest {
     }
 
     @Test fun breakfastShowsItsOwnPhoto() {
+        onToday("today-meal-picker").performClick()
         compose.onNodeWithTag("meal-breakfast").performClick()
         onToday("meal-photo-bread").assertContentDescriptionEquals("Ảnh minh họa Bánh mì ốp la")
         compose.onNodeWithTag("meal-photo-family").assertDoesNotExist()
@@ -202,6 +220,7 @@ class NativeAppTest {
     }
 
     @Test fun rapidAskPanelSwitchesKeepFridgeScrollAndExposeOnlyTheSelectedPanel() {
+        compose.onNodeWithTag("more-menu").performClick()
         compose.onNodeWithTag("tab-ask").performClick()
         compose.onNodeWithTag("fridge-Trứng").performClick()
         compose.onNodeWithTag("fridge-list").performScrollToNode(hasTestTag("tray-0"))
@@ -222,6 +241,7 @@ class NativeAppTest {
     }
 
     @Test fun fridgeSuggestsAMealAndChatChangesTomorrowsDinner() {
+        compose.onNodeWithTag("more-menu").performClick()
         compose.onNodeWithTag("tab-ask").performClick()
         compose.onNodeWithTag("fridge-Trứng").performClick()
         compose.onNodeWithTag("fridge-list").performScrollToNode(hasTestTag("tray-0"))
@@ -236,7 +256,7 @@ class NativeAppTest {
         compose.onNodeWithTag("assistant-confirm").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Quay lại").performClick()
         compose.onNodeWithTag("tab-today").performClick()
-        compose.onNodeWithTag("date-${PlannerEngine.today().plusDays(1)}").performClick()
+        onToday("date-${PlannerEngine.today().plusDays(1)}").performClick()
         onToday("recipe-tofu").assertIsDisplayed()
     }
 

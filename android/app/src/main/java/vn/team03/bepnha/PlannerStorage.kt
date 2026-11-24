@@ -40,6 +40,17 @@ class RecipeRepository(context: Context) {
 /** Native persistence; the Android app never reads a web page or browser localStorage. */
 class PlannerStorage(context: Context, private val engine: PlannerEngine) {
     private val preferences = context.getSharedPreferences("bep_nha_planner_v2", Context.MODE_PRIVATE)
+    private val welcome = context.getSharedPreferences(WELCOME_PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * The first-run welcome is shown until the family finishes it. Families who used the app before the welcome existed
+     * skip it: that is decided once, on the first launch with this version, because the app saves state as soon as it opens.
+     */
+    fun welcomeSeen(): Boolean {
+        if (!welcome.contains("seen")) welcome.edit().putBoolean("seen", preferences.contains("state")).commit()
+        return welcome.getBoolean("seen", false)
+    }
+    fun markWelcomeSeen() { welcome.edit().putBoolean("seen", true).apply() }
 
     fun load(today: LocalDate): PlannerState = runCatching {
         val root = JSONObject(preferences.getString("state", "{}") ?: "{}")
@@ -67,11 +78,22 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             item.optBoolean("read_aloud", true), item.optDouble("rate", 0.85).toFloat().takeIf { it in 0.5f..1.5f } ?: 0.85f)
         } ?: VoiceSettings()
         val diet = root.optJSONObject("diet")?.let { runCatching { dietFrom(it, engine) }.getOrNull() } ?: DietProfile()
+        // Hand-added shopping items; past days are dropped so the store does not grow forever.
+        val extras = root.optJSONObject("extras")?.let { json ->
+            json.keys().asSequence().mapNotNull { key ->
+                val day = runCatching { LocalDate.parse(key.substringBefore('|')) }.getOrNull() ?: return@mapNotNull null
+                if (day < today) return@mapNotNull null
+                key to json.optJSONArray(key)?.objects().orEmpty().mapNotNull { item ->
+                    runCatching { Ingredient(item.getString("name").take(60), item.getDouble("amount"),
+                        item.getString("unit").take(20), item.getString("group").take(40)) }.getOrNull()
+                }
+            }.filter { it.second.isNotEmpty() }.toMap()
+        }.orEmpty()
         engine.ensureWeek(PlannerState(family, selected, Meal.from(root.optString("meal")) ?: Meal.DINNER, plans,
             root.optJSONObject("checked").stringLists().mapValues { it.value.toSet() },
             root.optJSONObject("done").stringLists().mapValues { it.value.toSet() },
             root.optJSONArray("favorites")?.strings()?.filter { it in engine.recipes }?.toSet().orEmpty(),
-            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timers, shopMeals, shopping, voice, diet), today)
+            root.optJSONArray("reminders")?.strings()?.toSet().orEmpty(), timers, shopMeals, shopping, voice, diet, extras), today)
     }.getOrElse { engine.ensureWeek(PlannerState(date = today), today) }
 
     fun save(state: PlannerState) {
@@ -91,11 +113,18 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             .put("voice", JSONObject().put("address_as", state.voice.addressAs).put("read_aloud", state.voice.readAloud)
                 .put("rate", state.voice.rate.toDouble()))
             .put("diet", dietJson(state.diet))
+            .put("extras", JSONObject().apply {
+                state.extras.forEach { (key, items) -> put(key, JSONArray().apply {
+                    items.forEach { put(JSONObject().put("name", it.name).put("amount", it.amount).put("unit", it.unit).put("group", it.group)) }
+                }) }
+            })
         // Called on the ViewModel's serial IO worker, so confirmed state survives process termination.
         check(preferences.edit().putString("state", root.toString()).commit()) { "Could not save planner state" }
     }
 
     companion object {
+        /** Separate from the planner state so clearing a plan never replays the welcome. */
+        const val WELCOME_PREFS = "bep_nha_welcome"
         fun alarmJson(alarms: List<NativeAlarm>): String = JSONArray().apply {
             alarms.forEach { alarm -> put(JSONObject().put("id", alarm.id).put("at", alarm.at)
                 .put("title", alarm.title).put("body", alarm.body).put("date", alarm.date.toString())

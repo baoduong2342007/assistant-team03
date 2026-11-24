@@ -21,6 +21,7 @@ class AgentUiTest {
         override fun before() {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             context.getSharedPreferences("bep_nha_planner_v2", 0).edit().clear().commit()
+            context.getSharedPreferences(PlannerStorage.WELCOME_PREFS, 0).edit().putBoolean("seen", true).commit()
             context.getSharedPreferences("bep_nha_chat", 0).edit().clear().commit()
             ReminderStore.synchronize(context, "[]")
         }
@@ -30,7 +31,7 @@ class AgentUiTest {
 
     @Test fun cookAlongStepsForwardAndBackAndMarksTasksDone() {
         compose.onNodeWithTag("tab-cook").performClick()
-        compose.onNodeWithTag("start-cook-along").performScrollTo().performClick()
+        compose.onNodeWithTag("start-cook-along").performClick()
         compose.onNodeWithTag("cook-along").assertIsDisplayed()
         compose.onNodeWithTag("cook-step-count").assertTextContains("Bước 1 /", substring = true)
         val firstTask = compose.runOnIdle { vm().cookAlong!!.step.taskKey }
@@ -94,7 +95,7 @@ class AgentUiTest {
         }
         compose.waitUntil(5000) { !vm().assistantBusy }
         val before = compose.runOnIdle { vm().state }
-        compose.onNodeWithTag("assistant-history").performScrollToNode(hasTestTag("assistant-clear"))
+        compose.onNodeWithTag("assistant-options").performClick()
         compose.onNodeWithTag("assistant-clear").performClick()
         compose.onNodeWithTag("assistant-clear-confirm").performClick()
         compose.runOnIdle {

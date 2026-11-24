@@ -30,6 +30,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     private val storage = PlannerStorage(application, engine)
     var today by mutableStateOf(PlannerEngine.today()); private set
     var state by mutableStateOf(storage.load(today)); private set
+    var showWelcome by mutableStateOf(!storage.welcomeSeen()); private set
     var screen by mutableStateOf(Screen.TODAY); private set
     var sheet by mutableStateOf<PlannerSheet?>(null); private set
     internal var sheetVersion by mutableIntStateOf(0); private set
@@ -768,6 +769,40 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
     val checkedIngredients: Set<String> get() = engine.checkedForShopping(state, state.date, state.shoppingMeals)
 
+    /** The day's list: ingredients of the chosen meals plus items added by hand; equal items are summed. */
+    fun shoppingItems(date: LocalDate = state.date, meals: Set<Meal> = state.shoppingMeals): List<Ingredient> {
+        val merged = linkedMapOf<String, Ingredient>()
+        (engine.ingredients(engine.shoppingMenu(state, date, meals), state.profile.people) +
+            state.extras[PlannerEngine.shopKey(date)].orEmpty()).forEach { item ->
+            merged[item.key] = merged[item.key]?.let { it.copy(amount = it.amount + item.amount) } ?: item
+        }
+        return merged.values.toList()
+    }
+    fun addShoppingItem(name: String, amount: Double, unit: String, group: String) {
+        val clean = name.trim().take(60)
+        if (clean.isEmpty() || amount <= 0.0 || amount > 100_000) { message = "Nhập tên và số lượng hợp lệ."; return }
+        val shop = PlannerEngine.shopKey(state.date)
+        val item = Ingredient(clean.replaceFirstChar { it.titlecase(PlannerEngine.locale) }, amount, unit.trim().take(20), group)
+        update(state.copy(extras = state.extras + (shop to (state.extras[shop].orEmpty() + item)),
+            checked = state.checked + (shop to (checkedIngredients - item.key))))
+        message = "Đã thêm ${item.name} vào danh sách."
+    }
+    fun removeShoppingExtras(group: String) {
+        val shop = PlannerEngine.shopKey(state.date)
+        val left = state.extras[shop].orEmpty().filterNot { it.group == group }
+        update(state.copy(extras = if (left.isEmpty()) state.extras - shop else state.extras + (shop to left)))
+    }
+    fun setIngredientsChecked(keys: Collection<String>, done: Boolean) {
+        val shop = PlannerEngine.shopKey(state.date)
+        update(state.copy(checked = state.checked + (shop to if (done) checkedIngredients + keys else checkedIngredients - keys.toSet())))
+    }
+    /** Unticks everything and drops hand-added items for the selected day. */
+    fun clearShopping() {
+        val shop = PlannerEngine.shopKey(state.date)
+        update(state.copy(checked = state.checked + (shop to emptySet()), extras = state.extras - shop))
+        message = "Đã làm mới danh sách đi chợ."
+    }
+
     fun checkTask(key: String) {
         val done = state.done[state.key].orEmpty().toggle(key)
         update(state.copy(done = state.done + (state.key to done)))
@@ -777,6 +812,16 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         update(state.copy(profile = FamilyProfile(name.trim().take(35).ifBlank { "Nhà mình" }, people.coerceIn(1, 12), lunch, dinner, breakfast),
             checked = if (changedPeople) emptyMap() else state.checked))
         message = "Đã lưu thông tin gia đình và cập nhật định lượng."
+    }
+    /** Ends the first-run welcome; a family name and size are saved when the family set them up. */
+    fun finishWelcome(name: String? = null, people: Int? = null) {
+        if (name != null || people != null) {
+            val size = (people ?: state.profile.people).coerceIn(1, 12)
+            update(state.copy(profile = state.profile.copy(name = name?.trim()?.take(35)?.ifBlank { null } ?: state.profile.name, people = size),
+                checked = if (size != state.profile.people) emptyMap() else state.checked))
+        }
+        storage.markWelcomeSeen()
+        showWelcome = false
     }
     fun saveReminder(time: LocalTime, enabled: Boolean) {
         update(state.copy(profile = state.profile.with(state.meal, time),
@@ -885,7 +930,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun shoppingText(date: LocalDate = state.date, meals: Set<Meal> = state.shoppingMeals): String {
         val title = if (meals.size == Meal.entries.size) "Cả ngày" else meals.joinToString(" + ") { it.title }
         return "$title ${PlannerEngine.shortDate(date)} — ${state.profile.people} người\n" +
-            engine.ingredients(engine.shoppingMenu(state, date, meals), state.profile.people).joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
+            shoppingItems(date, meals).joinToString("\n") { "□ ${it.name}: ${PlannerEngine.quantity(it.amount)} ${it.unit}" }
     }
 }
 

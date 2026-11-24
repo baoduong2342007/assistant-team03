@@ -25,6 +25,13 @@ val KitchenTerracotta = Color(0xFFA2422B)
 val KitchenGold = Color(0xFFFFDFB0)
 val KitchenOnGreen = Color(0xFFDFE9D9)
 
+/** The one card style for list content: white, a hairline border, no shadow. */
+val KitchenCardShape = RoundedCornerShape(20.dp)
+val KitchenCardBorder = Color(0xFFEAE3D7)
+
+/** The one big sans title per screen: the home greeting and the cook hero. */
+val KitchenHeroTitle = TextStyle(fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp)
+
 @Composable fun BepNhaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -37,16 +44,22 @@ val KitchenOnGreen = Color(0xFFDFE9D9)
             onSurfaceVariant = KitchenMuted, outline = KitchenMuted, outlineVariant = KitchenLine),
         shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp),
             medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(20.dp), extraLarge = RoundedCornerShape(28.dp)),
+        // One scale for every screen. Line heights are ~1.35–1.45× so Vietnamese stacked diacritics never clip.
+        //   headline*  – serif brand/cook-along voice      titleLarge – screen and section headings
+        //   titleMedium – group headers (a meal, a shelf)  titleSmall – one item: a dish, an ingredient, a step
+        //   body*      – reading text and meta             label*     – buttons, chips and tags
         typography = Typography(
-            headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Medium),
-            headlineSmall = TextStyle(fontFamily = FontFamily.Serif, fontSize = 27.sp, lineHeight = 35.sp, fontWeight = FontWeight.Medium),
-            titleLarge = TextStyle(fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
-            titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold),
-            bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
-            bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
-            bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp),
-            labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
-            labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold),
+            headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium),
+            headlineSmall = TextStyle(fontFamily = FontFamily.Serif, fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium),
+            titleLarge = TextStyle(fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.1).sp),
+            titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+            titleSmall = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+            bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.sp),
+            bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.sp),
+            bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, letterSpacing = 0.sp),
+            labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+            labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+            labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp),
         ), content = content,
     )
 }
