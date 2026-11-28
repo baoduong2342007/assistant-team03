@@ -58,6 +58,7 @@ object CookLivePrompt {
             "${item.name} ${PlannerEngine.quantity(item.amount)} ${item.unit}".trim()
         }
         val steps = session.steps.mapIndexed { i, step -> "${i + 1}. [${step.title}] ${step.text}" }.joinToString("\n")
+        val diet = state.diet.describe().ifBlank { null }
         return """
             Bạn là trợ lý nấu ăn của ứng dụng Bếp Nhà, đang hướng dẫn nấu từng bước bằng giọng nói.
             Luôn nói tiếng Việt (vi-VN), giọng ấm áp, rõ ràng. Mỗi lượt chỉ 1-3 câu ngắn, trừ khi đọc một bước nấu.
@@ -69,6 +70,7 @@ object CookLivePrompt {
             Các bước (${session.steps.size} bước):
             $steps
             Lúc bắt đầu, người nấu đang ở bước ${session.index + 1}.
+            Hồ sơ ăn uống của gia đình: ${diet ?: "chưa khai báo dị ứng hay kiêng khem"}.
 
             Quy tắc:
             - Muốn sang bước tiếp, nói đã xong bước này: gọi next_step. Quay lại: previous_step. Đọc lại: repeat_step.
@@ -76,6 +78,8 @@ object CookLivePrompt {
             - Chỉ đổi bước bằng cách gọi hàm. Sau khi gọi, đọc đúng nội dung trường "step" hoặc "say" trong kết quả, không thêm bớt.
             - Trả lời ngắn các câu hỏi về món đang nấu: nguyên liệu, cách làm, thay thế, cách nhận biết món đã chín, an toàn thực phẩm.
               Không bịa thêm bước hoặc nguyên liệu không có ở trên; nếu không chắc thì nói là không chắc.
+            - Khi gợi ý thay thế hay thêm nguyên liệu, tuyệt đối không gợi ý thứ gia đình phải tránh hoặc làm trái hồ sơ ăn uống
+              (dị ứng, ăn chay, ít muối, ít đường...). Nếu không chắc một nguyên liệu có hợp hồ sơ không, nói rõ và khuyên kiểm tra.
             - Không đổi món, không sửa thực đơn, không thêm đồ đi chợ. Nếu được nhờ, nói $who dùng mục Trò chuyện của Bếp Nhà.
             - Tin nhắn bắt đầu bằng "$APP" là thông báo của ứng dụng, không phải lời người nấu. Làm theo yêu cầu trong đó.
             - Nếu nghe không rõ, hỏi lại thật ngắn.
@@ -88,4 +92,22 @@ object CookLivePrompt {
     fun readStep(spoken: String) = "$APP Người nấu vừa bấm nút trên màn hình. Hãy đọc nguyên văn: $spoken"
 
     fun announce(text: String) = "$APP Hãy nói lại cho người nấu: $text"
+
+    /** Whether a later tap may try Live again; quota and configuration problems do not clear up during one meal. */
+    fun retryable(kind: AssistantFailureKind) = kind !in setOf(
+        AssistantFailureKind.QUOTA, AssistantFailureKind.UNCONFIGURED, AssistantFailureKind.CONFIGURATION,
+    )
+
+    /** Said on the cook screen when Gemini Live stops, by cause; [retry] says whether the next tap tries Live again. */
+    fun failure(kind: AssistantFailureKind, retry: Boolean, addressAs: String): String {
+        val who = AssistantVoice.title(addressAs)
+        val reason = when (kind) {
+            AssistantFailureKind.NETWORK, AssistantFailureKind.TIMEOUT -> "Gemini Live vừa mất kết nối mạng."
+            AssistantFailureKind.QUOTA -> "Gemini Live đang hết lượt dùng."
+            AssistantFailureKind.UNCONFIGURED, AssistantFailureKind.CONFIGURATION -> "Máy này chưa được xác thực để dùng Gemini Live."
+            AssistantFailureKind.UNAVAILABLE, AssistantFailureKind.INVALID, AssistantFailureKind.BLOCKED -> "Gemini Live tạm thời gặp lỗi."
+        }
+        return if (retry) "$reason $who bấm nút micro để thử lại, hoặc dùng các nút trên màn hình."
+        else "$reason Từ giờ nút micro nghe lệnh ngắn: “tiếp”, “đọc lại”, “quay lại” hoặc “hẹn giờ 10 phút”."
+    }
 }

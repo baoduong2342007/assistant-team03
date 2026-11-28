@@ -315,8 +315,13 @@ import java.time.LocalTime
                 else KitchenOutlinedButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
             }
         }
+        // "Nghe thử" plays the phone's own voice, so it sits with the reading speed, not with the Gemini voices.
+        KitchenOutlinedButton(onClick = { vm.previewVoice(address, rate) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-preview")) { Text("Nghe thử giọng đọc") }
         if (vm.assistantConfigured) {
             Text("Giọng Gemini khi “Nấu cùng tôi”", style = MaterialTheme.typography.bodySmall)
+            Text("Chỉ nghe được khi bấm micro trò chuyện trong “Nấu cùng tôi”.", style = MaterialTheme.typography.bodySmall,
+                color = KitchenMuted)
             VoiceSettings.LIVE_VOICES.chunked(2).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { (value, label) ->
@@ -328,8 +333,6 @@ import java.time.LocalTime
                 }
             }
         }
-        KitchenOutlinedButton(onClick = { vm.previewVoice(address, rate) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-preview")) { Text("Nghe thử") }
         KitchenButton(onClick = { vm.saveVoiceSettings(address, readAloud, rate, liveVoice) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-save")) { Text("Lưu cách nói chuyện") }
     }

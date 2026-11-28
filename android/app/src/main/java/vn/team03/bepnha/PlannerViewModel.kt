@@ -351,6 +351,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         cookAlong = CookAlong(date, meal, steps, start)
         voiceNotice = null
         liveUnavailable = false
+        cancelFinishing()
         readStep()
     }
     fun cookNext() = advance(announce = true)
@@ -363,7 +364,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     fun cookTimer(minutes: Int) { setCookTimer(minutes, announce = true) }
     fun exitCookAlong() {
         cookAlong = null
-        finishing = null
+        cancelFinishing()
         liveController?.stop()
         voiceController?.reset()
         voiceController?.stopSpeaking()
@@ -395,17 +396,20 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
     private fun goBack(announce: Boolean) {
         val session = cookAlong ?: return
+        // Going back undoes a voice "finished": the cook-along stays open and Gemini keeps working.
+        cancelFinishing()
         if (session.index > 0) cookAlong = session.copy(index = session.index - 1)
         if (announce) readStep()
     }
-    /** Starts a timer for the current step; returns what to tell the user. */
-    private fun setCookTimer(minutes: Int, announce: Boolean): String? {
+    /** Starts a timer for the current step; returns whether it started and what to tell the user. */
+    private fun setCookTimer(minutes: Int, announce: Boolean): Pair<Boolean, String>? {
         val session = cookAlong ?: return null
         if (minutes !in 1..180) return null
+        val before = state.timers
         startTimer(minutes, "${session.step.title}: bước ${session.index + 1}")
-        val said = message
-        if (announce) said?.let { if (liveCookOpen) liveCook.say(CookLivePrompt.announce(it)) else voice.speak(it) }
-        return said
+        val said = message.orEmpty()
+        if (announce && said.isNotEmpty()) { if (liveCookOpen) liveCook.say(CookLivePrompt.announce(said)) else voice.speak(said) }
+        return (state.timers != before) to said
     }
 
     private fun onCookVoice(heard: VoiceState) {
@@ -425,7 +429,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             }
             is VoiceState.Error -> {
                 voice.reset()
-                voiceNotice = AssistantVoice.error(heard.kind, state.voice.addressAs)
+                voiceNotice = AssistantVoice.cookError(heard.kind, state.voice.addressAs)
                 voice.speak(voiceNotice.orEmpty())
             }
             else -> Unit
@@ -433,7 +437,7 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
     }
 
     // ---- Gemini Live inside "Nấu cùng tôi" (the chat assistant keeps its own model) ----
-    internal var liveCookFactory: (Application) -> LiveCookEngine = { FirebaseLiveCookEngine() }
+    internal var liveCookFactory: (Application) -> LiveCookEngine = { FirebaseLiveCookEngine(it) }
     private var liveController: LiveCookController? = null
     private val liveCook: LiveCookController
         get() = liveController ?: LiveCookController(liveCookFactory(getApplication()), viewModelScope).also { created ->
@@ -443,12 +447,21 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
         }
     var liveCookState by mutableStateOf<LiveCookState>(LiveCookState.Off); private set
     val liveCookOpen get() = liveCookState.let { it is LiveCookState.Connecting || it is LiveCookState.Active }
-    /** Set after Live fails once; the rest of this cook-along uses on-device commands. */
+    /** Set after a lasting Live failure (quota, configuration); the rest of this cook-along uses on-device commands. */
     private var liveUnavailable by mutableStateOf(false)
-    /** Whether the microphone talks to Gemini Live (same rule as the chat assistant) rather than parsing commands. */
-    val cookUsesLive get() = assistantConfigured && !liveUnavailable
+    /** Same rule as the chat assistant; tests may turn it on to drive a fake engine. */
+    internal var cookLiveAllowed by mutableStateOf(assistantConfigured)
+    /** Whether the microphone talks to Gemini Live rather than parsing short commands on the device. */
+    val cookUsesLive get() = cookLiveAllowed && !liveUnavailable
     /** The cook-along Gemini just finished by voice; the screen closes once Gemini has said goodbye. */
     private var finishing: CookAlong? = null
+    private var finishJob: Job? = null
+
+    private fun cancelFinishing() {
+        finishJob?.cancel()
+        finishJob = null
+        finishing = null
+    }
 
     private fun liveSetup(): LiveCookSetup? = cookAlong?.let { session ->
         LiveCookSetup(CookLivePrompt.instruction(engine, state, session), state.voice.liveVoice)
@@ -456,13 +469,14 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
 
     private fun onLiveState(live: LiveCookState) {
         liveCookState = live
-        if (live !is LiveCookState.Failed) return
-        liveUnavailable = true
-        if (cookAlong == null) return
+        if (live !is LiveCookState.Failed || cookAlong == null) return
         if (BuildConfig.DEBUG) android.util.Log.w("BepNhaLive", "Live failed: ${live.kind}")
-        // Fall back to the on-device recognizer at once, so the user can say the command again.
-        voice.start()
-        voiceNotice = "Chưa kết nối được Gemini Live. Đang dùng lệnh giọng nói cơ bản: nói “tiếp”, “đọc lại”, “quay lại” hoặc “hẹn giờ 10 phút”."
+        // A dropped connection may be retried with the next tap; quota or configuration problems will not clear up.
+        val retry = CookLivePrompt.retryable(live.kind)
+        if (!retry) liveUnavailable = true
+        // Say why, and let the user decide: no automatic listening (it would beep and fail again offline).
+        voiceNotice = CookLivePrompt.failure(live.kind, retry, state.voice.addressAs)
+        voice.speak(voiceNotice.orEmpty())
     }
 
     /** Runs Gemini's function calls on the main thread; the result is what Gemini reads next. */
@@ -474,8 +488,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             CookLiveTools.Command.Next -> if (session.isLast) {
                 finishing = session
                 markTaskDone(session.date, session.meal, session.step.taskKey)
-                // Let Gemini say goodbye before the cook screen closes.
-                viewModelScope.launch {
+                // Let Gemini say goodbye before the cook screen closes; going back cancels this.
+                finishJob = viewModelScope.launch {
                     delay(FINISH_DELAY_MS)
                     if (cookAlong == session && finishing == session) {
                         exitCookAlong()
@@ -495,8 +509,8 @@ class PlannerViewModel(application: Application, private val savedState: SavedSt
             }
             CookLiveTools.Command.Repeat -> JSONObject().put("ok", true).put("step", step())
             is CookLiveTools.Command.Timer -> {
-                val said = setCookTimer(command.minutes, announce = false)
-                JSONObject().put("ok", said != null).put("say", said.orEmpty())
+                val (started, said) = setCookTimer(command.minutes, announce = false) ?: (false to "Chỉ hẹn được từ 1 đến 180 phút.")
+                JSONObject().put("ok", started).put("say", said)
             }
             CookLiveTools.Command.CancelTimer -> {
                 val timer = state.timers.filter { it.date == session.date && it.meal == session.meal }.maxByOrNull { it.id }

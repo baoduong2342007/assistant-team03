@@ -64,4 +64,27 @@ class NativeStorageTest {
             assertNull(PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE))
         } finally { ReminderStore.synchronize(context, "[]") }
     }
+
+    @Test fun geminiVoiceIsSavedAndOlderDataGetsTheDefault() {
+        val engine = RecipeRepository(context).engine
+        val storage = PlannerStorage(context, engine)
+        val preferences = context.getSharedPreferences("bep_nha_planner_v2", 0)
+        try {
+            val initial = engine.ensureWeek(PlannerState(date = PlannerEngine.today()), PlannerEngine.today())
+            val saved = initial.copy(voice = VoiceSettings("bác", readAloud = false, rate = 0.7f, liveVoice = "Puck"))
+            storage.save(saved)
+            assertEquals(saved.voice, storage.load(PlannerEngine.today()).voice)
+
+            // Data saved before the Gemini voice existed, and an unknown voice name, fall back to the default.
+            val state = JSONObject(preferences.getString("state", null)!!)
+            state.getJSONObject("voice").remove("live_voice")
+            assertTrue(preferences.edit().putString("state", state.toString()).commit())
+            assertEquals(VoiceSettings("bác", false, 0.7f), storage.load(PlannerEngine.today()).voice)
+            state.getJSONObject("voice").put("live_voice", "Nobody")
+            assertTrue(preferences.edit().putString("state", state.toString()).commit())
+            assertEquals(VoiceSettings.DEFAULT_LIVE_VOICE, storage.load(PlannerEngine.today()).voice.liveVoice)
+        } finally {
+            preferences.edit().clear().commit()
+        }
+    }
 }

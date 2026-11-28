@@ -49,6 +49,41 @@ class CookLiveTest {
         assertTrue(text.contains(CookLivePrompt.APP))
     }
 
+    @Test fun instructionCarriesTheFamilyDietSoSubstitutesStaySafe() {
+        val careful = state.copy(diet = DietProfile(tags = setOf("low_salt"), allergens = setOf("shrimp", "peanut")))
+        val session = CookAlong(day, Meal.DINNER, CookAlongPlan.steps(engine, careful, day, Meal.DINNER))
+        val text = CookLivePrompt.instruction(engine, careful, session)
+        assertTrue(text, text.contains("Hồ sơ ăn uống của gia đình: ${careful.diet.describe()}."))
+        listOf("ít muối", "tôm", "đậu phộng").forEach { assertTrue(it, text.contains(it)) }
+        assertTrue(text.contains("tuyệt đối không gợi ý thứ gia đình phải tránh"))
+
+        val open = CookLivePrompt.instruction(engine, state, session)
+        assertTrue(open.contains("Hồ sơ ăn uống của gia đình: chưa khai báo dị ứng hay kiêng khem."))
+    }
+
+    @Test fun liveFailuresSayWhyAndWhetherTheMicrophoneTriesLiveAgain() {
+        val transient = listOf(AssistantFailureKind.NETWORK, AssistantFailureKind.TIMEOUT, AssistantFailureKind.UNAVAILABLE)
+        val lasting = listOf(AssistantFailureKind.QUOTA, AssistantFailureKind.CONFIGURATION, AssistantFailureKind.UNCONFIGURED)
+        transient.forEach { assertTrue(it.name, CookLivePrompt.retryable(it)) }
+        lasting.forEach { assertFalse(it.name, CookLivePrompt.retryable(it)) }
+        assertTrue(CookLivePrompt.failure(AssistantFailureKind.NETWORK, true, "bác").contains("mất kết nối"))
+        assertTrue(CookLivePrompt.failure(AssistantFailureKind.NETWORK, true, "bác").contains("Bác bấm nút micro để thử lại"))
+        assertTrue(CookLivePrompt.failure(AssistantFailureKind.QUOTA, false, "bác").contains("hết lượt"))
+        assertTrue(CookLivePrompt.failure(AssistantFailureKind.CONFIGURATION, false, "bác").contains("chưa được xác thực"))
+        assertTrue(CookLivePrompt.failure(AssistantFailureKind.QUOTA, false, "bác").contains("“tiếp”"))
+        AssistantFailureKind.entries.forEach { kind ->
+            assertFalse(kind.name, CookLivePrompt.failure(kind, CookLivePrompt.retryable(kind), "bạn").contains("gõ"))
+        }
+    }
+
+    @Test fun cookScreenVoiceErrorsNeverOfferTyping() {
+        vn.team03.bepnha.voice.VoiceErrorKind.entries.filter { it != vn.team03.bepnha.voice.VoiceErrorKind.NoPermission }.forEach { kind ->
+            val text = AssistantVoice.cookError(kind, "bác")
+            assertFalse(text, text.contains("gõ"))
+            assertTrue(text, text.contains("Bác"))
+        }
+    }
+
     @Test fun appNotesAreMarkedAsComingFromTheApp() {
         listOf(CookLivePrompt.greeting(), CookLivePrompt.readStep("Bước 1."), CookLivePrompt.announce("Đã hẹn 5 phút."))
             .forEach { assertTrue(it, it.startsWith(CookLivePrompt.APP)) }

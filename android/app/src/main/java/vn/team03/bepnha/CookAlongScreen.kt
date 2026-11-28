@@ -1,7 +1,9 @@
 package vn.team03.bepnha
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,7 +37,9 @@ import vn.team03.bepnha.voice.rememberMicPermission
     val live = vm.liveCookState
     val talking = vm.liveCookOpen
     // Android does not let a backgrounded app keep the microphone; end the conversation instead.
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.stopCookLive() }
+    // Rotating the phone also stops the activity briefly; the conversation lives on in the ViewModel.
+    val activity = LocalActivity.current
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (activity?.isChangingConfigurations != true) vm.stopCookLive() }
     // The phone should not lock while hands are busy cooking.
     val view = LocalView.current
     if (active) DisposableEffect(view) {
@@ -70,9 +74,6 @@ import vn.team03.bepnha.voice.rememberMicPermission
                     modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("cook-timer")) { Text("Hẹn $minutes phút") }
             }
             vm.timerUi()?.let { timer -> KitchenTimer(timer) { vm.cancelTimer(timer.id) } }
-            if (listening) Text((heard as VoiceState.Listening).partial.ifBlank { "Đang nghe…" }, style = MaterialTheme.typography.titleMedium)
-            if (live is LiveCookState.Active) LiveExchange(live)
-            vm.voiceNotice?.let { Text(it, color = KitchenMuted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
             Text(
                 if (vm.cookUsesLive) "Bấm nút micro rồi nói tự nhiên: “xong rồi, tiếp đi”, “cá chín chưa thì nhìn sao?”, “hẹn giờ 10 phút”."
                 else "Có thể nói: “tiếp”, “đọc lại”, “quay lại”, “hẹn giờ 10 phút”.",
@@ -81,6 +82,8 @@ import vn.team03.bepnha.voice.rememberMicPermission
         }
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Above the buttons, so what was heard and answered stays in view however long the step is.
+                VoicePanel(heard, live, vm.voiceNotice)
                 KitchenButton(onClick = vm::cookNext, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).testTag("cook-next")) {
                     Text(if (session.isLast) "Xong, dọn cơm" else "Bước tiếp theo", style = MaterialTheme.typography.titleMedium)
                 }
@@ -99,12 +102,15 @@ import vn.team03.bepnha.voice.rememberMicPermission
                     }
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("cook-mic").semantics {
                     contentDescription = when {
+                        live is LiveCookState.Connecting -> "Huỷ kết nối"
                         talking -> "Kết thúc trò chuyện"
                         listening -> "Dừng nghe"
                         vm.cookUsesLive -> "Trò chuyện với trợ lý nấu ăn"
                         else -> "Nói lệnh nấu ăn"
                     }
                 }) {
+                    KitchenIcon(KitchenGlyph.MIC, Modifier.size(22.dp), KitchenGreen)
+                    Spacer(Modifier.width(8.dp))
                     Text(when {
                         live is LiveCookState.Connecting -> "Đang kết nối… Bấm để huỷ"
                         talking -> "Đang trò chuyện… Bấm để kết thúc"
@@ -119,6 +125,29 @@ import vn.team03.bepnha.voice.rememberMicPermission
             }
         }
     }
+}
+
+/**
+ * What the microphone heard, the last exchange with Gemini Live and any notice, in a short box
+ * that always shows its newest line.
+ */
+@Composable private fun VoicePanel(heard: VoiceState, live: LiveCookState, notice: String?) {
+    val partial = (heard as? VoiceState.Listening)?.partial?.ifBlank { "Đang nghe…" }
+    val exchange = live as? LiveCookState.Active
+    if (partial == null && exchange == null && notice == null) return
+    val scroll = rememberScrollState()
+    FollowNewest(scroll)
+    Column(Modifier.fillMaxWidth().heightIn(max = 168.dp).verticalScroll(scroll).testTag("cook-voice-panel"),
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        partial?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+        exchange?.let { LiveExchange(it) }
+        notice?.let { Text(it, color = KitchenMuted, modifier = Modifier.testTag("cook-voice-notice").semantics { liveRegion = LiveRegionMode.Polite }) }
+    }
+}
+
+/** Keeps [scroll] at the bottom as text grows. */
+@Composable private fun FollowNewest(scroll: ScrollState) {
+    LaunchedEffect(scroll) { snapshotFlow { scroll.maxValue }.collect { scroll.scrollTo(it) } }
 }
 
 /** The last exchange with Gemini Live, for people who cannot hear the phone well over the stove. */

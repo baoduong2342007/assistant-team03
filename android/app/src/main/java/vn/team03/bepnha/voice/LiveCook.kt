@@ -18,7 +18,7 @@ data class LiveCall(val name: String, val args: Map<String, String>)
 /** What a Live session is configured with when it opens. */
 data class LiveCookSetup(val instruction: String, val voice: String)
 
-/** Callbacks from a [LiveCookEngine]. */
+/** Callbacks from one [LiveCookSession]. */
 interface LiveCookEvents {
     /** Runs on the main thread; the returned object is sent back to the model as the function result. */
     fun onCall(call: LiveCall): JSONObject
@@ -28,21 +28,29 @@ interface LiveCookEvents {
     fun onTurnComplete() = Unit
     /** The server will end this connection soon; may arrive on any thread. */
     fun onGoAway()
-    /** The connection ended without [LiveCookEngine.close]; may arrive on any thread. */
+    /**
+     * The session ended without [LiveCookSession.close]: the server closed it ([error] is null) or it
+     * failed ([error] is usually an [AssistantFailure]). Reported at most once; may arrive on any thread.
+     */
     fun onClosed(error: Throwable?)
+}
+
+/** One open Live conversation. */
+interface LiveCookSession {
+    /** Sends a text turn (an app note) to the model; a failure arrives as [LiveCookEvents.onClosed]. */
+    fun say(text: String)
+    /** Ends the session and releases its microphone and connection. Never reports [LiveCookEvents.onClosed]. Safe to call twice. */
+    fun close()
 }
 
 /** Thin seam over the Gemini Live SDK, faked in JVM tests. */
 interface LiveCookEngine {
     /**
      * Connects and starts the microphone/speaker conversation. Throws [AssistantFailure] when it
-     * cannot. Needs RECORD_AUDIO, which the caller checks first.
+     * cannot. Cancellable: a cancelled open releases whatever it had acquired. Needs RECORD_AUDIO,
+     * which the caller checks first.
      */
-    suspend fun open(setup: LiveCookSetup, events: LiveCookEvents)
-    /** Sends a text turn (an app note) to the open session; failures arrive as [LiveCookEvents.onClosed]. */
-    fun say(text: String)
-    /** Ends the current session, if any. Never reports [LiveCookEvents.onClosed]. Safe to call twice. */
-    fun close()
+    suspend fun open(setup: LiveCookSetup, events: LiveCookEvents): LiveCookSession
 }
 
 sealed interface LiveCookState {
@@ -59,6 +67,9 @@ sealed interface LiveCookState {
  * connection, a fresh session is opened with the current setup (the cooking state lives in the
  * app, so nothing is lost). Any failure ends in [LiveCookState.Failed] without retrying.
  *
+ * Every session belongs to one generation; stopping, failing or reconnecting starts a new one, so
+ * events from an older session are ignored and that session is always closed.
+ *
  * Call everything from the main thread; [scope] must run on it too.
  */
 class LiveCookController(
@@ -68,6 +79,7 @@ class LiveCookController(
 ) {
     companion object {
         const val IDLE_MILLIS = 60_000L
+        private const val MAX_PENDING = 3
     }
 
     private val _state = MutableStateFlow<LiveCookState>(LiveCookState.Off)
@@ -79,8 +91,12 @@ class LiveCookController(
     val isOpen: Boolean get() = _state.value.let { it is LiveCookState.Connecting || it is LiveCookState.Active }
 
     private var generation = 0
+    private var session: LiveCookSession? = null
+    private var connecting: Job? = null
     private var idle: Job? = null
     private var setup: () -> LiveCookSetup? = { null }
+    /** App notes sent while connecting; they are sent (instead of the greeting) once connected. */
+    private val pending = mutableListOf<String>()
     /** Whether the last transcript piece came from the model, so the next user piece starts a new exchange. */
     private var modelSpokeLast = false
     /** The model ended its turn; its next words (an answer to an app note) start a new exchange too. */
@@ -90,42 +106,64 @@ class LiveCookController(
     fun start(setup: () -> LiveCookSetup?, greeting: String? = null) {
         if (isOpen) return
         this.setup = setup
-        val id = ++generation
-        modelSpokeLast = false
-        turnEnded = false
-        _state.value = LiveCookState.Connecting
-        scope.launch { connect(id, greeting) }
+        pending.clear()
+        connect(++generation, greeting)
     }
 
     fun stop() {
-        generation++
-        idle?.cancel()
-        engine.close()
+        end()
         _state.value = LiveCookState.Off
     }
 
-    /** Sends an app note to the model (it then speaks); ignored unless a session is active. */
+    /**
+     * Sends an app note to the model (it then speaks). While connecting, notes wait (the last few)
+     * and are sent together once the session opens; otherwise they are dropped.
+     */
     fun say(text: String) {
-        if (_state.value !is LiveCookState.Active || text.isBlank()) return
-        touch(generation)
-        engine.say(text)
+        if (text.isBlank()) return
+        when (_state.value) {
+            is LiveCookState.Active -> { touch(generation); session?.say(text) }
+            LiveCookState.Connecting -> { pending += text; while (pending.size > MAX_PENDING) pending.removeAt(0) }
+            else -> Unit
+        }
     }
 
-    private suspend fun connect(id: Int, greeting: String?) {
-        val config = setup() ?: run { if (id == generation) stop(); return }
-        try {
-            engine.open(config, events(id))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            if (id == generation) fail(e)
-            return
+    private fun connect(id: Int, greeting: String?) {
+        modelSpokeLast = false
+        turnEnded = false
+        idle?.cancel()
+        _state.value = LiveCookState.Connecting
+        connecting = scope.launch {
+            val config = setup() ?: run { if (id == generation) stop(); return@launch }
+            val opened = try {
+                engine.open(config, events(id))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                if (id == generation) fail(e)
+                return@launch
+            }
+            // Stopped (or replaced) while connecting: drop the session that just opened.
+            if (id != generation) { opened.close(); return@launch }
+            session = opened
+            connecting = null
+            _state.value = LiveCookState.Active()
+            touch(id)
+            val notes = pending.joinToString("\n").ifBlank { null }
+            pending.clear()
+            (notes ?: greeting)?.let(opened::say)
         }
-        // Stopped while connecting: drop the session that just opened.
-        if (id != generation) { engine.close(); return }
-        if (_state.value !is LiveCookState.Active) _state.value = LiveCookState.Active()
-        touch(id)
-        greeting?.let(engine::say)
+    }
+
+    /** Ends the current generation: cancels a pending connect and closes the open session. */
+    private fun end() {
+        generation++
+        connecting?.cancel()
+        connecting = null
+        idle?.cancel()
+        session?.close()
+        session = null
+        pending.clear()
     }
 
     private fun events(id: Int) = object : LiveCookEvents {
@@ -142,9 +180,10 @@ class LiveCookController(
         }
         override fun onGoAway() {
             scope.launch {
-                if (id != generation || !isOpen) return@launch
-                engine.close()
-                connect(id, greeting = null)
+                if (id != generation || _state.value !is LiveCookState.Active) return@launch
+                // A new generation, so a late close or failure of the old connection cannot end the new one.
+                end()
+                connect(generation, greeting = null)
             }
         }
         override fun onClosed(error: Throwable?) {
@@ -182,9 +221,7 @@ class LiveCookController(
     }
 
     private fun fail(error: Throwable) {
-        generation++
-        idle?.cancel()
-        engine.close()
+        end()
         _state.value = LiveCookState.Failed((error as? AssistantFailure)?.kind ?: AssistantFailureKind.UNAVAILABLE)
     }
 }

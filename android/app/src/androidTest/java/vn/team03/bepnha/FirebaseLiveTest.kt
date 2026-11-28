@@ -98,9 +98,8 @@ class FirebaseLiveTest {
             .grantRuntimePermission(app.packageName, android.Manifest.permission.RECORD_AUDIO)
         val calls = java.util.concurrent.CopyOnWriteArrayList<String>()
         val spoken = StringBuffer()
-        val engine = FirebaseLiveCookEngine()
-        try {
-            engine.open(vn.team03.bepnha.voice.LiveCookSetup(
+        val engine = FirebaseLiveCookEngine(app)
+        val session = engine.open(vn.team03.bepnha.voice.LiveCookSetup(
                 "Bạn là trợ lý nấu ăn. Luôn nói tiếng Việt, thật ngắn. Khi được yêu cầu đọc lại bước, gọi hàm repeat_step rồi đọc trường step.",
                 VoiceSettings.DEFAULT_LIVE_VOICE,
             ), object : vn.team03.bepnha.voice.LiveCookEvents {
@@ -112,16 +111,18 @@ class FirebaseLiveTest {
                 override fun onGoAway() = Unit
                 override fun onClosed(error: Throwable?) = Unit
             })
-            engine.say("${CookLivePrompt.APP} Người nấu muốn nghe lại bước hiện tại. Hãy gọi repeat_step rồi đọc kết quả.")
+        assertTrue(engine.active)
+        try {
+            session.say("${CookLivePrompt.APP} Người nấu muốn nghe lại bước hiện tại. Hãy gọi repeat_step rồi đọc kết quả.")
             val deadline = System.currentTimeMillis() + 30_000
             while (System.currentTimeMillis() < deadline && (calls.isEmpty() || spoken.isBlank())) kotlinx.coroutines.delay(250)
             android.util.Log.i("BepNhaLive", "calls=$calls spoken=$spoken")
             assertEquals(listOf("repeat_step"), calls.distinct())
             assertTrue("Gemini Live should answer aloud", spoken.isNotBlank())
         } finally {
-            engine.close()
+            session.close()
         }
-        // Nothing may keep running (or spinning) once the session is closed.
+        // Nothing may keep running (or spinning) once the session has released its microphone and socket.
         val closedBy = System.currentTimeMillis() + 5_000
         while (engine.active && System.currentTimeMillis() < closedBy) kotlinx.coroutines.delay(100)
         assertFalse("Live session loops should stop after close", engine.active)

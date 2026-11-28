@@ -66,7 +66,7 @@ Dùng chữ hệ thống 200% và bật TalkBack ít nhất một lần.
 3. Bấm micro, nói "Lên thực đơn tuần này". Xem trước 14 bữa, bấm **Giữ bữa này như cũ** ở một bữa, nói "đồng ý".
 4. Kiểm tra Thực đơn: không có món chứa tôm, mọi món ít muối. Đi chợ và Vào bếp đã cập nhật.
 5. Nói "đánh dấu đã mua gạo" (làm ngay), rồi nói "hoàn tác".
-6. Vào bếp → **Nấu cùng tôi**: nói "tiếp", "đọc lại", "hẹn giờ 5 phút". Màn hình không tắt. Với Gemini Live: bấm micro, hỏi "cá chín thì nhìn thế nào?", nói "xong rồi, tiếp đi", "hẹn giờ 5 phút", "tắt hẹn giờ"; bấm **Bước tiếp theo** (Gemini đọc bước); im lặng 60 giây (phiên tự đóng); bật chế độ máy bay rồi bấm micro (báo lỗi, chuyển về lệnh trên máy).
+6. Vào bếp → **Nấu cùng tôi**: nói "tiếp", "đọc lại", "hẹn giờ 5 phút". Màn hình không tắt. Với Gemini Live: bấm micro, hỏi "cá chín thì nhìn thế nào?", nói "xong rồi, tiếp đi", "hẹn giờ 5 phút", "tắt hẹn giờ"; bấm **Bước tiếp theo** (Gemini đọc bước); im lặng 60 giây (phiên tự đóng); bật chế độ máy bay giữa phiên (báo "mất kết nối mạng", không tự bật nghe, app không crash); tắt máy bay rồi bấm micro (mở lại được Live); bấm micro → huỷ → bấm lại thật nhanh (chỉ một phiên được mở).
 7. Nói "gửi danh sách đi chợ cả ngày mai cho con": bảng chia sẻ của điện thoại mở ra.
 8. Đóng hẳn app, mở lại: lịch sử trò chuyện còn, không có đề xuất cũ nào bấm được.
 9. Bật chế độ máy bay, hỏi lại "tối mai đổi món canh thành canh chua cá": trợ lý trên máy trả lời và ghi rõ lý do.

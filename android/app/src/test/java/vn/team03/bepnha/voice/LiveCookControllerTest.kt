@@ -1,11 +1,14 @@
 package vn.team03.bepnha.voice
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -14,21 +17,36 @@ import vn.team03.bepnha.AssistantFailureKind
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LiveCookControllerTest {
-    private class FakeEngine : LiveCookEngine {
-        var failWith: Throwable? = null
-        var gate: CompletableDeferred<Unit>? = null
-        val opened = mutableListOf<LiveCookSetup>()
+    private class FakeSession(val setup: LiveCookSetup, val events: LiveCookEvents) : LiveCookSession {
         val said = mutableListOf<String>()
         var closes = 0
-        lateinit var events: LiveCookEvents
-        override suspend fun open(setup: LiveCookSetup, events: LiveCookEvents) {
-            gate?.await()
-            failWith?.let { throw it }
-            opened += setup
-            this.events = events
-        }
         override fun say(text: String) { said += text }
         override fun close() { closes++ }
+    }
+
+    private class FakeEngine : LiveCookEngine {
+        var failWith: Throwable? = null
+        /** Each open waits for the next gate, if any. */
+        val gates = ArrayDeque<CompletableDeferred<Unit>>()
+        /** Opens that keep going after being cancelled, like a network call that cannot be interrupted. */
+        var ignoreCancellation = false
+        val sessions = mutableListOf<FakeSession>()
+        var cancelled = 0
+        val events get() = sessions.last().events
+        val said get() = sessions.flatMap { it.said }
+        val opened get() = sessions.map { it.setup }
+
+        override suspend fun open(setup: LiveCookSetup, events: LiveCookEvents): LiveCookSession {
+            val gate = gates.removeFirstOrNull()
+            try {
+                if (gate != null) { if (ignoreCancellation) suspendCoroutine<Unit> { c -> gate.invokeOnCompletion { c.resume(Unit) } } else gate.await() }
+            } catch (e: CancellationException) {
+                cancelled++
+                throw e
+            }
+            failWith?.let { throw it }
+            return FakeSession(setup, events).also { sessions += it }
+        }
     }
 
     private val engine = FakeEngine()
@@ -46,7 +64,7 @@ class LiveCookControllerTest {
         assertEquals(listOf("chào"), engine.said)
         live.start(::setup, "chào") // Already open: ignored.
         runCurrent()
-        assertEquals(1, engine.opened.size)
+        assertEquals(1, engine.sessions.size)
     }
 
     @Test fun silenceClosesTheSessionAndSpeechKeepsItOpen() = runTest {
@@ -58,7 +76,7 @@ class LiveCookControllerTest {
         assertTrue(live.isOpen)
         advanceTimeBy(10_001)
         assertEquals(LiveCookState.Off, live.state.value)
-        assertEquals(1, engine.closes)
+        assertEquals(1, engine.sessions.single().closes)
     }
 
     @Test fun functionCallsReachTheHandlerAndKeepTheSessionOpen() = runTest {
@@ -101,15 +119,25 @@ class LiveCookControllerTest {
 
     @Test fun goAwayReopensWithTheCurrentStepWithoutGreetingAgain() = runTest {
         val live = controller()
-        engine.events.onTranscript("hỏi", "đáp")
-        runCurrent()
         step = 4
         engine.events.onGoAway()
         runCurrent()
         assertEquals(listOf("bước 1", "bước 4"), engine.opened.map { it.instruction })
-        assertEquals(1, engine.closes)
+        assertEquals(listOf(1, 0), engine.sessions.map { it.closes })
         assertEquals(listOf("chào"), engine.said)
         assertTrue(live.isOpen)
+    }
+
+    @Test fun aLateCloseOfTheOldConnectionDoesNotEndTheReconnectedSession() = runTest {
+        val live = controller()
+        val old = engine.events
+        engine.gates += CompletableDeferred()
+        old.onGoAway()
+        runCurrent()
+        assertEquals(LiveCookState.Connecting, live.state.value)
+        old.onClosed(null) // The server closes the old socket while the new one is still connecting.
+        runCurrent()
+        assertEquals(LiveCookState.Connecting, live.state.value)
     }
 
     @Test fun failuresEndTheSessionWithTheirKind() = runTest {
@@ -124,22 +152,73 @@ class LiveCookControllerTest {
         assertEquals(LiveCookState.Failed(AssistantFailureKind.UNAVAILABLE), live.state.value)
     }
 
-    @Test fun aDroppedConnectionFailsAsANetworkProblem() = runTest {
+    @Test fun aDroppedConnectionFailsWithItsReasonAndClosesTheSession() = runTest {
         val live = controller()
         engine.events.onClosed(null)
         runCurrent()
         assertEquals(LiveCookState.Failed(AssistantFailureKind.NETWORK), live.state.value)
+        assertEquals(1, engine.sessions.single().closes)
+
+        live.start(::setup)
+        runCurrent()
+        engine.events.onClosed(AssistantFailure(AssistantFailureKind.QUOTA))
+        runCurrent()
+        assertEquals(LiveCookState.Failed(AssistantFailureKind.QUOTA), live.state.value)
     }
 
-    @Test fun stoppingWhileConnectingDropsTheSessionThatOpensLate() = runTest {
-        engine.gate = CompletableDeferred()
+    @Test fun stoppingWhileConnectingCancelsTheOpen() = runTest {
+        engine.gates += CompletableDeferred()
         val live = controller()
         assertEquals(LiveCookState.Connecting, live.state.value)
         live.stop()
-        engine.gate!!.complete(Unit)
         runCurrent()
+        assertEquals(1, engine.cancelled)
         assertEquals(LiveCookState.Off, live.state.value)
-        assertEquals(2, engine.closes)
+        assertTrue(engine.sessions.isEmpty())
+    }
+
+    @Test fun aCancelledOpenThatFinishesLateIsClosedAndTheNewSessionStays() = runTest {
+        engine.ignoreCancellation = true
+        val first = CompletableDeferred<Unit>()
+        val second = CompletableDeferred<Unit>()
+        engine.gates += first
+        engine.gates += second
+        val live = controller()
+        live.stop()
+        live.start(::setup, "chào")
+        runCurrent()
+        second.complete(Unit) // The newer open finishes first...
+        runCurrent()
+        first.complete(Unit) // ...then the cancelled one.
+        runCurrent()
+        val (newer, older) = engine.sessions
+        assertEquals(0, newer.closes)
+        assertEquals(1, older.closes)
+        assertTrue(live.state.value is LiveCookState.Active)
+        live.stop()
+        assertEquals(1, newer.closes)
+    }
+
+    @Test fun notesSentWhileConnectingAreSentOnceConnectedInsteadOfTheGreeting() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        engine.gates += gate
+        val live = controller()
+        live.say("đọc bước 2")
+        live.say("đã hẹn 5 phút")
+        gate.complete(Unit)
+        runCurrent()
+        assertEquals(listOf("đọc bước 2\nđã hẹn 5 phút"), engine.said)
+        live.say("đọc bước 3")
+        assertEquals("đọc bước 3", engine.said.last())
+    }
+
+    @Test fun sayIsDroppedWhenNoSessionIsOpen() = runTest {
+        val live = LiveCookController(engine, backgroundScope)
+        live.say("đọc bước")
+        live.start(::setup)
+        runCurrent()
+        live.stop()
+        live.say("đọc bước")
         assertTrue(engine.said.isEmpty())
     }
 
@@ -157,22 +236,11 @@ class LiveCookControllerTest {
         assertEquals(LiveCookState.Off, live.state.value)
     }
 
-    @Test fun sayIsIgnoredUnlessActive() = runTest {
-        engine.gate = CompletableDeferred()
-        val live = controller()
-        live.say("đọc bước")
-        assertTrue(engine.said.isEmpty())
-        engine.gate!!.complete(Unit)
-        runCurrent()
-        live.say("đọc bước")
-        assertEquals(listOf("chào", "đọc bước"), engine.said)
-    }
-
     @Test fun aMissingSetupStopsInsteadOfConnecting() = runTest {
         val live = LiveCookController(engine, backgroundScope)
         live.start({ null })
         runCurrent()
         assertEquals(LiveCookState.Off, live.state.value)
-        assertTrue(engine.opened.isEmpty())
+        assertTrue(engine.sessions.isEmpty())
     }
 }
