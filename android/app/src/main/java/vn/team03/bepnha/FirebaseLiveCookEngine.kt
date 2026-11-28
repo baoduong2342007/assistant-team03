@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
@@ -55,7 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 @OptIn(PublicPreviewAPI::class)
 class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
-    private val audioManager = context.applicationContext.getSystemService(AudioManager::class.java)
+    private val audioManager: AudioManager? = context.applicationContext.getSystemService(AudioManager::class.java)
     // Every loop catches its own errors; this only keeps an unexpected one from crashing the app.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e ->
         log("Live loop failed: ${e.javaClass.simpleName}: ${e.message?.take(300)}")
@@ -87,11 +88,11 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
             )
             live = withTimeout(CONNECT_TIMEOUT_MS) { model.connect() }
             // Wait for the previous session to give the microphone back.
-            withTimeout(AUDIO_WAIT_MS) { audioLock.lock() }
-            locked = true
-            val conversation = Conversation(live, events, acquire())
+            withTimeout(AUDIO_WAIT_MS) { audioLock.lock(); locked = true }
+            val audio = acquire()
+            val conversation = try { Conversation(live, events, audio) } catch (e: Throwable) { audio.release(); throw e }
             locked = false // The conversation now owns the lock and releases it in its cleanup.
-            conversation.start()
+            try { conversation.start() } catch (e: Throwable) { conversation.close(); throw e }
             log("Live session opened with ${BuildConfig.COOK_LIVE_MODEL}")
             return conversation
         } catch (e: Throwable) {
@@ -110,7 +111,14 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
     }
 
     /** The microphone (with echo canceller) and the player of one session. */
-    private class Audio(val recorder: AudioRecord, val echo: AcousticEchoCanceler?, val track: AudioTrack)
+    private class Audio(val recorder: AudioRecord, val echo: AcousticEchoCanceler?, val track: AudioTrack) {
+        /** Releases everything; one failing release never skips the others. */
+        fun release() {
+            runCatching { echo?.release() }
+            runCatching { recorder.release() }
+            runCatching { track.release() }
+        }
+    }
 
     private fun acquire(): Audio {
         val recorder = recorder()
@@ -126,21 +134,21 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
     }
 
     /** One open Live session with its own microphone, player and loops. */
-    private inner class Conversation(val live: LiveSession, val events: LiveCookEvents, audio: Audio) : LiveCookSession {
+    private inner class Conversation(val live: LiveSession, val events: LiveCookEvents, private val audio: Audio) : LiveCookSession {
         private val job = Job(scope.coroutineContext[Job])
         private val closing = AtomicBoolean(false)
         /** Elapsed-realtime when Gemini's queued voice finishes playing; the microphone waits for it. */
         @Volatile private var playedUntil = 0L
         private val playback = Channel<ByteArray>(Channel.UNLIMITED)
         private val recorder = audio.recorder
-        private val echo = audio.echo
         private val track = audio.track
         // Pause music or videos while Gemini listens and talks.
         private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(ATTRIBUTES).build()
 
         init {
+            // Nothing here may throw once the session is counted: focus is a courtesy, not a requirement.
+            runCatching { audioManager?.requestAudioFocus(focus) }
             sessions.incrementAndGet()
-            audioManager.requestAudioFocus(focus)
         }
 
         fun start() {
@@ -192,11 +200,8 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
                         }
                     }
                     // receive() ends without an error when the server closes the socket.
-                    if (!closing.get()) {
-                        log("Live session ended by the server")
-                        events.onClosed(null)
-                        close()
-                    }
+                    if (!closing.get()) log("Live session ended by the server")
+                    shutDown(report = true, error = null)
                 }
             }
         }
@@ -213,24 +218,35 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
             scope.launch(job) { guard { live.sendTextRealtime(text) } }
         }
 
-        override fun close() {
+        override fun close() = shutDown(report = false, error = null)
+
+        /**
+         * Ends the session exactly once: the first caller wins, so a failure is reported at most once
+         * and never after [close]. The microphone lock and session count are always given back.
+         */
+        private fun shutDown(report: Boolean, error: Throwable?) {
             if (!closing.compareAndSet(false, true)) return
+            if (report) events.onClosed(error)
             scope.launch {
-                log("Live session closing")
-                job.cancel()
-                // Unblock a pending read and write so the loops see the cancellation at once.
-                runCatching { recorder.stop() }
-                runCatching { track.pause(); track.flush() }
-                runCatching { live.stopReceiving() }
-                job.join()
-                echo?.release()
-                recorder.release()
-                track.release()
-                audioManager.abandonAudioFocusRequest(focus)
-                runCatching { live.close() }
-                sessions.decrementAndGet()
-                audioLock.unlock()
-                log("Live session closed")
+                try {
+                    log("Live session closing")
+                    job.cancel()
+                    // Unblock a pending read and write so the loops see the cancellation at once.
+                    runCatching { recorder.stop() }
+                    runCatching { track.pause(); track.flush() }
+                    runCatching { live.stopReceiving() }
+                    job.join()
+                } finally {
+                    try {
+                        audio.release()
+                        runCatching { audioManager?.abandonAudioFocusRequest(focus) }
+                        withContext(NonCancellable) { runCatching { live.close() } }
+                    } finally {
+                        sessions.decrementAndGet()
+                        audioLock.unlock()
+                        log("Live session closed")
+                    }
+                }
             }
         }
 
@@ -243,8 +259,7 @@ class FirebaseLiveCookEngine(context: Context) : LiveCookEngine {
             } catch (e: Exception) {
                 if (closing.get()) return
                 log("Live session failed: ${describe(e)}")
-                events.onClosed(e as? AssistantFailure ?: AssistantFailure(FirebaseCalls.classify(e)))
-                close()
+                shutDown(report = true, error = e as? AssistantFailure ?: AssistantFailure(FirebaseCalls.classify(e)))
             }
         }
     }

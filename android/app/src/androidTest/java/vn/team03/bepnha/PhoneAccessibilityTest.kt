@@ -189,6 +189,48 @@ class PhoneAccessibilityTest {
         }
     }
 
+    @Test fun cookAlongKeepsRoomForTheStepWithALongConversationAt200Percent() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as android.app.Application
+        val sessions = mutableListOf<vn.team03.bepnha.voice.LiveCookEvents>()
+        val vm = compose.runOnIdle {
+            PlannerViewModel(app, androidx.lifecycle.SavedStateHandle()).apply {
+                cookLiveAllowed = true
+                liveCookFactory = {
+                    object : vn.team03.bepnha.voice.LiveCookEngine {
+                        override suspend fun open(setup: vn.team03.bepnha.voice.LiveCookSetup, events: vn.team03.bepnha.voice.LiveCookEvents) =
+                            object : vn.team03.bepnha.voice.LiveCookSession {
+                                override fun say(text: String) = Unit
+                                override fun close() = Unit
+                            }.also { sessions += events }
+                    }
+                }
+                startCookAlong()
+                startCookListening()
+            }
+        }
+        compose.setContent { Phone { KitchenFrame("Nấu cùng tôi", assistant = true, showBack = true) { CookAlongScreen(vm) } } }
+        compose.waitUntil(5_000) { compose.runOnIdle { vm.liveCookState is vn.team03.bepnha.voice.LiveCookState.Active } }
+        val answer = List(12) { "Khi thịt cá chuyển sang màu trắng đục và tách thớ là chín." }.joinToString(" ")
+        compose.runOnIdle { sessions.single().onTranscript("Cá chín chưa thì nhìn thế nào?", answer) }
+        compose.waitUntil(5_000) { compose.runOnIdle { (vm.liveCookState as? vn.team03.bepnha.voice.LiveCookState.Active)?.model?.isNotEmpty() == true } }
+        compose.waitForIdle()
+
+        val screen = compose.onNodeWithTag("cook-along").fetchSemanticsNode().boundsInRoot.height
+        val panel = compose.onNodeWithTag("cook-voice-panel").fetchSemanticsNode().boundsInRoot.height
+        val step = compose.onNodeWithTag("cook-step-area").fetchSemanticsNode().boundsInRoot.height
+        android.util.Log.i("BepNhaLayout", "cook-along=$screen panel=$panel step=$step (px)")
+        assertTrue("Panel $panel taller than a fifth of $screen", panel <= screen * 0.2f + 1f)
+        assertTrue("Step area $step is under 30% of $screen", step >= screen * 0.3f)
+        compose.onNodeWithTag("cook-voice-panel").assertIsDisplayed()
+        compose.onNodeWithTag("cook-step-count").assertIsDisplayed()
+        listOf("cook-next", "cook-mic").forEach { assertWithinRoot(it) }
+        capture("phone-cook-live-320-text200.png")
+        // The step text, going back, reading again and leaving scroll with the step on a small screen.
+        listOf("cook-step-text", "cook-back", "cook-repeat", "cook-exit").forEach { compose.onNodeWithTag(it).performScrollTo().assertIsDisplayed() }
+        compose.onNodeWithTag("cook-voice-panel").assertIsDisplayed()
+        compose.runOnIdle { vm.exitCookAlong() }
+    }
+
     private fun assertWithinRoot(tag: String, rootTag: String = "native-root") {
         val root = compose.onNodeWithTag(rootTag).fetchSemanticsNode().boundsInRoot
         val bounds = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
