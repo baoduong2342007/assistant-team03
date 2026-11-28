@@ -16,6 +16,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import vn.team03.bepnha.voice.LiveCookState
 import vn.team03.bepnha.voice.VoiceState
 import vn.team03.bepnha.voice.rememberMicPermission
 
@@ -29,6 +32,10 @@ import vn.team03.bepnha.voice.rememberMicPermission
     val heard by voice.state.collectAsState()
     val mic = rememberMicPermission { granted -> if (granted) vm.startCookListening() }
     val listening = heard is VoiceState.Listening
+    val live = vm.liveCookState
+    val talking = vm.liveCookOpen
+    // Android does not let a backgrounded app keep the microphone; end the conversation instead.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.stopCookLive() }
     // The phone should not lock while hands are busy cooking.
     val view = LocalView.current
     if (active) DisposableEffect(view) {
@@ -64,8 +71,13 @@ import vn.team03.bepnha.voice.rememberMicPermission
             }
             vm.timerUi()?.let { timer -> KitchenTimer(timer) { vm.cancelTimer(timer.id) } }
             if (listening) Text((heard as VoiceState.Listening).partial.ifBlank { "Đang nghe…" }, style = MaterialTheme.typography.titleMedium)
+            if (live is LiveCookState.Active) LiveExchange(live)
             vm.voiceNotice?.let { Text(it, color = KitchenMuted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-            Text("Có thể nói: “tiếp”, “đọc lại”, “quay lại”, “hẹn giờ 10 phút”.", style = MaterialTheme.typography.bodySmall, color = KitchenMuted)
+            Text(
+                if (vm.cookUsesLive) "Bấm nút micro rồi nói tự nhiên: “xong rồi, tiếp đi”, “cá chín chưa thì nhìn sao?”, “hẹn giờ 10 phút”."
+                else "Có thể nói: “tiếp”, “đọc lại”, “quay lại”, “hẹn giờ 10 phút”.",
+                style = MaterialTheme.typography.bodySmall, color = KitchenMuted,
+            )
         }
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -80,17 +92,41 @@ import vn.team03.bepnha.voice.rememberMicPermission
                 }
                 KitchenOutlinedButton(onClick = {
                     when {
+                        talking -> vm.stopCookLive()
                         listening -> vm.stopListening()
                         mic.granted -> vm.startCookListening()
                         else -> mic.request()
                     }
                 }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("cook-mic").semantics {
-                    contentDescription = if (listening) "Dừng nghe" else "Nói lệnh nấu ăn"
-                }) { Text(if (listening) "Đang nghe… Bấm để dừng" else "Bấm để nói lệnh") }
+                    contentDescription = when {
+                        talking -> "Kết thúc trò chuyện"
+                        listening -> "Dừng nghe"
+                        vm.cookUsesLive -> "Trò chuyện với trợ lý nấu ăn"
+                        else -> "Nói lệnh nấu ăn"
+                    }
+                }) {
+                    Text(when {
+                        live is LiveCookState.Connecting -> "Đang kết nối… Bấm để huỷ"
+                        talking -> "Đang trò chuyện… Bấm để kết thúc"
+                        listening -> "Đang nghe… Bấm để dừng"
+                        vm.cookUsesLive -> "Bấm để trò chuyện"
+                        else -> "Bấm để nói lệnh"
+                    })
+                }
                 TextButton(onClick = vm::exitCookAlong, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("cook-exit")) {
                     Text("Thoát chế độ nấu")
                 }
             }
         }
+    }
+}
+
+/** The last exchange with Gemini Live, for people who cannot hear the phone well over the stove. */
+@Composable private fun LiveExchange(live: LiveCookState.Active) {
+    Column(Modifier.fillMaxWidth().testTag("cook-live-transcript").semantics { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (live.user.isNotBlank()) Text("Bạn: ${live.user}", style = MaterialTheme.typography.titleMedium)
+        if (live.model.isNotBlank()) Text("Trợ lý: ${live.model}", style = MaterialTheme.typography.titleMedium, color = KitchenGreen)
+        if (live.user.isBlank() && live.model.isBlank()) Text("Đang nghe…", style = MaterialTheme.typography.titleMedium)
     }
 }

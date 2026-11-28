@@ -294,6 +294,7 @@ import java.time.LocalTime
     var address by rememberSaveable(saved) { mutableStateOf(saved.addressAs) }
     var readAloud by rememberSaveable(saved) { mutableStateOf(saved.readAloud) }
     var rate by rememberSaveable(saved) { mutableFloatStateOf(saved.rate) }
+    var liveVoice by rememberSaveable(saved) { mutableStateOf(saved.liveVoice) }
     KitchenCard {
         Text("Trợ lý nói chuyện", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         OutlinedTextField(value = address, onValueChange = { address = it.take(20) }, label = { Text("Trợ lý gọi bạn là") },
@@ -314,9 +315,22 @@ import java.time.LocalTime
                 else KitchenOutlinedButton(onClick = { rate = value }, modifier = modifier) { Text(label) }
             }
         }
+        if (vm.assistantConfigured) {
+            Text("Giọng Gemini khi “Nấu cùng tôi”", style = MaterialTheme.typography.bodySmall)
+            VoiceSettings.LIVE_VOICES.chunked(2).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { (value, label) ->
+                        val selected = liveVoice == value
+                        val modifier = Modifier.weight(1f).heightIn(min = 56.dp).testTag("live-voice-$value").semantics { this.selected = selected }
+                        if (selected) KitchenButton(onClick = { liveVoice = value }, modifier = modifier) { Text(label) }
+                        else KitchenOutlinedButton(onClick = { liveVoice = value }, modifier = modifier) { Text(label) }
+                    }
+                }
+            }
+        }
         KitchenOutlinedButton(onClick = { vm.previewVoice(address, rate) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-preview")) { Text("Nghe thử") }
-        KitchenButton(onClick = { vm.saveVoiceSettings(address, readAloud, rate) },
+        KitchenButton(onClick = { vm.saveVoiceSettings(address, readAloud, rate, liveVoice) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("voice-save")) { Text("Lưu cách nói chuyện") }
     }
 }

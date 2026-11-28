@@ -2,21 +2,15 @@ package vn.team03.bepnha
 
 import android.content.Context
 import com.google.firebase.Firebase
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.ai.Chat
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.*
-import com.google.firebase.appcheck.FirebaseAppCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /** SDK transport only; tool execution and state changes belong to the app. */
 class FirebaseAssistantProvider(context: Context) : AssistantProvider {
@@ -42,7 +36,7 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
             call {
                 val current = chat
                 if (current == null) {
-                    checkAppToken()
+                    FirebaseCalls.checkAppToken()
                     model.startChat().also { chat = it }.sendMessage(payload.toString())
                 } else {
                     require(results.isNotEmpty())
@@ -80,48 +74,12 @@ class FirebaseAssistantProvider(context: Context) : AssistantProvider {
         } catch (e: AssistantFailure) { throw e
         } catch (e: Exception) {
             // Debug builds only: the raw SDK reason, which the user-facing message hides.
-            if (BuildConfig.DEBUG) android.util.Log.w("BepNhaAI", "AI call failed: ${causes(e).joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message?.take(500)}" }}")
-            throw AssistantFailure(classify(e))
-        }
-    }
-
-    // Fail explicitly on unregistered demo devices instead of silently sending an invalid token.
-    private suspend fun checkAppToken() = suspendCancellableCoroutine<Unit> { continuation ->
-        FirebaseAppCheck.getInstance().getAppCheckToken(false)
-            .addOnSuccessListener { if (continuation.isActive) continuation.resume(Unit) }
-            .addOnFailureListener { error ->
-                // Debug builds only: the reason (e.g. "403 App attestation failed") helps register the device.
-                if (BuildConfig.DEBUG) android.util.Log.w("BepNhaAI", "App Check token failed: ${causes(error).joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message}" }}")
-                if (continuation.isActive) continuation.resumeWithException(AssistantFailure(
-                    if (causes(error).any { it is IOException || it is FirebaseNetworkException }) AssistantFailureKind.NETWORK else AssistantFailureKind.CONFIGURATION))
-            }
-    }
-
-    private fun classify(error: Exception): AssistantFailureKind {
-        val chain = causes(error)
-        return when {
-            error is QuotaExceededException -> AssistantFailureKind.QUOTA
-            error is RequestTimeoutException -> AssistantFailureKind.TIMEOUT
-            error is InvalidAPIKeyException || error is APINotConfiguredException || error is ServiceDisabledException || error is UnsupportedUserLocationException -> AssistantFailureKind.CONFIGURATION
-            error is PromptBlockedException || error is ContentBlockedException -> AssistantFailureKind.BLOCKED
-            error is SerializationException || error is ResponseStoppedException || error is IllegalArgumentException || error is org.json.JSONException -> AssistantFailureKind.INVALID
-            chain.any { it is IOException || it is FirebaseNetworkException } -> AssistantFailureKind.NETWORK
-            error is ServerException -> classifyServerMessage(error.message.orEmpty())
-            else -> AssistantFailureKind.CONFIGURATION
+            if (BuildConfig.DEBUG) android.util.Log.w("BepNhaAI", "AI call failed: ${FirebaseCalls.causes(e).joinToString(" <- ") { "${it.javaClass.simpleName}: ${it.message?.take(500)}" }}")
+            throw AssistantFailure(FirebaseCalls.classify(e))
         }
     }
 
     companion object {
-        private fun causes(error: Throwable): List<Throwable> = generateSequence(error) { it.cause?.takeUnless { next -> next === it } }.take(8).toList()
-
-        // The SDK exposes a ServerException message, not an HTTP status. Never display that raw body.
-        internal fun classifyServerMessage(message: String): AssistantFailureKind = when {
-            Regex("(?i)429|RESOURCE_EXHAUSTED|quota").containsMatchIn(message) -> AssistantFailureKind.QUOTA
-            Regex("(?i)504|DEADLINE_EXCEEDED|timed? ?out").containsMatchIn(message) -> AssistantFailureKind.TIMEOUT
-            Regex("(?i)500|502|503|UNAVAILABLE|overload|internal error").containsMatchIn(message) -> AssistantFailureKind.UNAVAILABLE
-            else -> AssistantFailureKind.CONFIGURATION
-        }
-
         internal fun declarations(): List<FunctionDeclaration> = AgentTools.specs.map { spec ->
             FunctionDeclaration(spec.name, spec.description, spec.parameters.mapValues { schema(it.value) }, spec.optional)
         }

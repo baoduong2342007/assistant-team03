@@ -12,7 +12,7 @@ Nhánh `feat/kitchen-agent`. Tài liệu này liệt kê cách kiểm tra từng
 | Mọi phần của app | Chọn bữa, mở sheet đổi món/nhắc nấu, chia sẻ danh sách đi chợ (bữa hoặc cả ngày), thêm vào lịch, xin quyền, đổi tên gia đình, mở "Nấu cùng tôi". |
 | Giọng nói | Nút micro lớn, đọc to câu trả lời, nói "đồng ý"/"không" để xác nhận, "hoàn tác" để trả lại. Cách xưng hô và tốc độ đọc ở màn Gia đình. |
 | Hồ sơ ăn uống | Ít muối, ít đường, mềm, ít dầu mỡ, chay; dị ứng; nguyên liệu tránh; thời gian và ngân sách. Áp dụng tự động cho mọi gợi ý. |
-| Chủ động | Lời chào tóm tắt bữa sắp tới. "Nấu cùng tôi" đọc từng bước, nhận lệnh "tiếp", "đọc lại", "hẹn giờ 10 phút". Thông báo nhắc nấu và nhắc đi chợ. |
+| Chủ động | Lời chào tóm tắt bữa sắp tới. "Nấu cùng tôi" đọc từng bước; bản debug có Firebase trò chuyện bằng Gemini Live (sang bước, hẹn/tắt hẹn giờ, hỏi về món đang nấu), còn lại nhận lệnh "tiếp", "đọc lại", "hẹn giờ 10 phút" trên máy. Thông báo nhắc nấu và nhắc đi chợ. |
 | Lịch sử | 30 tin nhắn gần nhất được lưu trên máy (chỉ chữ, không khôi phục đề xuất có thể chạy lại). Chỉ tin trong 6 giờ gần nhất được gửi cho AI. Có nút "Xóa lịch sử trò chuyện". |
 
 ## 1. Kiểm thử tự động không tốn quota
@@ -66,7 +66,7 @@ Dùng chữ hệ thống 200% và bật TalkBack ít nhất một lần.
 3. Bấm micro, nói "Lên thực đơn tuần này". Xem trước 14 bữa, bấm **Giữ bữa này như cũ** ở một bữa, nói "đồng ý".
 4. Kiểm tra Thực đơn: không có món chứa tôm, mọi món ít muối. Đi chợ và Vào bếp đã cập nhật.
 5. Nói "đánh dấu đã mua gạo" (làm ngay), rồi nói "hoàn tác".
-6. Vào bếp → **Nấu cùng tôi**: nói "tiếp", "đọc lại", "hẹn giờ 5 phút". Màn hình không tắt.
+6. Vào bếp → **Nấu cùng tôi**: nói "tiếp", "đọc lại", "hẹn giờ 5 phút". Màn hình không tắt. Với Gemini Live: bấm micro, hỏi "cá chín thì nhìn thế nào?", nói "xong rồi, tiếp đi", "hẹn giờ 5 phút", "tắt hẹn giờ"; bấm **Bước tiếp theo** (Gemini đọc bước); im lặng 60 giây (phiên tự đóng); bật chế độ máy bay rồi bấm micro (báo lỗi, chuyển về lệnh trên máy).
 7. Nói "gửi danh sách đi chợ cả ngày mai cho con": bảng chia sẻ của điện thoại mở ra.
 8. Đóng hẳn app, mở lại: lịch sử trò chuyện còn, không có đề xuất cũ nào bấm được.
 9. Bật chế độ máy bay, hỏi lại "tối mai đổi món canh thành canh chua cá": trợ lý trên máy trả lời và ghi rõ lý do.
@@ -79,3 +79,5 @@ Ghi lại chỗ người lớn tuổi bị vướng (không hiểu nút, nói kh
 - Mỗi bữa vẫn đúng 3 món; chưa có bữa sáng; mỗi lúc chỉ một đồng hồ hẹn giờ.
 - Định lượng, giá và tag của 46 món mới cần nhóm kiểm duyệt; hồ sơ ăn uống không thay cho lời khuyên của bác sĩ.
 - Nhận giọng nói phụ thuộc dịch vụ nhận dạng tiếng Việt trên máy; máy không có giọng đọc tiếng Việt thì không đọc to được.
+- Gemini Live là bản Preview: model, giọng và giới hạn free tier có thể đổi. Micro tạm tắt khi Gemini nói (không ngắt lời được). Kết nối bị server cắt khoảng 10 phút một lần; app tự mở phiên mới ở bước hiện tại.
+- App tự thu/phát âm thanh thay cho `startAudioConversation` của firebase-ai 18.2.0, vì hàm đó để lại một luồng chạy 100% CPU sau mỗi phiên. `LiveSession.receive()` của SDK vẫn chiếm một nhân CPU trong lúc phiên đang mở (SDK TODO b/410059569); phiên tự đóng sau 60 giây im lặng nên chi phí có giới hạn.

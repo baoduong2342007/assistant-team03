@@ -75,7 +75,8 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             runCatching { LocalTime.parse(item.optString("time", "07:00")) }.getOrDefault(LocalTime.of(7, 0)))
         } ?: ShoppingReminder()
         val voice = root.optJSONObject("voice")?.let { item -> VoiceSettings(VoiceSettings.clean(item.optString("address_as", "bạn")),
-            item.optBoolean("read_aloud", true), item.optDouble("rate", 0.85).toFloat().takeIf { it in 0.5f..1.5f } ?: 0.85f)
+            item.optBoolean("read_aloud", true), item.optDouble("rate", 0.85).toFloat().takeIf { it in 0.5f..1.5f } ?: 0.85f,
+            VoiceSettings.liveVoice(item.optString("live_voice", VoiceSettings.DEFAULT_LIVE_VOICE)))
         } ?: VoiceSettings()
         val diet = root.optJSONObject("diet")?.let { runCatching { dietFrom(it, engine) }.getOrNull() } ?: DietProfile()
         // Hand-added shopping items; past days are dropped so the store does not grow forever.
@@ -111,7 +112,7 @@ class PlannerStorage(context: Context, private val engine: PlannerEngine) {
             })
             .put("shopping", JSONObject().put("enabled", state.shopping.enabled).put("time", state.shopping.time.toString()))
             .put("voice", JSONObject().put("address_as", state.voice.addressAs).put("read_aloud", state.voice.readAloud)
-                .put("rate", state.voice.rate.toDouble()))
+                .put("rate", state.voice.rate.toDouble()).put("live_voice", state.voice.liveVoice))
             .put("diet", dietJson(state.diet))
             .put("extras", JSONObject().apply {
                 state.extras.forEach { (key, items) -> put(key, JSONArray().apply {

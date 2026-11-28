@@ -93,10 +93,18 @@ data class DietProfile(
 }
 
 /** How the assistant talks: what it calls the user, and whether/how fast it reads replies aloud. */
-data class VoiceSettings(val addressAs: String = "bạn", val readAloud: Boolean = true, val rate: Float = 0.85f) {
+data class VoiceSettings(
+    val addressAs: String = "bạn", val readAloud: Boolean = true, val rate: Float = 0.85f,
+    /** Gemini Live prebuilt voice used in "Nấu cùng tôi". */
+    val liveVoice: String = DEFAULT_LIVE_VOICE,
+) {
     companion object {
         val RATES = listOf(0.7f to "Chậm", 0.85f to "Vừa", 1.0f to "Nhanh")
+        const val DEFAULT_LIVE_VOICE = "Kore"
+        val LIVE_VOICES = listOf("Kore" to "Kore (nữ)", "Aoede" to "Aoede (nữ)", "Puck" to "Puck (nam)", "Charon" to "Charon (nam)")
         fun clean(addressAs: String) = addressAs.trim().take(20).ifBlank { "bạn" }
+        /** A known Live voice name, or the default. */
+        fun liveVoice(name: String?) = LIVE_VOICES.firstOrNull { it.first == name }?.first ?: DEFAULT_LIVE_VOICE
     }
 }
 data class CookingTimer(val id: Long, val end: Long, val label: String, val date: LocalDate, val meal: Meal)

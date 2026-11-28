@@ -22,6 +22,10 @@ android {
         def assistantModel = providers.gradleProperty('assistantModel').getOrElse('gemini-3.5-flash-lite')
         if (!(assistantModel ==~ /gemini-[A-Za-z0-9.-]+/)) throw new GradleException('Invalid assistantModel')
         buildConfigField 'String', 'ASSISTANT_MODEL', '"' + assistantModel + '"'
+        // "Nấu cùng tôi" talks through the Gemini Live API; the chat assistant keeps ASSISTANT_MODEL.
+        def cookLiveModel = providers.gradleProperty('cookLiveModel').getOrElse('gemini-3.1-flash-live-preview')
+        if (!(cookLiveModel ==~ /gemini-[A-Za-z0-9.-]+/)) throw new GradleException('Invalid cookLiveModel')
+        buildConfigField 'String', 'COOK_LIVE_MODEL', '"' + cookLiveModel + '"'
         def assistantTimeout = providers.gradleProperty('assistantTimeoutMs').getOrElse('25000')
         if (!(assistantTimeout ==~ /[1-9][0-9]{3,5}/)) throw new GradleException('Invalid assistantTimeoutMs')
         buildConfigField 'long', 'ASSISTANT_TIMEOUT_MS', assistantTimeout + 'L'
@@ -58,6 +62,7 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-tooling'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2'
     androidTestImplementation composeBom
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     androidTestImplementation 'androidx.test:runner:1.7.0'
