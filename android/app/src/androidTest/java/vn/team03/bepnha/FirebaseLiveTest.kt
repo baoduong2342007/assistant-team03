@@ -91,6 +91,45 @@ class FirebaseLiveTest {
         assertTrue(reply.exceptionOrNull()?.toString() ?: "", reply.isSuccess)
     }
 
+    /** "Nấu cùng tôi": connects to the Live model, hears its reply as a transcript and receives a function call. */
+    @Test fun liveCookSessionTalksAndCallsCookingFunctions() = runBlocking {
+        enabled()
+        InstrumentationRegistry.getInstrumentation().uiAutomation
+            .grantRuntimePermission(app.packageName, android.Manifest.permission.RECORD_AUDIO)
+        val calls = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val spoken = StringBuffer()
+        val engine = FirebaseLiveCookEngine(app)
+        val session = engine.open(vn.team03.bepnha.voice.LiveCookSetup(
+                "Bạn là trợ lý nấu ăn. Luôn nói tiếng Việt, thật ngắn. Khi được yêu cầu đọc lại bước, gọi hàm repeat_step rồi đọc trường step.",
+                VoiceSettings.DEFAULT_LIVE_VOICE,
+            ), object : vn.team03.bepnha.voice.LiveCookEvents {
+                override fun onCall(call: vn.team03.bepnha.voice.LiveCall): org.json.JSONObject {
+                    calls += call.name
+                    return org.json.JSONObject().put("ok", true).put("step", "Bước 1 trên 3. Rửa rau muống.")
+                }
+                override fun onTranscript(user: String?, model: String?) { model?.let(spoken::append) }
+                override fun onGoAway() = Unit
+                override fun onClosed(error: Throwable?) = Unit
+            })
+        assertTrue(engine.active)
+        try {
+            session.say("${CookLivePrompt.APP} Người nấu muốn nghe lại bước hiện tại. Hãy gọi repeat_step rồi đọc kết quả.")
+            val deadline = System.currentTimeMillis() + 30_000
+            while (System.currentTimeMillis() < deadline && (calls.isEmpty() || spoken.isBlank())) kotlinx.coroutines.delay(250)
+            android.util.Log.i("BepNhaLive", "calls=$calls spoken=$spoken")
+            assertEquals(listOf("repeat_step"), calls.distinct())
+            assertTrue("Gemini Live should answer aloud", spoken.isNotBlank())
+        } finally {
+            session.close()
+        }
+        // Nothing may keep running (or spinning) once the session has released its microphone and socket.
+        val closedBy = System.currentTimeMillis() + 5_000
+        while (engine.active && System.currentTimeMillis() < closedBy) kotlinx.coroutines.delay(100)
+        assertFalse("Live session loops should stop after close", engine.active)
+        val audio = Thread.getAllStackTraces().keys.filter { it.isAlive && it.name.startsWith("Firebase Audio") }
+        assertTrue("SDK audio threads left running: $audio", audio.isEmpty())
+    }
+
     @Test fun unregisteredDeviceCannotCallAI() = runBlocking {
         enabled("firebaseUnregistered")
         try {

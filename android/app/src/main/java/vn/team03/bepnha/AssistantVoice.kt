@@ -46,6 +46,14 @@ object AssistantVoice {
 
     fun askAgain(addressAs: String) = "Mình chưa nghe rõ. ${title(addressAs)} nói đồng ý để áp dụng, hoặc không để hủy nhé."
 
+    /** Like [error], for the cook screen: it has buttons but no text field to type in. */
+    fun cookError(kind: VoiceErrorKind, addressAs: String): String = when (kind) {
+        VoiceErrorKind.NotHeard -> "Mình chưa nghe rõ. ${title(addressAs)} bấm nút micro và nói lại nhé."
+        VoiceErrorKind.NoNetwork -> "Chưa nghe được giọng nói vì không có mạng. ${title(addressAs)} dùng các nút trên màn hình nhé."
+        VoiceErrorKind.NoPermission -> error(kind, addressAs)
+        VoiceErrorKind.Unsupported -> "Điện thoại này chưa nhận được giọng nói tiếng Việt. ${title(addressAs)} dùng các nút trên màn hình nhé."
+    }
+
     fun error(kind: VoiceErrorKind, addressAs: String): String = when (kind) {
         VoiceErrorKind.NotHeard -> "Mình chưa nghe rõ. ${title(addressAs)} bấm nút và nói lại nhé."
         VoiceErrorKind.NoNetwork -> "Chưa kết nối được để nghe giọng nói. ${title(addressAs)} có thể gõ chữ thay thế."
